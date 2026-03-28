@@ -82,6 +82,7 @@ const EmpireState = {
     freelance:         { id:'freelance',         name:'Freelance Services', status:'idle', tasksToday:0, revenue:0,    successRate:0,  errors:0, lastActive:null },
     ai_development:    { id:'ai_development',    name:'AI Development',     status:'idle', tasksToday:0, revenue:0,    successRate:0,  errors:0, lastActive:null },
     virtual_consultant:{ id:'virtual_consultant',name:'Virtual Consultant', status:'idle', tasksToday:0, revenue:0,    successRate:0,  errors:0, lastActive:null },
+    maintenance_bot:   { id:'maintenance_bot',   name:'Maintenance Bot',   status:'idle', tasksToday:0, revenue:0,    successRate:0,  errors:0, lastActive:null },
   },
   revenue: { linkedin: 0, social_media: 0, freelance: 0, ai_development: 0 },
   revenueHistory: [],  // { ts, value }
@@ -178,6 +179,16 @@ async function bootSubsystems() {
     logger.info('[Boot] Learning engine started.');
   } catch (err) {
     logger.error('[Boot] Learning engine failed to start:', err.message);
+  }
+
+  // Boot maintenance bot
+  try {
+    const maintenanceBot = require('../agents/maintenance_bot/agent');
+    maintenanceBot.start(EmpireState, logger, io);
+    global.maintenanceBot = maintenanceBot;
+    logger.info('[Boot] Maintenance Bot started.');
+  } catch (err) {
+    logger.error('[Boot] Maintenance Bot failed to start:', err.message);
   }
 
   logger.info('=== AI Empire Running ===');

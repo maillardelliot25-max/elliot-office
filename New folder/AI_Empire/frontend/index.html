@@ -31,6 +31,7 @@
       <span id="system-health" class="health-badge good">Health: 100%</span>
     </div>
     <div class="nav-actions">
+      <button id="btn-tutorial" class="btn btn-ghost" onclick="showTutorial()" title="How to use AI Empire">📖 Tutorial</button>
       <button id="btn-toggle-autopilot" class="btn btn-primary" onclick="toggleAutopilot()">⏸ Pause Autopilot</button>
       <button id="btn-logout" class="btn btn-ghost" onclick="logout()">Logout</button>
       <div id="user-avatar" class="avatar">AI</div>
@@ -69,6 +70,9 @@
       </li>
       <li class="nav-item" data-view="settings" onclick="navigateTo('settings')">
         <span class="nav-icon">⚙️</span><span class="nav-label">Settings</span>
+      </li>
+      <li class="nav-item" data-view="maintenance" onclick="navigateTo('maintenance')">
+        <span class="nav-icon">🔧</span><span class="nav-label">Maintenance</span>
       </li>
     </ul>
     <div class="sidebar-footer">
@@ -373,6 +377,103 @@
       </div>
     </section>
 
+    <!-- ---- MAINTENANCE VIEW ---- -->
+    <section id="view-maintenance" class="view">
+      <div class="view-header">
+        <h1>🔧 Maintenance Bot</h1>
+        <p class="subtitle">Create, edit, and run workflows. Monitor system health and auto-repair agents.</p>
+      </div>
+
+      <!-- Bot Status -->
+      <div class="kpi-grid" style="margin-bottom:1.5rem">
+        <div class="kpi-card">
+          <div class="kpi-icon">🤖</div>
+          <div class="kpi-body">
+            <div class="kpi-value" id="maint-status">Loading…</div>
+            <div class="kpi-label">Bot Status</div>
+          </div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-icon">💊</div>
+          <div class="kpi-body">
+            <div class="kpi-value" id="maint-heals">0</div>
+            <div class="kpi-label">Auto-Heals Today</div>
+          </div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-icon">📋</div>
+          <div class="kpi-body">
+            <div class="kpi-value" id="maint-workflows">0</div>
+            <div class="kpi-label">Workflows on Disk</div>
+          </div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-icon">⚡</div>
+          <div class="kpi-body">
+            <div class="kpi-value" id="maint-last-check">Never</div>
+            <div class="kpi-label">Last Health Check</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="settings-grid">
+
+        <!-- Create Workflow -->
+        <div class="settings-card">
+          <h3>➕ Create New Workflow</h3>
+          <form id="form-create-workflow" onsubmit="Maintenance.createWorkflow(event)">
+            <label>Workflow Name</label>
+            <input type="text" id="wf-name" placeholder="e.g. Email Follow-up Pipeline" required />
+            <label>Description</label>
+            <input type="text" id="wf-desc" placeholder="What does this workflow do?" />
+            <label>Steps (one per line)</label>
+            <textarea id="wf-steps" rows="4" placeholder="Send initial email&#10;Wait 24 hours&#10;Send follow-up&#10;Record revenue"></textarea>
+            <button type="submit" class="btn btn-primary">🔧 Create Workflow</button>
+          </form>
+        </div>
+
+        <!-- Edit Agent Config -->
+        <div class="settings-card">
+          <h3>⚙️ Edit Agent Config</h3>
+          <form id="form-edit-agent" onsubmit="Maintenance.editAgent(event)">
+            <label>Agent ID</label>
+            <select id="edit-agent-id">
+              <option value="linkedin">LinkedIn Outreach</option>
+              <option value="social_media">Social Media</option>
+              <option value="freelance">Freelance Services</option>
+              <option value="ai_development">AI Development</option>
+              <option value="virtual_consultant">Virtual Consultant</option>
+              <option value="maintenance_bot">Maintenance Bot</option>
+            </select>
+            <label>Config Updates (JSON)</label>
+            <textarea id="edit-agent-config" rows="4" placeholder='{"cycleIntervalHours": 2, "maxErrors": 10}'></textarea>
+            <button type="submit" class="btn btn-primary">💾 Apply Config</button>
+          </form>
+        </div>
+
+        <!-- Run Workflow -->
+        <div class="settings-card">
+          <h3>▶ Run Workflow</h3>
+          <div id="workflow-list-maint" style="margin-bottom:1rem;min-height:60px;">
+            <p style="color:var(--text-muted)">Loading workflows…</p>
+          </div>
+          <button class="btn btn-secondary" onclick="Maintenance.loadWorkflows()">🔄 Refresh List</button>
+        </div>
+
+        <!-- Health Check -->
+        <div class="settings-card">
+          <h3>💊 System Health</h3>
+          <p style="color:var(--text-muted);margin-bottom:1rem;">Trigger an immediate health check. The bot will auto-restart any failing agents and repopulate empty task queues.</p>
+          <button class="btn btn-primary" onclick="Maintenance.runHealthCheck()" style="margin-bottom:0.75rem;width:100%">🔍 Run Health Check Now</button>
+          <button class="btn btn-secondary" onclick="Maintenance.generateReport()" style="width:100%">📊 Generate Report</button>
+          <div id="maint-report-output" style="margin-top:1rem;display:none">
+            <pre id="maint-report-text" style="background:var(--surface-2);padding:1rem;border-radius:8px;font-size:0.75rem;overflow-x:auto;white-space:pre-wrap;color:var(--text-secondary)"></pre>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
   </main>
 
   <!-- ===================== TOAST NOTIFICATIONS ===================== -->
@@ -388,6 +489,285 @@
       </div>
     </div>
   </div>
+
+  <!-- ===================== TUTORIAL OVERLAY ===================== -->
+  <div id="tutorial-overlay" class="hidden" style="position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:10000;display:flex;align-items:center;justify-content:center;">
+    <div id="tutorial-box" style="background:var(--surface-1,#1a1a2e);border:1px solid var(--border,#2a2a4a);border-radius:16px;max-width:640px;width:95%;padding:2rem;position:relative;max-height:90vh;overflow-y:auto;">
+      <button onclick="closeTutorial()" style="position:absolute;top:1rem;right:1rem;background:none;border:none;color:var(--text-muted,#888);font-size:1.4rem;cursor:pointer;line-height:1">✕</button>
+
+      <!-- Step indicators -->
+      <div id="tut-steps" style="display:flex;gap:0.4rem;margin-bottom:1.5rem;justify-content:center;">
+        <span class="tut-dot active" data-step="0"></span>
+        <span class="tut-dot" data-step="1"></span>
+        <span class="tut-dot" data-step="2"></span>
+        <span class="tut-dot" data-step="3"></span>
+        <span class="tut-dot" data-step="4"></span>
+        <span class="tut-dot" data-step="5"></span>
+        <span class="tut-dot" data-step="6"></span>
+      </div>
+
+      <div id="tut-content"></div>
+
+      <div style="display:flex;gap:0.75rem;justify-content:flex-end;margin-top:1.5rem;">
+        <button id="tut-prev" class="btn btn-ghost" onclick="tutPrev()" style="display:none">← Back</button>
+        <button id="tut-next" class="btn btn-primary" onclick="tutNext()">Next →</button>
+        <button id="tut-done" class="btn btn-primary" onclick="closeTutorial()" style="display:none">🚀 Let's Go!</button>
+      </div>
+    </div>
+  </div>
+
+  <style>
+    .tut-dot { width:10px;height:10px;border-radius:50%;background:var(--border,#2a2a4a);display:inline-block;cursor:pointer;transition:background 0.2s; }
+    .tut-dot.active { background:var(--accent,#6c63ff); }
+    #tut-content h2 { font-size:1.4rem;margin-bottom:0.5rem;color:var(--text-primary,#fff); }
+    #tut-content p  { color:var(--text-secondary,#aaa);line-height:1.6;margin-bottom:0.75rem; }
+    #tut-content ul { color:var(--text-secondary,#aaa);padding-left:1.4rem;line-height:1.8; }
+    #tut-content .tut-icon { font-size:3rem;text-align:center;display:block;margin-bottom:1rem; }
+    #tut-content .tut-tip  { background:var(--surface-2,#252540);border-left:3px solid var(--accent,#6c63ff);padding:0.75rem 1rem;border-radius:4px;margin-top:1rem;font-size:0.875rem;color:var(--text-muted,#888); }
+    #tutorial-overlay.hidden { display:none !important; }
+  </style>
+
+  <script>
+    const TUT_STEPS = [
+      {
+        icon: '⚡',
+        title: 'Welcome to AI Empire',
+        body: `<p>AI Empire is a fully autonomous revenue system. Five AI agents work 24/7 to generate income across LinkedIn consulting, social media, freelance platforms, SaaS apps, and virtual consulting.</p>
+               <p>This tutorial walks you through every section of the dashboard in under 3 minutes.</p>
+               <div class="tut-tip">💡 Default login: <strong>admin@empire.ai</strong> / <strong>empire2024</strong> — change this in Settings after setup.</div>`
+      },
+      {
+        icon: '🏠',
+        title: 'Overview — Your Command Center',
+        body: `<p>The <strong>Overview</strong> tab is your main dashboard. At a glance you'll see:</p>
+               <ul>
+                 <li><strong>KPI cards</strong> — total revenue, active agents, tasks completed, self-heals</li>
+                 <li><strong>Revenue chart</strong> — live earnings over the last 24 hours</li>
+                 <li><strong>Agent grid</strong> — status of all 5 revenue agents</li>
+                 <li><strong>Activity feed</strong> — every action logged in real-time</li>
+               </ul>
+               <div class="tut-tip">💡 Click any agent card's <strong>Start</strong> button to activate it immediately.</div>`
+      },
+      {
+        icon: '🤖',
+        title: 'Agents — Your Revenue Workers',
+        body: `<p>Navigate to <strong>Agents</strong> to control each revenue bot individually:</p>
+               <ul>
+                 <li>💼 <strong>LinkedIn Outreach</strong> — connects, messages, books calls, closes deals</li>
+                 <li>📱 <strong>Social Media</strong> — posts content, earns affiliate commissions</li>
+                 <li>🛠️ <strong>Freelance Services</strong> — bids on Upwork/Fiverr projects</li>
+                 <li>🧬 <strong>AI Development</strong> — builds and monetises SaaS apps</li>
+                 <li>🎯 <strong>Virtual Consultant</strong> — handles inbound consulting inquiries as Alex Morgan</li>
+               </ul>
+               <div class="tut-tip">💡 Each agent has <strong>Start / Stop / Restart</strong> controls and a live log viewer.</div>`
+      },
+      {
+        icon: '✈️',
+        title: 'Autopilot & Workflows',
+        body: `<p><strong>Autopilot</strong> manages the task queue and keeps all agents running on schedule. Use <em>Pause / Resume</em> to temporarily halt all activity.</p>
+               <p><strong>Workflows</strong> are end-to-end revenue pipelines you can trigger manually:</p>
+               <ul>
+                 <li>LinkedIn Pipeline, Social Media Pipeline, Freelance Pipeline, AI Dev Pipeline</li>
+               </ul>
+               <div class="tut-tip">💡 Click <strong>Run Now</strong> on any workflow to force an immediate execution cycle.</div>`
+      },
+      {
+        icon: '💰',
+        title: 'Revenue & Analytics',
+        body: `<p>The <strong>Revenue</strong> tab shows earnings broken down by stream with projections.</p>
+               <p>The <strong>Analytics</strong> tab gives you time-series charts for tasks, API calls, error rate, and revenue. Use the range selector (24h / 7d / 30d / 90d).</p>
+               <p>Click <strong>Export CSV</strong> to download raw data for external analysis.</p>
+               <div class="tut-tip">💡 Set your monthly revenue target in <strong>Settings → Autopilot Config</strong> to track progress.</div>`
+      },
+      {
+        icon: '🔧',
+        title: 'Maintenance Bot',
+        body: `<p>The <strong>Maintenance</strong> tab gives you full control over the system:</p>
+               <ul>
+                 <li><strong>Create Workflow</strong> — generate a new pipeline file from a template</li>
+                 <li><strong>Edit Agent Config</strong> — change cycle intervals, deal values, error thresholds at runtime</li>
+                 <li><strong>Run Workflow</strong> — execute any workflow by name</li>
+                 <li><strong>Health Check</strong> — auto-detects and restarts failing agents instantly</li>
+                 <li><strong>Generate Report</strong> — full maintenance summary written to <code>logs/maintenance.log</code></li>
+               </ul>`
+      },
+      {
+        icon: '⚙️',
+        title: 'Settings — Connect Your APIs',
+        body: `<p>To activate real revenue generation, add your API credentials in <strong>Settings</strong>:</p>
+               <ul>
+                 <li><strong>LinkedIn</strong> Client ID + Secret (for outreach agent)</li>
+                 <li><strong>OpenAI</strong> API Key (for AI-generated proposals and content)</li>
+                 <li><strong>Twitter, Upwork</strong> keys (for social media + freelance agents)</li>
+                 <li><strong>Slack / Discord</strong> webhooks for alert notifications</li>
+               </ul>
+               <p>Without API keys the agents run in <em>simulation mode</em> — all activity is modelled but no real requests are sent.</p>
+               <div class="tut-tip">💡 Copy <code>.env.example</code> to <code>.env</code> in the project root and fill in values to persist credentials across restarts.</div>`
+      },
+    ];
+
+    let _tutStep = 0;
+
+    function showTutorial() {
+      _tutStep = 0;
+      document.getElementById('tutorial-overlay').classList.remove('hidden');
+      _renderTutStep();
+    }
+
+    function closeTutorial() {
+      document.getElementById('tutorial-overlay').classList.add('hidden');
+      localStorage.setItem('empire_tutorial_seen', '1');
+    }
+
+    function tutNext() {
+      if (_tutStep < TUT_STEPS.length - 1) { _tutStep++; _renderTutStep(); }
+    }
+
+    function tutPrev() {
+      if (_tutStep > 0) { _tutStep--; _renderTutStep(); }
+    }
+
+    function _renderTutStep() {
+      const s = TUT_STEPS[_tutStep];
+      document.getElementById('tut-content').innerHTML =
+        `<span class="tut-icon">${s.icon}</span><h2>${s.title}</h2>${s.body}`;
+      document.querySelectorAll('.tut-dot').forEach((d, i) => {
+        d.classList.toggle('active', i === _tutStep);
+      });
+      const isLast  = _tutStep === TUT_STEPS.length - 1;
+      const isFirst = _tutStep === 0;
+      document.getElementById('tut-prev').style.display = isFirst ? 'none' : '';
+      document.getElementById('tut-next').style.display = isLast  ? 'none' : '';
+      document.getElementById('tut-done').style.display = isLast  ? ''     : 'none';
+    }
+
+    // Auto-show tutorial for first-time visitors
+    document.addEventListener('DOMContentLoaded', () => {
+      if (!localStorage.getItem('empire_tutorial_seen')) {
+        setTimeout(showTutorial, 1800);
+      }
+    });
+  </script>
+
+  <!-- ===================== MAINTENANCE BOT JS ===================== -->
+  <script>
+    const Maintenance = {
+      async load() {
+        try {
+          const [statusRes, wfRes] = await Promise.all([
+            apiFetch('/api/maintenance/status'),
+            apiFetch('/api/maintenance/list-workflows'),
+          ]);
+          const status = await statusRes.json();
+          const wfData = await wfRes.json();
+
+          document.getElementById('maint-status').textContent    = status.running ? 'Online' : (status.status || 'Idle');
+          document.getElementById('maint-heals').textContent     = status.healsToday ?? status.autoHeals ?? 0;
+          document.getElementById('maint-workflows').textContent = (wfData.workflows || []).length;
+          document.getElementById('maint-last-check').textContent= status.lastHealthCheck
+            ? new Date(status.lastHealthCheck).toLocaleTimeString() : 'Never';
+
+          this._renderWorkflowList(wfData.workflows || []);
+        } catch (e) {
+          document.getElementById('maint-status').textContent = 'Unavailable';
+        }
+      },
+
+      _renderWorkflowList(workflows) {
+        const el = document.getElementById('workflow-list-maint');
+        if (!workflows.length) { el.innerHTML = '<p style="color:var(--text-muted)">No custom workflows yet.</p>'; return; }
+        el.innerHTML = workflows.map(wf =>
+          `<div style="display:flex;align-items:center;justify-content:space-between;padding:0.5rem 0;border-bottom:1px solid var(--border)">
+             <span style="color:var(--text-secondary)">${wf}</span>
+             <button class="btn btn-sm btn-primary" onclick="Maintenance.runWorkflow('${wf.replace('.js','')}')">▶ Run</button>
+           </div>`
+        ).join('');
+      },
+
+      async loadWorkflows() {
+        const res  = await apiFetch('/api/maintenance/list-workflows');
+        const data = await res.json();
+        this._renderWorkflowList(data.workflows || []);
+        showToast('Workflow list refreshed', 'success');
+      },
+
+      async createWorkflow(e) {
+        e.preventDefault();
+        const name  = document.getElementById('wf-name').value.trim();
+        const desc  = document.getElementById('wf-desc').value.trim();
+        const raw   = document.getElementById('wf-steps').value.trim();
+        const steps = raw ? raw.split('\n').map(s => s.trim()).filter(Boolean) : [];
+        try {
+          const res  = await apiFetch('/api/maintenance/create-workflow', 'POST', { name, description: desc, steps });
+          const data = await res.json();
+          if (data.error) throw new Error(data.error);
+          showToast(`Workflow "${name}" created!`, 'success');
+          document.getElementById('form-create-workflow').reset();
+          this.loadWorkflows();
+        } catch (err) { showToast('Failed: ' + err.message, 'error'); }
+      },
+
+      async editAgent(e) {
+        e.preventDefault();
+        const agentId = document.getElementById('edit-agent-id').value;
+        let updates;
+        try { updates = JSON.parse(document.getElementById('edit-agent-config').value || '{}'); }
+        catch { showToast('Invalid JSON in config field', 'error'); return; }
+        try {
+          const res  = await apiFetch('/api/maintenance/edit-agent', 'POST', { agentId, updates });
+          const data = await res.json();
+          if (data.error) throw new Error(data.error);
+          showToast(`Config applied to ${agentId}`, 'success');
+        } catch (err) { showToast('Failed: ' + err.message, 'error'); }
+      },
+
+      async runWorkflow(workflowId) {
+        try {
+          const res  = await apiFetch('/api/maintenance/run-workflow', 'POST', { workflowId });
+          const data = await res.json();
+          if (data.error) throw new Error(data.error);
+          showToast(`Workflow "${workflowId}" triggered`, 'success');
+        } catch (err) { showToast('Failed: ' + err.message, 'error'); }
+      },
+
+      async runHealthCheck() {
+        try {
+          const res  = await apiFetch('/api/maintenance/health-check', 'POST', {});
+          const data = await res.json();
+          if (data.error) throw new Error(data.error);
+          showToast('Health check triggered — check activity feed', 'success');
+        } catch (err) { showToast('Failed: ' + err.message, 'error'); }
+      },
+
+      async generateReport() {
+        try {
+          const res  = await apiFetch('/api/maintenance/report', 'POST', {});
+          const data = await res.json();
+          if (data.error) throw new Error(data.error);
+          const out = document.getElementById('maint-report-output');
+          document.getElementById('maint-report-text').textContent = JSON.stringify(data.report, null, 2);
+          out.style.display = 'block';
+          showToast('Report generated', 'success');
+        } catch (err) { showToast('Failed: ' + err.message, 'error'); }
+      },
+    };
+
+    // Load maintenance data when view is visited
+    document.addEventListener('DOMContentLoaded', () => {
+      const origNav = typeof navigateTo !== 'undefined' ? navigateTo : null;
+      // Hook into navigation — poll until dashboard.js defines navigateTo
+      const hookInterval = setInterval(() => {
+        if (typeof navigateTo === 'function') {
+          clearInterval(hookInterval);
+          const _orig = navigateTo;
+          window.navigateTo = function(view) {
+            _orig(view);
+            if (view === 'maintenance') Maintenance.load();
+          };
+        }
+      }, 200);
+    });
+  </script>
 
   <!-- ===================== SCRIPTS ===================== -->
   <script src="login.js"></script>

@@ -18,14 +18,14 @@ const REFRESH_SECRET     = process.env.REFRESH_SECRET     || 'refresh-secret-202
 const REFRESH_EXPIRES_IN = process.env.REFRESH_EXPIRES_IN || '7d';
 
 /* ===================== DEFAULT ADMIN (dev fallback) ===================== */
-// In production this lives in MongoDB. Hash of 'empire2024'.
+// Hash is generated at startup so it is always valid regardless of environment.
+// Default credentials: admin@empire.ai / empire2024
 const DEFAULT_ADMIN = {
   id:       'admin-001',
   email:    'admin@empire.ai',
   name:     'Empire Admin',
   role:     'admin',
-  // bcrypt hash of 'empire2024' (12 rounds)
-  password: '$2a$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewYpfFHmA5mVBbCa',
+  password: bcrypt.hashSync('empire2024', 10),
 };
 
 /* ===================== TOKEN HELPERS ===================== */

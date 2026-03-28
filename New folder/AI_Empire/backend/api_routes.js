@@ -117,6 +117,7 @@ module.exports = function buildApiRoutes(EmpireState, logger, io) {
       freelance:         { icon: '🛠️', description: 'Upwork, Fiverr, and Toptal bid automation' },
       ai_development:    { icon: '🧬', description: 'AI tool generation, deployment, and monetisation' },
       virtual_consultant:{ icon: '🎯', description: 'AI consultant persona and inquiry management' },
+      maintenance_bot:   { icon: '🔧', description: 'System health, workflow creation, and auto-repair' },
     };
 
     const agents = Object.values(EmpireState.agents).map(a => ({
@@ -517,6 +518,137 @@ module.exports = function buildApiRoutes(EmpireState, logger, io) {
     if (EmpireState.alerts.length > 100) EmpireState.alerts = EmpireState.alerts.slice(0, 100);
     broadcast('alert:new', alert);
     res.json({ success: true, alert });
+  });
+
+  /* ===================== MAINTENANCE BOT ===================== */
+
+  /**
+   * GET /api/maintenance/status
+   * Return maintenance bot status and last report.
+   */
+  router.get('/maintenance/status', requireAuth, (req, res) => {
+    const bot = global.maintenanceBot;
+    if (!bot) return res.json({ status: 'not_loaded', report: null });
+    res.json(bot.getStatus());
+  });
+
+  /**
+   * GET /api/maintenance/list-agents
+   * List all agent directories on disk.
+   */
+  router.get('/maintenance/list-agents', requireAuth, async (req, res) => {
+    const bot = global.maintenanceBot;
+    if (!bot) return res.status(503).json({ error: 'Maintenance bot not loaded' });
+    try {
+      const agents = await bot.listAgents();
+      res.json({ agents });
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  /**
+   * GET /api/maintenance/list-workflows
+   * List all workflow files on disk.
+   */
+  router.get('/maintenance/list-workflows', requireAuth, async (req, res) => {
+    const bot = global.maintenanceBot;
+    if (!bot) return res.status(503).json({ error: 'Maintenance bot not loaded' });
+    try {
+      const workflows = await bot.listWorkflows();
+      res.json({ workflows });
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  /**
+   * POST /api/maintenance/create-workflow
+   * Body: { name, description, steps[] }
+   * Create a new workflow file from a template.
+   */
+  router.post('/maintenance/create-workflow', requireAuth, async (req, res) => {
+    const bot = global.maintenanceBot;
+    if (!bot) return res.status(503).json({ error: 'Maintenance bot not loaded' });
+    const { name, description, steps } = req.body;
+    if (!name) return res.status(400).json({ error: 'name is required' });
+    try {
+      const result = await bot.createWorkflow({ name, description, steps });
+      broadcast('activity', { type: 'success', message: `🔧 Maintenance Bot created workflow: ${name}` });
+      res.json(result);
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  /**
+   * POST /api/maintenance/edit-agent
+   * Body: { agentId, updates{} }
+   * Apply runtime config changes to an agent.
+   */
+  router.post('/maintenance/edit-agent', requireAuth, async (req, res) => {
+    const bot = global.maintenanceBot;
+    if (!bot) return res.status(503).json({ error: 'Maintenance bot not loaded' });
+    const { agentId, updates } = req.body;
+    if (!agentId || !updates) return res.status(400).json({ error: 'agentId and updates are required' });
+    try {
+      const result = await bot.editAgentConfig(agentId, updates);
+      broadcast('activity', { type: 'info', message: `⚙️ Maintenance Bot updated agent config: ${agentId}` });
+      res.json(result);
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  /**
+   * POST /api/maintenance/run-workflow
+   * Body: { workflowId }
+   * Execute a workflow by ID.
+   */
+  router.post('/maintenance/run-workflow', requireAuth, async (req, res) => {
+    const bot = global.maintenanceBot;
+    if (!bot) return res.status(503).json({ error: 'Maintenance bot not loaded' });
+    const { workflowId } = req.body;
+    if (!workflowId) return res.status(400).json({ error: 'workflowId is required' });
+    try {
+      res.json({ success: true, message: `Workflow ${workflowId} triggered` });
+      // Run async after response
+      setImmediate(async () => {
+        await bot.runWorkflow(workflowId);
+      });
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  /**
+   * POST /api/maintenance/health-check
+   * Trigger an immediate health check.
+   */
+  router.post('/maintenance/health-check', requireAuth, async (req, res) => {
+    const bot = global.maintenanceBot;
+    if (!bot) return res.status(503).json({ error: 'Maintenance bot not loaded' });
+    try {
+      res.json({ success: true, message: 'Health check triggered' });
+      setImmediate(async () => { await bot.runHealthCheck(); });
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  /**
+   * POST /api/maintenance/report
+   * Generate and return a maintenance report.
+   */
+  router.post('/maintenance/report', requireAuth, async (req, res) => {
+    const bot = global.maintenanceBot;
+    if (!bot) return res.status(503).json({ error: 'Maintenance bot not loaded' });
+    try {
+      const report = await bot.generateReport();
+      res.json({ success: true, report });
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
   });
 
   /* ===================== SETTINGS ===================== */
