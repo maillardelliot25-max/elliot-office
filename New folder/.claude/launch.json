@@ -1,0 +1,23 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "AI Empire Backend (Node/Express)",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["backend/server.js"],
+      "port": 3000
+    },
+    {
+      "name": "AI Empire Frontend (Static)",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["serve", "frontend", "-p", "8080", "--no-clipboard"],
+      "port": 8080
+    },
+    {
+      "name": "AI Empire Backend (Dev/Nodemon)",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["nodemon", "backend/server.js"],
+      "port": 3000
+    }
+  ]
+}

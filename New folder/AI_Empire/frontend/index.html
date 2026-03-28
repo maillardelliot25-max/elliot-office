@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<!--
+  AI Empire – Main Entry Point (index.html)
+  Purpose: Landing page and shell for the full AI Empire dashboard SPA.
+  All views are loaded dynamically via dashboard.js.
+  Communicates with backend at /api/* endpoints.
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AI Empire – Command Center</title>
+  <link rel="stylesheet" href="styles.css" />
+  <!-- Chart.js for analytics graphs -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <!-- Socket.IO client for real-time updates -->
+  <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+</head>
+<body class="dark-theme">
+
+  <!-- ===================== TOP NAV ===================== -->
+  <nav id="top-nav">
+    <div class="nav-brand">
+      <span class="logo-icon">⚡</span>
+      <span class="logo-text">AI Empire</span>
+      <span class="build-tag">v1.0.0 · God Mode</span>
+    </div>
+    <div class="nav-status">
+      <span id="empire-status" class="status-badge running">AUTOPILOT: ON</span>
+      <span id="live-revenue" class="revenue-ticker">Revenue: $0.00</span>
+      <span id="system-health" class="health-badge good">Health: 100%</span>
+    </div>
+    <div class="nav-actions">
+      <button id="btn-toggle-autopilot" class="btn btn-primary" onclick="toggleAutopilot()">⏸ Pause Autopilot</button>
+      <button id="btn-logout" class="btn btn-ghost" onclick="logout()">Logout</button>
+      <div id="user-avatar" class="avatar">AI</div>
+    </div>
+  </nav>
+
+  <!-- ===================== SIDEBAR ===================== -->
+  <aside id="sidebar">
+    <ul class="nav-menu">
+      <li class="nav-item active" data-view="overview" onclick="navigateTo('overview')">
+        <span class="nav-icon">🏠</span><span class="nav-label">Overview</span>
+      </li>
+      <li class="nav-item" data-view="agents" onclick="navigateTo('agents')">
+        <span class="nav-icon">🤖</span><span class="nav-label">Agents</span>
+        <span class="badge" id="badge-agents">5</span>
+      </li>
+      <li class="nav-item" data-view="autopilot" onclick="navigateTo('autopilot')">
+        <span class="nav-icon">✈️</span><span class="nav-label">Autopilot</span>
+      </li>
+      <li class="nav-item" data-view="workflows" onclick="navigateTo('workflows')">
+        <span class="nav-icon">🔄</span><span class="nav-label">Workflows</span>
+        <span class="badge" id="badge-workflows">4</span>
+      </li>
+      <li class="nav-item" data-view="revenue" onclick="navigateTo('revenue')">
+        <span class="nav-icon">💰</span><span class="nav-label">Revenue</span>
+      </li>
+      <li class="nav-item" data-view="analytics" onclick="navigateTo('analytics')">
+        <span class="nav-icon">📊</span><span class="nav-label">Analytics</span>
+      </li>
+      <li class="nav-item" data-view="learning" onclick="navigateTo('learning')">
+        <span class="nav-icon">🧠</span><span class="nav-label">Self-Learning</span>
+      </li>
+      <li class="nav-item" data-view="alerts" onclick="navigateTo('alerts')">
+        <span class="nav-icon">🚨</span><span class="nav-label">Alerts</span>
+        <span class="badge alert-badge" id="badge-alerts">0</span>
+      </li>
+      <li class="nav-item" data-view="settings" onclick="navigateTo('settings')">
+        <span class="nav-icon">⚙️</span><span class="nav-label">Settings</span>
+      </li>
+    </ul>
+    <div class="sidebar-footer">
+      <div class="uptime-display">
+        <span class="label">Uptime</span>
+        <span id="uptime-counter" class="value">0d 0h 0m</span>
+      </div>
+      <div class="tasks-display">
+        <span class="label">Tasks Done</span>
+        <span id="tasks-counter" class="value">0</span>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ===================== MAIN CONTENT ===================== -->
+  <main id="main-content">
+
+    <!-- ---- OVERVIEW VIEW ---- -->
+    <section id="view-overview" class="view active">
+      <div class="view-header">
+        <h1>Empire Overview</h1>
+        <p class="subtitle">Real-time status of all agents, revenue streams, and system health.</p>
+      </div>
+
+      <!-- KPI Cards -->
+      <div class="kpi-grid">
+        <div class="kpi-card">
+          <div class="kpi-icon">💰</div>
+          <div class="kpi-body">
+            <span class="kpi-label">Total Revenue</span>
+            <span class="kpi-value" id="kpi-revenue">$0.00</span>
+            <span class="kpi-delta positive" id="kpi-revenue-delta">+$0.00 today</span>
+          </div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-icon">🤖</div>
+          <div class="kpi-body">
+            <span class="kpi-label">Active Agents</span>
+            <span class="kpi-value" id="kpi-agents">0 / 5</span>
+            <span class="kpi-delta" id="kpi-agents-status">All systems go</span>
+          </div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-icon">✅</div>
+          <div class="kpi-body">
+            <span class="kpi-label">Tasks Completed</span>
+            <span class="kpi-value" id="kpi-tasks">0</span>
+            <span class="kpi-delta positive" id="kpi-tasks-delta">+0 this hour</span>
+          </div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-icon">🧠</div>
+          <div class="kpi-body">
+            <span class="kpi-label">Learning Cycles</span>
+            <span class="kpi-value" id="kpi-learning">0</span>
+            <span class="kpi-delta" id="kpi-learning-info">Last: never</span>
+          </div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-icon">💊</div>
+          <div class="kpi-body">
+            <span class="kpi-label">Self-Heals</span>
+            <span class="kpi-value" id="kpi-heals">0</span>
+            <span class="kpi-delta" id="kpi-heals-info">Auto-fixed errors</span>
+          </div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-icon">📡</div>
+          <div class="kpi-body">
+            <span class="kpi-label">API Calls</span>
+            <span class="kpi-value" id="kpi-api-calls">0</span>
+            <span class="kpi-delta" id="kpi-api-info">Last 24h</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Agent Status Grid -->
+      <div class="section-title">Agent Status</div>
+      <div class="agent-status-grid" id="agent-status-grid">
+        <!-- Populated by dashboard.js -->
+      </div>
+
+      <!-- Revenue Chart -->
+      <div class="chart-row">
+        <div class="chart-card wide">
+          <div class="chart-title">Revenue Over Time</div>
+          <canvas id="chart-revenue-overview" height="120"></canvas>
+        </div>
+        <div class="chart-card">
+          <div class="chart-title">Revenue by Stream</div>
+          <canvas id="chart-revenue-pie" height="120"></canvas>
+        </div>
+      </div>
+
+      <!-- Live Activity Feed -->
+      <div class="section-title">Live Activity Feed</div>
+      <div class="activity-feed" id="activity-feed">
+        <div class="feed-item placeholder">Waiting for agent activity…</div>
+      </div>
+    </section>
+
+    <!-- ---- AGENTS VIEW ---- -->
+    <section id="view-agents" class="view">
+      <div class="view-header">
+        <h1>Agent Control Center</h1>
+        <p class="subtitle">Start, stop, configure, and monitor individual AI agents.</p>
+        <button class="btn btn-primary" onclick="Dashboard.refreshAgents()">↻ Refresh</button>
+      </div>
+      <div class="agents-grid" id="agents-grid">
+        <!-- Populated by dashboard.js -->
+      </div>
+    </section>
+
+    <!-- ---- AUTOPILOT VIEW ---- -->
+    <section id="view-autopilot" class="view">
+      <div class="view-header">
+        <h1>Autopilot Engine</h1>
+        <p class="subtitle">Task scheduler, priority queue, and adaptive workflow manager.</p>
+      </div>
+      <div class="autopilot-panel">
+        <div class="panel-card">
+          <h3>Task Queue</h3>
+          <div id="task-queue-list" class="task-list">Loading…</div>
+        </div>
+        <div class="panel-card">
+          <h3>Scheduler</h3>
+          <div id="scheduler-list" class="schedule-list">Loading…</div>
+        </div>
+        <div class="panel-card">
+          <h3>Priority Override</h3>
+          <form id="priority-form" onsubmit="submitPriorityOverride(event)">
+            <label>Agent</label>
+            <select id="priority-agent">
+              <option value="linkedin">LinkedIn Outreach</option>
+              <option value="social_media">Social Media</option>
+              <option value="freelance">Freelance Services</option>
+              <option value="ai_development">AI Development</option>
+              <option value="virtual_consultant">Virtual Consultant</option>
+            </select>
+            <label>Priority (1-10)</label>
+            <input type="number" id="priority-value" min="1" max="10" value="5" />
+            <button type="submit" class="btn btn-primary">Set Priority</button>
+          </form>
+        </div>
+      </div>
+    </section>
+
+    <!-- ---- WORKFLOWS VIEW ---- -->
+    <section id="view-workflows" class="view">
+      <div class="view-header">
+        <h1>Workflow Pipelines</h1>
+        <p class="subtitle">Monitor and trigger automated revenue pipelines.</p>
+      </div>
+      <div class="workflow-cards" id="workflow-cards">
+        <!-- Populated by dashboard.js -->
+      </div>
+    </section>
+
+    <!-- ---- REVENUE VIEW ---- -->
+    <section id="view-revenue" class="view">
+      <div class="view-header">
+        <h1>Revenue Dashboard</h1>
+        <p class="subtitle">Track, project, and optimize all automated income streams.</p>
+      </div>
+      <div class="revenue-grid">
+        <div class="revenue-stream-card" id="rev-linkedin">
+          <div class="stream-icon">💼</div>
+          <div class="stream-name">LinkedIn Outreach</div>
+          <div class="stream-amount" id="rev-linkedin-amount">$0.00</div>
+          <div class="stream-bar"><div class="bar-fill" id="rev-linkedin-bar" style="width:0%"></div></div>
+        </div>
+        <div class="revenue-stream-card" id="rev-social">
+          <div class="stream-icon">📱</div>
+          <div class="stream-name">Social Media</div>
+          <div class="stream-amount" id="rev-social-amount">$0.00</div>
+          <div class="stream-bar"><div class="bar-fill" id="rev-social-bar" style="width:0%"></div></div>
+        </div>
+        <div class="revenue-stream-card" id="rev-freelance">
+          <div class="stream-icon">🛠️</div>
+          <div class="stream-name">Freelance Services</div>
+          <div class="stream-amount" id="rev-freelance-amount">$0.00</div>
+          <div class="stream-bar"><div class="bar-fill" id="rev-freelance-bar" style="width:0%"></div></div>
+        </div>
+        <div class="revenue-stream-card" id="rev-aidev">
+          <div class="stream-icon">🧬</div>
+          <div class="stream-name">AI Development</div>
+          <div class="stream-amount" id="rev-aidev-amount">$0.00</div>
+          <div class="stream-bar"><div class="bar-fill" id="rev-aidev-bar" style="width:0%"></div></div>
+        </div>
+      </div>
+      <canvas id="chart-revenue-detail" height="80"></canvas>
+    </section>
+
+    <!-- ---- ANALYTICS VIEW ---- -->
+    <section id="view-analytics" class="view">
+      <div class="view-header">
+        <h1>Analytics & Reports</h1>
+        <p class="subtitle">Deep-dive metrics, trend analysis, and performance reports.</p>
+      </div>
+      <div class="analytics-controls">
+        <select id="analytics-range" onchange="Dashboard.loadAnalytics()">
+          <option value="24h">Last 24 Hours</option>
+          <option value="7d">Last 7 Days</option>
+          <option value="30d">Last 30 Days</option>
+          <option value="all">All Time</option>
+        </select>
+        <button class="btn btn-secondary" onclick="Dashboard.exportReport()">⬇ Export CSV</button>
+      </div>
+      <div class="chart-grid">
+        <div class="chart-card"><canvas id="chart-tasks-over-time"></canvas></div>
+        <div class="chart-card"><canvas id="chart-agent-performance"></canvas></div>
+        <div class="chart-card"><canvas id="chart-api-calls"></canvas></div>
+        <div class="chart-card"><canvas id="chart-error-rate"></canvas></div>
+      </div>
+    </section>
+
+    <!-- ---- LEARNING VIEW ---- -->
+    <section id="view-learning" class="view">
+      <div class="view-header">
+        <h1>Self-Learning Engine</h1>
+        <p class="subtitle">Knowledge scraping, model refinement, and adaptive strategy updates.</p>
+      </div>
+      <div class="learning-panel">
+        <div class="panel-card">
+          <h3>Knowledge Sources</h3>
+          <div id="knowledge-sources-list">Loading…</div>
+          <button class="btn btn-primary mt-2" onclick="Dashboard.triggerLearnCycle()">▶ Run Learning Cycle</button>
+        </div>
+        <div class="panel-card">
+          <h3>Recent Insights</h3>
+          <div id="insights-list" class="insights-feed">Loading…</div>
+        </div>
+        <div class="panel-card">
+          <h3>Strategy Updates</h3>
+          <div id="strategy-updates-list">Loading…</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ---- ALERTS VIEW ---- -->
+    <section id="view-alerts" class="view">
+      <div class="view-header">
+        <h1>Alerts & Self-Healing</h1>
+        <p class="subtitle">System alerts, auto-fix logs, and manual intervention queue.</p>
+      </div>
+      <div class="alerts-panel">
+        <div id="alerts-list" class="alerts-list">No alerts – all systems operational.</div>
+      </div>
+      <div class="section-title mt-4">Self-Healing Log</div>
+      <div id="healing-log" class="log-panel">No self-healing events recorded.</div>
+    </section>
+
+    <!-- ---- SETTINGS VIEW ---- -->
+    <section id="view-settings" class="view">
+      <div class="view-header">
+        <h1>Empire Settings</h1>
+        <p class="subtitle">Configure agents, integrations, API keys, and autopilot behavior.</p>
+      </div>
+      <div class="settings-grid">
+        <div class="settings-card">
+          <h3>API Credentials</h3>
+          <form id="form-credentials" onsubmit="Settings.saveCredentials(event)">
+            <label>OpenAI API Key</label>
+            <input type="password" id="cfg-openai-key" placeholder="sk-…" />
+            <label>LinkedIn Client ID</label>
+            <input type="text" id="cfg-linkedin-id" placeholder="LinkedIn OAuth Client ID" />
+            <label>LinkedIn Client Secret</label>
+            <input type="password" id="cfg-linkedin-secret" placeholder="Secret" />
+            <label>Twitter/X Bearer Token</label>
+            <input type="password" id="cfg-twitter-token" placeholder="Bearer …" />
+            <label>Upwork API Key</label>
+            <input type="password" id="cfg-upwork-key" placeholder="Upwork key" />
+            <button type="submit" class="btn btn-primary">Save Credentials</button>
+          </form>
+        </div>
+        <div class="settings-card">
+          <h3>Autopilot Configuration</h3>
+          <form id="form-autopilot-cfg" onsubmit="Settings.saveAutopilot(event)">
+            <label>Task Interval (minutes)</label>
+            <input type="number" id="cfg-task-interval" value="5" min="1" max="60" />
+            <label>Max Concurrent Agents</label>
+            <input type="number" id="cfg-max-agents" value="5" min="1" max="10" />
+            <label>Revenue Target ($/month)</label>
+            <input type="number" id="cfg-rev-target" value="10000" min="0" />
+            <label>Self-Heal Retries</label>
+            <input type="number" id="cfg-heal-retries" value="3" min="1" max="10" />
+            <button type="submit" class="btn btn-primary">Save Config</button>
+          </form>
+        </div>
+        <div class="settings-card">
+          <h3>Notification Webhooks</h3>
+          <form id="form-webhooks" onsubmit="Settings.saveWebhooks(event)">
+            <label>Slack Webhook URL</label>
+            <input type="text" id="cfg-slack-webhook" placeholder="https://hooks.slack.com/…" />
+            <label>Discord Webhook URL</label>
+            <input type="text" id="cfg-discord-webhook" placeholder="https://discord.com/api/webhooks/…" />
+            <label>Email Alert Address</label>
+            <input type="email" id="cfg-alert-email" placeholder="alerts@yourdomain.com" />
+            <button type="submit" class="btn btn-primary">Save Webhooks</button>
+          </form>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ===================== TOAST NOTIFICATIONS ===================== -->
+  <div id="toast-container"></div>
+
+  <!-- ===================== MODAL ===================== -->
+  <div id="modal-overlay" class="hidden">
+    <div id="modal-box">
+      <div id="modal-title"></div>
+      <div id="modal-body"></div>
+      <div class="modal-actions">
+        <button class="btn btn-ghost" onclick="closeModal()">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================== SCRIPTS ===================== -->
+  <script src="login.js"></script>
+  <script src="dashboard.js"></script>
+
+</body>
+</html>

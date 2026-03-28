@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git -C \"/c/Users/reinaldo nurse\" remote -v)",
+      "Bash(git -C \"/c/Users/reinaldo nurse\" branch -a)",
+      "Bash(git -C \"/c/Users/reinaldo nurse\" rev-parse --show-toplevel)",
+      "Bash(git -C \"C:/Users/reinaldo nurse\" remote -v)",
+      "Bash(git -C \"C:/Users/reinaldo nurse\" status --short)"
+    ]
+  }
+}
