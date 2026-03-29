@@ -5,7 +5,8 @@
       "name": "AI Empire Backend (Node/Express)",
       "runtimeExecutable": "node",
       "runtimeArgs": ["AI_Empire/backend/server.js"],
-      "port": 3000
+      "port": 4000,
+      "env": {"PORT": "4000"}
     },
     {
       "name": "AI Empire Frontend (Static)",
