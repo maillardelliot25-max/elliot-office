@@ -1,0 +1,37 @@
+fastapi==0.104.1
+uvicorn==0.24.0
+python-dotenv==1.0.0
+httpx==0.25.2
+pydantic==2.5.0
+
+# LangGraph & LangChain (core)
+langgraph==0.0.51
+langchain==0.1.0
+langchain-core==0.1.2
+langchain-community==0.0.15
+
+# Local LLM (FREE)
+ollama==0.1.0
+
+# Local Embeddings (FREE)
+sentence-transformers==2.2.2
+
+# Local Vector DB (FREE)
+chromadb==0.3.21
+
+# Google (Gmail, OAuth)
+google-auth-oauthlib==1.2.0
+google-auth-httplib2==0.2.0
+google-api-python-client==2.108.0
+
+# DevOps
+PyGithub==2.1.1
+requests==2.31.0
+
+# Utilities
+python-logging==0.4.9.7
+
+# Async
+asyncio==3.4.3
+
+# No Redis needed for free tier — local in-memory queues
