@@ -401,22 +401,54 @@
             <input type="text" id="cfg-bank-routing" placeholder="Routing number" />
             <input type="password" id="cfg-bank-account-num" placeholder="Account number" />
 
-            <label style="font-weight:600;color:var(--accent);margin-top:1rem">💳 Add Your Credit Card (Payout Account)</label>
-            <p style="color:var(--text-muted);font-size:0.85rem;margin-bottom:0.5rem">Enter your card to receive payouts directly. Secure via Stripe (industry standard).</p>
-            <div id="stripe-card-container" style="padding:10px;background:var(--surface-2);border:1px solid var(--border);border-radius:6px;margin-bottom:1rem"></div>
-            <input type="text" id="cfg-card-name" placeholder="Cardholder name" style="width:100%;margin-bottom:0.5rem" />
-            <button type="button" class="btn btn-secondary" onclick="StripePayment.addCard(event)" style="width:100%;margin-bottom:1rem">✅ Add Card to Account</button>
-            <div id="payment-cards-list" style="background:var(--surface-2);padding:1rem;border-radius:6px;margin-top:1rem;display:none">
-              <p style="color:var(--text-muted);font-size:0.85rem">Saved cards:</p>
-              <div id="saved-cards-display"></div>
+            <label style="font-weight:600;color:var(--accent);margin-top:1rem">💳 Add Your Credit Card (via Linx)</label>
+            <p style="color:var(--text-muted);font-size:0.85rem;margin-bottom:1rem">Linx is the safest payment processor for Trinidad & Caribbean. Accepts Visa, Mastercard, local bank transfers.</p>
+
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;margin-bottom:1rem">
+              <div>
+                <label style="font-size:0.85rem">Card Number</label>
+                <input type="text" id="cfg-card-number" placeholder="1234 5678 9012 3456" maxlength="19" style="width:100%" />
+              </div>
+              <div>
+                <label style="font-size:0.85rem">Cardholder Name</label>
+                <input type="text" id="cfg-card-name" placeholder="Your Full Name" style="width:100%" />
+              </div>
+              <div>
+                <label style="font-size:0.85rem">Expires (MM)</label>
+                <input type="number" id="cfg-card-expiry-month" placeholder="01" min="1" max="12" style="width:100%" />
+              </div>
+              <div>
+                <label style="font-size:0.85rem">Expires (YY)</label>
+                <input type="number" id="cfg-card-expiry-year" placeholder="25" min="25" max="99" style="width:100%" />
+              </div>
+              <div style="grid-column:1/-1">
+                <label style="font-size:0.85rem">CVV/CVC (3 digits on back)</label>
+                <input type="password" id="cfg-card-cvv" placeholder="123" maxlength="4" style="width:100%" />
+              </div>
             </div>
+            <button type="button" class="btn btn-secondary" onclick="LinxPayment.addCard(event)" style="width:100%;margin-bottom:1rem">✅ Add Card via Linx</button>
 
-            <label style="font-weight:600;color:var(--accent);margin-top:1rem">Stripe (Self-Hosted Optional)</label>
-            <input type="password" id="cfg-stripe-key" placeholder="sk_live_… (Secret key) — optional" />
-            <input type="text" id="cfg-stripe-webhook-secret" placeholder="Webhook signing secret — optional" />
+            <label style="font-weight:600;color:var(--accent);margin-top:1.5rem">🏦 Trinidad Bank Transfer Account</label>
+            <p style="color:var(--text-muted);font-size:0.85rem;margin-bottom:1rem">Alternative: Receive payouts via direct bank transfer from your Trinidad bank.</p>
 
-            <p style="color:#FFD93D;margin-top:1rem;font-size:0.85rem">🔒 All data encrypted. Never shared. Card processed securely by Stripe.</p>
-            <button type="submit" class="btn btn-primary" style="margin-top:1rem">Save Payment Settings</button>
+            <div style="display:grid;grid-template-columns:1fr;gap:0.75rem;margin-bottom:1rem">
+              <div>
+                <label style="font-size:0.85rem">Bank Code (e.g., 002 for Republic Bank)</label>
+                <input type="text" id="cfg-bank-code" placeholder="002" style="width:100%" />
+              </div>
+              <div>
+                <label style="font-size:0.85rem">Account Number</label>
+                <input type="text" id="cfg-bank-account-num" placeholder="Your account number" style="width:100%" />
+              </div>
+              <div>
+                <label style="font-size:0.85rem">Account Holder Name</label>
+                <input type="text" id="cfg-bank-holder" placeholder="Your name on the account" style="width:100%" />
+              </div>
+            </div>
+            <button type="button" class="btn btn-secondary" onclick="LinxPayment.addBankAccount(event)" style="width:100%;margin-bottom:1rem">✅ Add Bank Account</button>
+
+            <p style="color:#FFD93D;margin-top:1.5rem;font-size:0.85rem">🔒 All data encrypted. Never stored. Card details sent directly to Linx (PCI-DSS compliant).</p>
+            <button type="submit" class="btn btn-primary" style="margin-top:1rem">Save All Payment Settings</button>
           </form>
         </div>
       </div>
@@ -1205,7 +1237,7 @@
   <script src="login.js"></script>
   <script src="dashboard.js"></script>
   <script src="agent-office.js"></script>
-  <script src="stripe-payment.js"></script>
+  <script src="linx-payment.js"></script>
 
 </body>
 </html>
