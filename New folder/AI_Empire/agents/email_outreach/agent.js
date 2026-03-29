@@ -171,13 +171,12 @@ async function runCycle(logger, io, EmpireState) {
   leadPipeline = [...active, ...done];
 
   // Update empire state
-  if (EmpireState?.agents) {
-    const agent = EmpireState.agents.find(a => a.id === AGENT_ID);
-    if (agent) {
-      agent.status     = 'running';
-      agent.tasksToday = (agent.tasksToday || 0) + emailsSent;
-      agent.lastRun    = new Date().toISOString();
-    }
+  if (EmpireState?.agents?.[AGENT_ID]) {
+    const agent = EmpireState.agents[AGENT_ID];
+    agent.status     = 'running';
+    agent.tasksToday = (agent.tasksToday || 0) + emailsSent;
+    agent.lastRun    = new Date().toISOString();
+    agent.lastActive = new Date().toISOString();
   }
 
   logger.info(`[${AGENT_NAME}] Sent ${emailsSent} emails. Active pipeline: ${leadPipeline.filter(l => l.status === 'active').length}`);
