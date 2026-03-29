@@ -80,6 +80,9 @@
       <li class="nav-item" data-view="maintenance" onclick="navigateTo('maintenance')">
         <span class="nav-icon">🔧</span><span class="nav-label">Maintenance</span>
       </li>
+      <li class="nav-item" data-view="agent-office" onclick="navigateTo('agent-office')">
+        <span class="nav-icon">🏢</span><span class="nav-label">Agent Office</span>
+      </li>
     </ul>
     <div class="sidebar-footer">
       <div class="uptime-display">
@@ -378,6 +381,32 @@
             <label>Email Alert Address</label>
             <input type="email" id="cfg-alert-email" placeholder="alerts@yourdomain.com" />
             <button type="submit" class="btn btn-primary">Save Webhooks</button>
+          </form>
+        </div>
+        <div class="settings-card">
+          <h3>💰 Payment Accounts (Where Money Lands)</h3>
+          <form id="form-payment-setup" onsubmit="Settings.savePaymentAccounts(event)">
+            <p style="color:var(--text-muted);margin-bottom:1rem;font-size:0.875rem">Enter your real payment account details so webhook payments go to the right place.</p>
+
+            <label style="font-weight:600;color:var(--accent);margin-top:1rem">Wise Account</label>
+            <input type="email" id="cfg-wise-email" placeholder="your@email.com (registered with Wise)" />
+            <input type="text" id="cfg-wise-webhook-secret" placeholder="Webhook Secret (from Wise dashboard)" />
+
+            <label style="font-weight:600;color:var(--accent);margin-top:1rem">PayPal Business Account</label>
+            <input type="email" id="cfg-paypal-email" placeholder="business@paypal.com" />
+            <input type="text" id="cfg-paypal-webhook-id" placeholder="Webhook ID (from PayPal dashboard)" />
+
+            <label style="font-weight:600;color:var(--accent);margin-top:1rem">Bank Account (for Payoneer/Payout)</label>
+            <input type="text" id="cfg-bank-account" placeholder="Account nickname" />
+            <input type="text" id="cfg-bank-routing" placeholder="Routing number" />
+            <input type="password" id="cfg-bank-account-num" placeholder="Account number" />
+
+            <label style="font-weight:600;color:var(--accent);margin-top:1rem">Stripe (Optional)</label>
+            <input type="password" id="cfg-stripe-key" placeholder="sk_live_… (Secret key)" />
+            <input type="text" id="cfg-stripe-webhook-secret" placeholder="Webhook signing secret" />
+
+            <p style="color:#FFD93D;margin-top:1rem;font-size:0.85rem">🔒 All data encrypted. Never shared. Used only to verify webhooks and identify your account.</p>
+            <button type="submit" class="btn btn-primary" style="margin-top:1rem">Save Payment Accounts</button>
           </form>
         </div>
       </div>
@@ -746,6 +775,20 @@
           </div>
         </div>
 
+      </div>
+    </section>
+
+    <!-- ---- AGENT OFFICE VIEW ---- -->
+    <section id="view-agent-office" class="view">
+      <div class="view-header">
+        <h1>🏢 Agent Office — See Your AI Team Work</h1>
+        <p class="subtitle">Watch 7 AI agents work in real-time. Each character shows what they're doing right now.</p>
+      </div>
+      <div class="settings-card">
+        <p style="color:var(--text-muted);margin-bottom:1rem;font-size:0.9rem">
+          🟢 Green = Running | 🟠 Orange = Idle | 🟡 Yellow = Working<br/>
+          Tasks update every 3 seconds. Watch them generate leads, post content, and build products.
+        </p>
       </div>
     </section>
 
@@ -1151,6 +1194,7 @@
   <!-- ===================== SCRIPTS ===================== -->
   <script src="login.js"></script>
   <script src="dashboard.js"></script>
+  <script src="agent-office.js"></script>
 
 </body>
 </html>

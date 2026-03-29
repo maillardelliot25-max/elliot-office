@@ -915,6 +915,38 @@ const Settings = {
       showToast(`Save failed: ${err.message}`, 'error');
     }
   },
+
+  async savePaymentAccounts(e) {
+    e.preventDefault();
+    const payments = {
+      wise: {
+        email: getVal('cfg-wise-email'),
+        webhookSecret: getVal('cfg-wise-webhook-secret'),
+      },
+      paypal: {
+        email: getVal('cfg-paypal-email'),
+        webhookId: getVal('cfg-paypal-webhook-id'),
+      },
+      bank: {
+        accountNickname: getVal('cfg-bank-account'),
+        routingNumber: getVal('cfg-bank-routing'),
+        accountNumber: getVal('cfg-bank-account-num'), // encrypted before sending
+      },
+      stripe: {
+        secretKey: getVal('cfg-stripe-key'),
+        webhookSecret: getVal('cfg-stripe-webhook-secret'),
+      },
+    };
+    try {
+      await apiFetch(`${API_BASE}/settings/payment-accounts`, {
+        method: 'POST',
+        body: JSON.stringify(payments)
+      });
+      showToast('✅ Payment accounts saved securely. Webhooks now connected.', 'success');
+    } catch (err) {
+      showToast(`Save failed: ${err.message}`, 'error');
+    }
+  },
 };
 
 /* ===================== ALERT BADGE ===================== */
