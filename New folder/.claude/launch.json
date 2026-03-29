@@ -4,19 +4,19 @@
     {
       "name": "AI Empire Backend (Node/Express)",
       "runtimeExecutable": "node",
-      "runtimeArgs": ["backend/server.js"],
+      "runtimeArgs": ["AI_Empire/backend/server.js"],
       "port": 3000
     },
     {
       "name": "AI Empire Frontend (Static)",
       "runtimeExecutable": "npx",
-      "runtimeArgs": ["serve", "frontend", "-p", "8080", "--no-clipboard"],
+      "runtimeArgs": ["serve", "AI_Empire/frontend", "-p", "8080", "--no-clipboard"],
       "port": 8080
     },
     {
       "name": "AI Empire Backend (Dev/Nodemon)",
       "runtimeExecutable": "npx",
-      "runtimeArgs": ["nodemon", "backend/server.js"],
+      "runtimeArgs": ["nodemon", "AI_Empire/backend/server.js"],
       "port": 3000
     }
   ]
