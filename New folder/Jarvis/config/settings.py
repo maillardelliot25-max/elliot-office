@@ -23,20 +23,23 @@ class Settings:
     IDLE_POLL_SECONDS:      int = int(os.getenv("IDLE_POLL_SECONDS", 15))
 
     # ── AI Models ────────────────────────────────────────────────
-    ANTHROPIC_API_KEY:      str = os.getenv("ANTHROPIC_API_KEY", "")
-    OPENAI_API_KEY:         str = os.getenv("OPENAI_API_KEY", "")       # embeddings only
+    ANTHROPIC_API_KEY:      str = os.getenv("ANTHROPIC_API_KEY", "")   # Claude brain
+    GOOGLE_API_KEY:         str = os.getenv("GOOGLE_API_KEY", "")      # Nanobanana + Veo (images/video)
 
-    # ── Memory (Pinecone) ────────────────────────────────────────
-    PINECONE_API_KEY:       str = os.getenv("PINECONE_API_KEY", "")
-    PINECONE_INDEX_NAME:    str = os.getenv("PINECONE_INDEX_NAME", "jarvis-memory")
+    # ── Memory (local Chroma — free) ─────────────────────────────
+    CHROMA_PERSIST_DIR:     str = os.getenv("CHROMA_PERSIST_DIR", "./jarvis_memory")
 
     # ── Voice (Vapi) ─────────────────────────────────────────────
     VAPI_API_KEY:           str = os.getenv("VAPI_API_KEY", "")
     VAPI_PHONE_NUMBER_ID:   str = os.getenv("VAPI_PHONE_NUMBER_ID", "")
     VAPI_ASSISTANT_ID:      str = os.getenv("VAPI_ASSISTANT_ID", "")
 
+    # ── Telegram (Primary channel — zero restrictions) ───────────
+    TELEGRAM_BOT_TOKEN:       str = os.getenv("TELEGRAM_BOT_TOKEN", "")
+    TELEGRAM_CHAT_ID:         str = os.getenv("TELEGRAM_CHAT_ID", "")
+
     # ── WhatsApp (Meta Cloud API) ────────────────────────────────
-    WHATSAPP_PHONE_NUMBER_ID: str = os.getenv("WHATSAPP_PHONE_NUMBER_ID", "")
+    WHATSAPP_PHONE_NUMBER_ID: str = os.getenv("WHATSAPP_PHONE_NUMBER_ID", "880684635006473")
     WHATSAPP_ACCESS_TOKEN:    str = os.getenv("WHATSAPP_ACCESS_TOKEN", "")
     WHATSAPP_VERIFY_TOKEN:    str = os.getenv("WHATSAPP_VERIFY_TOKEN", "jarvis-verify-2026")
 
@@ -50,6 +53,12 @@ class Settings:
     LINKEDIN_CLIENT_ID:     str = os.getenv("LINKEDIN_CLIENT_ID", "")
     LINKEDIN_CLIENT_SECRET: str = os.getenv("LINKEDIN_CLIENT_SECRET", "")
     LINKEDIN_ACCESS_TOKEN:  str = os.getenv("LINKEDIN_ACCESS_TOKEN", "")
+
+    # ── Image & Video Generation (Nanobanana = Google Gemini) ────
+    # GOOGLE_API_KEY above covers this — same key for brain + images + video
+
+    # ── Screen Vision ────────────────────────────────────────────
+    SCREEN_CAPTURE_ENABLED: bool = os.getenv("SCREEN_CAPTURE_ENABLED", "true").lower() == "true"
 
     # ── GitHub (Autonomous Deployment) ───────────────────────────
     GITHUB_TOKEN:           str = os.getenv("GITHUB_TOKEN", "")
@@ -65,15 +74,13 @@ class Settings:
 
     def validate(self) -> list[str]:
         """Returns a list of missing critical credentials."""
-        critical = {
-            "ANTHROPIC_API_KEY":         self.ANTHROPIC_API_KEY,
-            "OPENAI_API_KEY":            self.OPENAI_API_KEY,
-            "PINECONE_API_KEY":          self.PINECONE_API_KEY,
-            "OWNER_WHATSAPP_NUMBER":     self.OWNER_WHATSAPP_NUMBER,
-            "WHATSAPP_ACCESS_TOKEN":     self.WHATSAPP_ACCESS_TOKEN,
-            "GMAIL_REFRESH_TOKEN":       self.GMAIL_REFRESH_TOKEN,
-        }
-        return [k for k, v in critical.items() if not v]
+        # Free edition: only Telegram OR WhatsApp required (not both)
+        has_telegram  = bool(self.TELEGRAM_BOT_TOKEN and self.TELEGRAM_CHAT_ID)
+        has_whatsapp  = bool(self.WHATSAPP_ACCESS_TOKEN)
+        missing = []
+        if not has_telegram and not has_whatsapp:
+            missing.append("TELEGRAM_BOT_TOKEN or WHATSAPP_ACCESS_TOKEN (need at least one)")
+        return missing
 
 
 settings = Settings()
