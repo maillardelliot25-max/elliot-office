@@ -173,24 +173,40 @@ function connectSocket() {
  * @param {object} options - fetch options
  * @returns {Promise<any>} - Parsed JSON response
  */
-async function apiFetch(path, options = {}) {
+async function apiFetch(path, options = {}, { retries = 3, baseDelay = 600 } = {}) {
   const token = localStorage.getItem('empire_token');
   const headers = {
     'Content-Type': 'application/json',
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
     ...(options.headers || {}),
   };
-  const res = await fetch(path, { ...options, headers });
-  if (res.status === 401) {
-    showToast('Session expired – please log in again.', 'error');
-    logout();
-    throw new Error('Unauthorized');
+
+  let lastErr;
+  for (let attempt = 1; attempt <= retries; attempt++) {
+    try {
+      const res = await fetch(path, { ...options, headers });
+      if (res.status === 401) {
+        showToast('Session expired – please log in again.', 'error');
+        logout();
+        throw new Error('Unauthorized');
+      }
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ message: `HTTP ${res.status}` }));
+        throw new Error(err.message);
+      }
+      return await res.json();
+    } catch (err) {
+      lastErr = err;
+      if (err.message === 'Unauthorized') throw err;   // don't retry auth failures
+      if (attempt < retries) {
+        const delay = baseDelay * Math.pow(2, attempt - 1);
+        console.warn(`[apiFetch] ${path} failed (attempt ${attempt}/${retries}): ${err.message}. Retry in ${delay}ms`);
+        await new Promise(r => setTimeout(r, delay));
+      }
+    }
   }
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({ message: `HTTP ${res.status}` }));
-    throw new Error(err.message);
-  }
-  return res.json();
+  console.error(`[apiFetch] ${path} permanently failed: ${lastErr?.message}`);
+  throw lastErr;
 }
 
 /* ===================== DASHBOARD NAMESPACE ===================== */
