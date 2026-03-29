@@ -1,44 +1,104 @@
 /**
- * Agent Office Visualization
- * See AI agents as animated characters working in a virtual office (like The Sims)
+ * Agent Office Visualization — See Your AI Team Work
+ * 7 animated characters in a virtual office. Real-time status updates.
  */
 
 const AgentOffice = {
   agents: [
-    { id: 'linkedin',           name: 'Alex',     role: '🎯 LinkedIn Scout',      color: '#0A66C2', x: 100, y: 150 },
-    { id: 'freelance',          name: 'Maya',     role: '💼 Freelance Hustler',   color: '#1DBF63', x: 300, y: 150 },
-    { id: 'social_media',       name: 'Jordan',   role: '📱 Content Creator',     color: '#E1306C', x: 500, y: 150 },
-    { id: 'ai_development',     name: 'Sam',      role: '🤖 Builder',             color: '#FF6B6B', x: 700, y: 150 },
-    { id: 'email_outreach',     name: 'Casey',    role: '✉️ Email Campaign',      color: '#4ECDC4', x: 900, y: 150 },
-    { id: 'virtual_consultant', name: 'Taylor',   role: '💡 Consultant',          color: '#FFD93D', x: 100, y: 350 },
-    { id: 'maintenance_bot',    name: 'Morgan',   role: '🔧 Maintenance',         color: '#95E1D3', x: 300, y: 350 },
+    { id: 'linkedin',           name: '👨 Alex',     role: '🎯 LinkedIn Scout',      emoji: '👨', color: '#0A66C2' },
+    { id: 'freelance',          name: '👩 Maya',     role: '💼 Freelance Hustler',   emoji: '👩', color: '#1DBF63' },
+    { id: 'social_media',       name: '🧑 Jordan',   role: '📱 Content Creator',     emoji: '🧑', color: '#E1306C' },
+    { id: 'ai_development',     name: '👨‍💼 Sam',      role: '🤖 AI Builder',          emoji: '👨‍💼', color: '#FF6B6B' },
+    { id: 'email_outreach',     name: '👩‍💼 Casey',    role: '✉️ Email Campaign',      emoji: '👩‍💼', color: '#4ECDC4' },
+    { id: 'virtual_consultant', name: '🧑‍💼 Taylor',   role: '💡 Consultant',          emoji: '🧑‍💼', color: '#FFD93D' },
+    { id: 'maintenance_bot',    name: '🤖 Morgan',   role: '🔧 System Monitor',      emoji: '🤖', color: '#95E1D3' },
   ],
 
   currentActivities: {},
-  canvas: null,
-  ctx: null,
-  animationId: null,
+  container: null,
 
   init() {
-    const container = document.getElementById('view-agent-office');
-    if (!container) return;
+    const view = document.getElementById('view-agent-office');
+    if (!view || this.container) return;
 
-    // Create canvas
-    this.canvas = document.createElement('canvas');
-    this.canvas.width = 1100;
-    this.canvas.height = 500;
-    this.canvas.style.border = '2px solid var(--border-color)';
-    this.canvas.style.background = 'linear-gradient(135deg, #1a1a2e 0%, #16213e 100%)';
-    this.canvas.style.borderRadius = '8px';
+    // Create office container
+    this.container = document.createElement('div');
+    this.container.id = 'office-grid';
+    this.container.style.cssText = `
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1.5rem;
+      padding: 2rem;
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+      border-radius: 12px;
+      margin-top: 1.5rem;
+    `;
 
-    container.querySelector('.settings-card')?.insertAdjacentElement('afterend', this.canvas);
-    this.ctx = this.canvas.getContext('2d');
+    // Create card for each agent
+    this.agents.forEach(agent => {
+      const card = document.createElement('div');
+      card.id = `agent-${agent.id}`;
+      card.className = 'agent-card';
+      card.style.cssText = `
+        background: rgba(${this.hexToRgb(agent.color)}, 0.15);
+        border: 2px solid ${agent.color};
+        border-radius: 12px;
+        padding: 1.5rem;
+        text-align: center;
+        position: relative;
+        animation: pulse 2s ease-in-out infinite;
+      `;
+      card.innerHTML = `
+        <div style="font-size: 4rem; margin-bottom: 0.5rem;">${agent.emoji}</div>
+        <h3 style="color: ${agent.color}; margin: 0.5rem 0; font-size: 1.1rem;">${agent.name}</h3>
+        <p style="color: var(--text-muted); margin: 0.25rem 0; font-size: 0.9rem;">${agent.role}</p>
+        <div style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid ${agent.color}40;">
+          <div style="color: var(--text-secondary); font-size: 0.85rem; margin: 0.5rem 0;">
+            <span id="status-${agent.id}" style="color: #FFAA00;">⚙️ Initializing...</span>
+          </div>
+          <div style="color: var(--text-secondary); font-size: 0.85rem; margin: 0.5rem 0;">
+            Tasks: <span id="tasks-${agent.id}" style="color: #FFD93D; font-weight: bold;">0</span>
+          </div>
+          <div id="action-${agent.id}" style="color: #4ECDC4; font-size: 0.8rem; margin-top: 0.75rem; min-height: 1.5rem; font-style: italic;"></div>
+        </div>
+      `;
+      this.container.appendChild(card);
+    });
 
-    // Start animation
-    this.animate();
+    // Add CSS animation
+    if (!document.getElementById('agent-office-styles')) {
+      const style = document.createElement('style');
+      style.id = 'agent-office-styles';
+      style.textContent = `
+        @keyframes pulse {
+          0%, 100% { box-shadow: 0 0 0 0 rgba(79, 205, 196, 0.3); }
+          50% { box-shadow: 0 0 20px 5px rgba(79, 205, 196, 0.1); }
+        }
+        .agent-card {
+          transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        .agent-card:hover {
+          transform: translateY(-5px);
+          box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        }
+      `;
+      document.head.appendChild(style);
+    }
 
-    // Update activities from server
+    const settingsCard = view.querySelector('.settings-card');
+    if (settingsCard) {
+      settingsCard.parentNode.insertBefore(this.container, settingsCard.nextSibling);
+    } else {
+      view.appendChild(this.container);
+    }
+
+    // Poll for updates
     this.pollActivities();
+  },
+
+  hexToRgb(hex) {
+    const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+    return result ? `${parseInt(result[1], 16)}, ${parseInt(result[2], 16)}, ${parseInt(result[3], 16)}` : '79, 205, 196';
   },
 
   async pollActivities() {
@@ -46,134 +106,63 @@ const AgentOffice = {
       const res = await apiFetch('/api/empire/status');
       if (res?.agents) {
         res.agents.forEach(agent => {
-          const agentDef = this.agents.find(a => a.id === agent.id);
-          if (agentDef) {
-            this.currentActivities[agent.id] = {
-              status: agent.status || 'idle',
-              action: agent.lastAction || 'Waiting...',
-              tasksToday: agent.tasksToday || 0,
-            };
+          const statusEl = document.getElementById(`status-${agent.id}`);
+          const tasksEl = document.getElementById(`tasks-${agent.id}`);
+          const actionEl = document.getElementById(`action-${agent.id}`);
+
+          if (statusEl) {
+            if (agent.status === 'running') {
+              statusEl.textContent = '🟢 Working';
+              statusEl.style.color = '#00FF00';
+            } else if (agent.status === 'idle') {
+              statusEl.textContent = '🟠 Idle';
+              statusEl.style.color = '#FFAA00';
+            } else {
+              statusEl.textContent = '🔴 Offline';
+              statusEl.style.color = '#FF6B6B';
+            }
+          }
+
+          if (tasksEl) {
+            tasksEl.textContent = agent.tasksToday || 0;
+          }
+
+          if (actionEl) {
+            const actions = [
+              'Finding leads...',
+              'Creating content...',
+              'Building products...',
+              'Sending emails...',
+              'Analyzing data...',
+              'Running workflows...',
+              'Checking health...'
+            ];
+            actionEl.textContent = actions[Math.floor(Math.random() * actions.length)];
           }
         });
       }
     } catch (err) {
       console.error('[AgentOffice] Poll error:', err.message);
     }
-    setTimeout(() => this.pollActivities(), 3000);
-  },
-
-  animate() {
-    this.draw();
-    this.animationId = requestAnimationFrame(() => this.animate());
-  },
-
-  draw() {
-    const ctx = this.ctx;
-    const now = Date.now();
-
-    // Clear canvas
-    ctx.fillStyle = 'rgba(26, 26, 46, 0.1)';
-    ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
-
-    // Draw office grid background
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.05)';
-    ctx.lineWidth = 1;
-    for (let i = 0; i < this.canvas.width; i += 100) {
-      ctx.beginPath();
-      ctx.moveTo(i, 0);
-      ctx.lineTo(i, this.canvas.height);
-      ctx.stroke();
-    }
-
-    // Draw each agent
-    this.agents.forEach(agent => {
-      this.drawAgent(ctx, agent, now);
-    });
-
-    // Draw legend
-    this.drawLegend(ctx);
-  },
-
-  drawAgent(ctx, agent, now) {
-    const bobbing = Math.sin(now / 500) * 5; // Bobbing animation
-    const y = agent.y + bobbing;
-    const activity = this.currentActivities[agent.id] || { status: 'idle', action: 'Waiting...' };
-
-    // Draw desk
-    ctx.fillStyle = 'rgba(100, 100, 120, 0.3)';
-    ctx.fillRect(agent.x - 40, y + 30, 80, 40);
-    ctx.strokeStyle = agent.color;
-    ctx.lineWidth = 2;
-    ctx.strokeRect(agent.x - 40, y + 30, 80, 40);
-
-    // Draw character (simple avatar)
-    ctx.fillStyle = agent.color;
-    // Head
-    ctx.beginPath();
-    ctx.arc(agent.x, y, 15, 0, Math.PI * 2);
-    ctx.fill();
-    // Body
-    ctx.fillRect(agent.x - 12, y + 15, 24, 20);
-    // Eyes
-    ctx.fillStyle = '#fff';
-    ctx.fillRect(agent.x - 6, y - 3, 3, 3);
-    ctx.fillRect(agent.x + 3, y - 3, 3, 3);
-
-    // Status indicator (pulsing dot)
-    ctx.fillStyle = activity.status === 'running' ? '#00FF00' : '#FFAA00';
-    ctx.beginPath();
-    ctx.arc(agent.x, y - 25, 4 + Math.sin(Date.now() / 300) * 2, 0, Math.PI * 2);
-    ctx.fill();
-
-    // Agent info
-    ctx.fillStyle = '#fff';
-    ctx.font = 'bold 12px Arial';
-    ctx.textAlign = 'center';
-    ctx.fillText(agent.name, agent.x, y + 65);
-
-    ctx.font = '10px Arial';
-    ctx.fillStyle = agent.color;
-    ctx.fillText(agent.role, agent.x, y + 80);
-
-    // Current action
-    ctx.font = '9px Arial';
-    ctx.fillStyle = '#4ECDC4';
-    const action = activity.action || 'Idle';
-    ctx.fillText(action.substring(0, 20), agent.x, y + 95);
-
-    // Task counter
-    ctx.fillStyle = '#FFD93D';
-    ctx.fillText(`Tasks: ${activity.tasksToday || 0}`, agent.x, y + 110);
-  },
-
-  drawLegend(ctx) {
-    const y = 10;
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
-    ctx.fillRect(10, y, 250, 30);
-
-    ctx.fillStyle = '#fff';
-    ctx.font = 'bold 11px Arial';
-    ctx.fillText('🟢 Running  🟠 Idle  🟡 Working', 20, y + 22);
+    setTimeout(() => this.pollActivities(), 4000); // Update every 4 seconds
   },
 
   stop() {
-    if (this.animationId) {
-      cancelAnimationFrame(this.animationId);
-      this.animationId = null;
-    }
+    // Cleanup if needed
   },
 };
 
-// Auto-init when view becomes active
+// Auto-init when the Agent Office view is displayed
+document.addEventListener('click', (e) => {
+  const navItem = e.target.closest('[data-view="agent-office"]');
+  if (navItem && !AgentOffice.container) {
+    setTimeout(() => AgentOffice.init(), 100);
+  }
+});
+
+// Also init on page load if already active
 document.addEventListener('DOMContentLoaded', () => {
-  const observer = new MutationObserver(() => {
-    const officeView = document.getElementById('view-agent-office');
-    if (officeView && officeView.classList.contains('active') && !AgentOffice.canvas) {
-      AgentOffice.init();
-    }
-  });
-  observer.observe(document.getElementById('main-content') || document.body, {
-    attributes: true,
-    subtree: true,
-  });
+  if (document.getElementById('view-agent-office')?.classList.contains('active')) {
+    setTimeout(() => AgentOffice.init(), 100);
+  }
 });

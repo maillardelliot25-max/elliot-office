@@ -401,12 +401,22 @@
             <input type="text" id="cfg-bank-routing" placeholder="Routing number" />
             <input type="password" id="cfg-bank-account-num" placeholder="Account number" />
 
-            <label style="font-weight:600;color:var(--accent);margin-top:1rem">Stripe (Optional)</label>
-            <input type="password" id="cfg-stripe-key" placeholder="sk_live_… (Secret key)" />
-            <input type="text" id="cfg-stripe-webhook-secret" placeholder="Webhook signing secret" />
+            <label style="font-weight:600;color:var(--accent);margin-top:1rem">💳 Add Your Credit Card (Payout Account)</label>
+            <p style="color:var(--text-muted);font-size:0.85rem;margin-bottom:0.5rem">Enter your card to receive payouts directly. Secure via Stripe (industry standard).</p>
+            <div id="stripe-card-container" style="padding:10px;background:var(--surface-2);border:1px solid var(--border);border-radius:6px;margin-bottom:1rem"></div>
+            <input type="text" id="cfg-card-name" placeholder="Cardholder name" style="width:100%;margin-bottom:0.5rem" />
+            <button type="button" class="btn btn-secondary" onclick="StripePayment.addCard(event)" style="width:100%;margin-bottom:1rem">✅ Add Card to Account</button>
+            <div id="payment-cards-list" style="background:var(--surface-2);padding:1rem;border-radius:6px;margin-top:1rem;display:none">
+              <p style="color:var(--text-muted);font-size:0.85rem">Saved cards:</p>
+              <div id="saved-cards-display"></div>
+            </div>
 
-            <p style="color:#FFD93D;margin-top:1rem;font-size:0.85rem">🔒 All data encrypted. Never shared. Used only to verify webhooks and identify your account.</p>
-            <button type="submit" class="btn btn-primary" style="margin-top:1rem">Save Payment Accounts</button>
+            <label style="font-weight:600;color:var(--accent);margin-top:1rem">Stripe (Self-Hosted Optional)</label>
+            <input type="password" id="cfg-stripe-key" placeholder="sk_live_… (Secret key) — optional" />
+            <input type="text" id="cfg-stripe-webhook-secret" placeholder="Webhook signing secret — optional" />
+
+            <p style="color:#FFD93D;margin-top:1rem;font-size:0.85rem">🔒 All data encrypted. Never shared. Card processed securely by Stripe.</p>
+            <button type="submit" class="btn btn-primary" style="margin-top:1rem">Save Payment Settings</button>
           </form>
         </div>
       </div>
@@ -1195,6 +1205,7 @@
   <script src="login.js"></script>
   <script src="dashboard.js"></script>
   <script src="agent-office.js"></script>
+  <script src="stripe-payment.js"></script>
 
 </body>
 </html>
