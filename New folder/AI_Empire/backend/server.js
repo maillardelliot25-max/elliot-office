@@ -84,7 +84,7 @@ const EmpireState = {
     virtual_consultant:{ id:'virtual_consultant',name:'Virtual Consultant', status:'idle', tasksToday:0, revenue:0,    successRate:0,  errors:0, lastActive:null },
     maintenance_bot:   { id:'maintenance_bot',   name:'Maintenance Bot',   status:'idle', tasksToday:0, revenue:0,    successRate:0,  errors:0, lastActive:null },
   },
-  revenue: { linkedin: 0, social_media: 0, freelance: 0, ai_development: 0 },
+  revenue: { linkedin: 0, social_media: 0, freelance: 0, ai_development: 0, consulting: 0, digital_products: 0, saas: 0, manual: 0 },
   revenueHistory: [],  // { ts, value }
   tasks: [],
   alerts: [],
@@ -104,12 +104,17 @@ const EmpireState = {
 };
 
 /* ===================== ROUTE IMPORTS ===================== */
-const apiRoutes  = require('./api_routes');
-const authRoutes = require('./auth');
+const apiRoutes     = require('./api_routes');
+const authRoutes    = require('./auth');
+const webhookRoutes = require('./webhooks');
 
 // Mount routes
-app.use('/api/auth',    authRoutes(EmpireState, logger, io));
-app.use('/api',         apiRoutes(EmpireState, logger, io));
+app.use('/api/auth',         authRoutes(EmpireState, logger, io));
+app.use('/api',              apiRoutes(EmpireState, logger, io));
+// Webhook routes — no auth required (verified via signatures)
+app.use('/webhooks',         webhookRoutes(EmpireState, logger, io));
+// Manual revenue entry — also accessible via /api/revenue/manual
+app.use('/api/revenue',      webhookRoutes(EmpireState, logger, io));
 
 /* ===================== SPA FALLBACK ===================== */
 // Serve index.html for all non-API routes (SPA client-side routing)

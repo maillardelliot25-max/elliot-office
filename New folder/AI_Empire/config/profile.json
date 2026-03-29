@@ -1,0 +1,149 @@
+{
+  "_comment": "AI Empire — Elliot Maillard's Master Profile Config",
+  "_note": "This file drives branding, persona, and agent behavior across the entire system.",
+
+  "owner": {
+    "name":           "Elliot Maillard",
+    "initials":       "EM",
+    "brand":          "Maillard AI",
+    "tagline":        "Automating businesses. Multiplying revenue.",
+    "email":          "elliot@maillard.ai",
+    "location":       "Remote — Worldwide",
+    "timezone":       "EST",
+    "availability":   "Mon–Fri, 9am–7pm EST",
+    "linkedin_url":   "https://linkedin.com/in/elliot-maillard",
+    "fiverr_url":     "https://fiverr.com/elliotmaillard",
+    "upwork_url":     "https://upwork.com/freelancers/elliotmaillard",
+    "website":        "https://maillard.ai",
+    "calendly_url":   "https://calendly.com/elliot-maillard/discovery"
+  },
+
+  "services": [
+    "AI Automation Setup & Integration",
+    "Chatbot & AI Assistant Development",
+    "LinkedIn Lead Generation Systems",
+    "Social Media Content Automation",
+    "Business Process Automation (n8n, Zapier, Make)",
+    "OpenAI / Claude API Integration",
+    "SaaS App Development",
+    "CRM Automation (HubSpot, Salesforce)",
+    "E-commerce AI Agents",
+    "Data Pipeline Automation"
+  ],
+
+  "revenue": {
+    "monthly_target": 10000,
+    "currency":       "USD",
+    "streams": {
+      "freelance":        { "label": "Freelance (Fiverr/Upwork/PPH)", "color": "#6c63ff" },
+      "consulting":       { "label": "Consulting (LinkedIn/Bark)",     "color": "#00d4aa" },
+      "digital_products": { "label": "Digital Products (Gumroad)",     "color": "#ff6584" },
+      "saas":             { "label": "SaaS & Apps",                    "color": "#ffd93d" },
+      "social_media":     { "label": "Social & Affiliate",             "color": "#4ecdc4" },
+      "manual":           { "label": "Direct / Other",                 "color": "#a8dadc" }
+    }
+  },
+
+  "platforms": {
+    "freelance": [
+      { "id": "fiverr",        "name": "Fiverr",         "url": "https://fiverr.com",        "active": true,  "payout": "Payoneer/PayPal" },
+      { "id": "upwork",        "name": "Upwork",         "url": "https://upwork.com",        "active": true,  "payout": "Payoneer/Bank" },
+      { "id": "peopleperhour", "name": "PeoplePerHour",  "url": "https://peopleperhour.com", "active": true,  "payout": "PayPal/Bank" },
+      { "id": "guru",          "name": "Guru.com",       "url": "https://guru.com",          "active": true,  "payout": "PayPal/Bank/eCheck" },
+      { "id": "contra",        "name": "Contra",         "url": "https://contra.com",        "active": true,  "payout": "Stripe (0% fee)" },
+      { "id": "freelancer",    "name": "Freelancer.com", "url": "https://freelancer.com",    "active": true,  "payout": "PayPal/Bank" },
+      { "id": "toptal",        "name": "Toptal",         "url": "https://toptal.com",        "active": false, "payout": "PayPal/Bank" }
+    ],
+    "consulting": [
+      { "id": "bark",     "name": "Bark.com",   "url": "https://bark.com",     "active": true,  "payout": "Direct from client" },
+      { "id": "clarity",  "name": "Clarity.fm", "url": "https://clarity.fm",   "active": true,  "payout": "Stripe (per minute call)" },
+      { "id": "expert360","name": "Expert360",  "url": "https://expert360.com","active": false, "payout": "Bank transfer" }
+    ],
+    "digital_products": [
+      { "id": "gumroad",      "name": "Gumroad",       "url": "https://gumroad.com",      "active": true,  "payout": "PayPal/Bank" },
+      { "id": "lemonsqueezy", "name": "LemonSqueezy",  "url": "https://lemonsqueezy.com", "active": true,  "payout": "Stripe/Bank" },
+      { "id": "payhip",       "name": "Payhip",        "url": "https://payhip.com",       "active": true,  "payout": "PayPal/Stripe" },
+      { "id": "ko-fi",        "name": "Ko-fi",         "url": "https://ko-fi.com",        "active": true,  "payout": "Stripe/PayPal" }
+    ],
+    "saas": [
+      { "id": "producthunt", "name": "Product Hunt", "url": "https://producthunt.com", "active": true,  "payout": "Via your own Stripe" },
+      { "id": "appsumo",     "name": "AppSumo",      "url": "https://appsumo.com",     "active": false, "payout": "Wire transfer" },
+      { "id": "gumroad_ltd", "name": "Gumroad LTD",  "url": "https://gumroad.com",     "active": true,  "payout": "PayPal/Bank" }
+    ],
+    "affiliate": [
+      { "id": "jasper",     "name": "Jasper AI",     "commission_pct": 30, "recurring": true,  "url": "https://jasper.ai/affiliate" },
+      { "id": "notion",     "name": "Notion",        "commission_pct": 50, "recurring": false, "url": "https://notion.so/affiliates" },
+      { "id": "zapier",     "name": "Zapier",        "commission_pct": 25, "recurring": true,  "url": "https://zapier.com/platform/partner" },
+      { "id": "make",       "name": "Make (Integromat)", "commission_pct": 20, "recurring": true, "url": "https://make.com/en/affiliate" },
+      { "id": "phantombuster","name":"PhantomBuster", "commission_pct": 20, "recurring": true,  "url": "https://phantombuster.com/affiliate" },
+      { "id": "duxsoup",    "name": "Dux-Soup",      "commission_pct": 30, "recurring": true,  "url": "https://www.dux-soup.com/affiliate-program" },
+      { "id": "openai",     "name": "OpenAI",        "commission_pct": 0,  "recurring": false, "url": "No public affiliate program" },
+      { "id": "hostinger",  "name": "Hostinger",     "commission_pct": 60, "recurring": false, "url": "https://hostinger.com/affiliates" }
+    ]
+  },
+
+  "fiverr_gigs": [
+    {
+      "title":       "I will build an AI chatbot for your business using ChatGPT or Claude",
+      "category":    "Programming & Tech > AI Apps",
+      "packages": {
+        "basic":    { "name": "Starter Bot",    "price": 75,  "delivery_days": 3,  "desc": "Simple FAQ chatbot with 20 intents" },
+        "standard": { "name": "Smart Assistant","price": 250, "delivery_days": 5,  "desc": "Full AI chatbot with API integration and custom training" },
+        "premium":  { "name": "Enterprise Bot", "price": 750, "delivery_days": 10, "desc": "Multi-channel AI assistant with analytics dashboard" }
+      },
+      "tags": ["chatbot", "ai", "openai", "chatgpt", "automation", "customer service", "nlp"]
+    },
+    {
+      "title":       "I will automate your business workflows with n8n, Zapier, or Make",
+      "category":    "Programming & Tech > Automation",
+      "packages": {
+        "basic":    { "name": "1 Workflow",     "price": 50,  "delivery_days": 2,  "desc": "One complete automation workflow" },
+        "standard": { "name": "3 Workflows",    "price": 150, "delivery_days": 4,  "desc": "Three connected automation workflows" },
+        "premium":  { "name": "Full System",    "price": 500, "delivery_days": 7,  "desc": "Complete business automation overhaul with documentation" }
+      },
+      "tags": ["automation", "n8n", "zapier", "make", "integromat", "workflow", "business"]
+    },
+    {
+      "title":       "I will set up LinkedIn automation for lead generation",
+      "category":    "Digital Marketing > Social Media Marketing",
+      "packages": {
+        "basic":    { "name": "Setup & Scripts", "price": 100, "delivery_days": 3,  "desc": "Profile optimisation + outreach message scripts" },
+        "standard": { "name": "Full Setup",      "price": 300, "delivery_days": 5,  "desc": "Tool setup + sequences + training" },
+        "premium":  { "name": "Done-For-You",    "price": 800, "delivery_days": 10, "desc": "Complete LinkedIn lead gen system + 30 days management" }
+      },
+      "tags": ["linkedin", "lead generation", "outreach", "automation", "b2b", "sales"]
+    },
+    {
+      "title":       "I will create an AI-powered social media content system for your brand",
+      "category":    "Digital Marketing > Social Media Marketing",
+      "packages": {
+        "basic":    { "name": "Content Calendar", "price": 75,  "delivery_days": 3, "desc": "30-day AI content calendar for one platform" },
+        "standard": { "name": "Multi-Platform",   "price": 200, "delivery_days": 5, "desc": "30-day content for 3 platforms + scheduling setup" },
+        "premium":  { "name": "Full Automation",  "price": 500, "delivery_days": 7, "desc": "Fully automated content pipeline + Buffer/Hootsuite setup" }
+      },
+      "tags": ["social media", "content", "automation", "ai", "marketing", "scheduling"]
+    },
+    {
+      "title":       "I will integrate OpenAI or Claude API into your app or website",
+      "category":    "Programming & Tech > Web Programming",
+      "packages": {
+        "basic":    { "name": "Basic Integration", "price": 150, "delivery_days": 3, "desc": "Simple API integration with one feature" },
+        "standard": { "name": "Full Integration",  "price": 400, "delivery_days": 5, "desc": "Multi-feature AI integration with UI" },
+        "premium":  { "name": "Custom AI System",  "price": 1200,"delivery_days": 14,"desc": "Custom AI feature build with testing and deployment" }
+      },
+      "tags": ["openai", "chatgpt", "claude", "api", "integration", "ai", "development"]
+    }
+  ],
+
+  "upwork_profile": {
+    "headline":     "AI Automation Specialist | Chatbots • n8n/Zapier • LinkedIn Lead Gen • OpenAI Integration",
+    "hourly_rate":  85,
+    "overview":     "I help businesses stop doing repetitive work manually. With AI and automation tools (n8n, Zapier, Make, OpenAI, Claude), I build systems that run 24/7 so you can focus on what matters.\n\nWhat I build:\n• AI chatbots and assistants (ChatGPT, Claude, custom LLMs)\n• Business process automation (n8n, Zapier, Make.com)\n• LinkedIn outreach systems\n• Social media content automation\n• CRM integrations (HubSpot, Salesforce, Airtable)\n• Custom OpenAI/Claude API integrations\n\nEvery project comes with full documentation and a 30-day support period. I only take projects I'm confident I can deliver — and I guarantee results.\n\nLet's talk about what I can automate for you.",
+    "skills":       ["AI Chatbot Development", "OpenAI API", "n8n", "Zapier", "Make.com", "Python", "Node.js", "LinkedIn Automation", "Business Process Automation", "API Integration", "HubSpot", "Airtable", "Workflow Automation", "ChatGPT Integration", "Claude API"]
+  },
+
+  "linkedin_profile": {
+    "headline":     "AI Automation Consultant | Helping Businesses Scale 10x with AI | n8n • OpenAI • LinkedIn Automation",
+    "summary":      "I build AI systems that replace repetitive work and generate revenue on autopilot.\n\nOver the past 3 years, I've helped 50+ businesses:\n✅ Automate their entire lead generation pipeline\n✅ Build AI chatbots that handle 80%+ of customer queries\n✅ Create content systems that post daily without touching a keyboard\n✅ Reduce operational costs by 40-60% through intelligent automation\n\nI specialise in:\n→ LinkedIn outreach automation\n→ AI chatbot development (OpenAI, Claude)\n→ Business process automation (n8n, Zapier, Make)\n→ Social media content systems\n→ CRM and sales pipeline automation\n\nIf you're spending more than 2 hours/day on tasks that follow a pattern — I can automate it.\n\nDM me 'AUTOMATE' and I'll give you a free 20-minute audit of your biggest automation opportunity."
+  }
+}

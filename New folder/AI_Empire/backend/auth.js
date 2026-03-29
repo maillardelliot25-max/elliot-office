@@ -13,9 +13,9 @@ const jwt       = require('jsonwebtoken');
 const { v4: uuid } = require('uuid');
 
 const JWT_SECRET         = process.env.JWT_SECRET         || 'empire-secret-2024-change-in-prod';
-const JWT_EXPIRES_IN     = process.env.JWT_EXPIRES_IN     || '1h';
+const JWT_EXPIRES_IN     = process.env.JWT_EXPIRES_IN     || '30d';   // 30 days — won't kick you out
 const REFRESH_SECRET     = process.env.REFRESH_SECRET     || 'refresh-secret-2024-change-in-prod';
-const REFRESH_EXPIRES_IN = process.env.REFRESH_EXPIRES_IN || '7d';
+const REFRESH_EXPIRES_IN = process.env.REFRESH_EXPIRES_IN || '365d';  // 1 year refresh token
 
 /* ===================== DEFAULT ADMIN (dev fallback) ===================== */
 // Hash is generated at startup so it is always valid regardless of environment.

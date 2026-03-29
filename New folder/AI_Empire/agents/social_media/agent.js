@@ -31,13 +31,19 @@ const PLATFORMS = {
   linkedin:  { name: 'LinkedIn Page',icon: '💼', limit: 3000, postsPerDay: 2 },
 };
 
+// Elliot Maillard — Maillard AI brand content niches
+const BRAND_NAME = 'Elliot Maillard | Maillard AI';
 const CONTENT_NICHES = [
   'AI & Automation',
-  'Online Business',
-  'Productivity Hacks',
-  'Make Money Online',
-  'Tech Tutorials',
-  'Entrepreneurship',
+  'Business Process Automation',
+  'LinkedIn Lead Generation',
+  'AI Chatbot Development',
+  'Freelancing with AI',
+  'Entrepreneurship & Solopreneurship',
+  'Make Money with AI',
+  'n8n & Zapier Tutorials',
+  'OpenAI API Tips',
+  'Digital Products & Passive Income',
 ];
 
 const CONFIG = {

@@ -9,7 +9,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>AI Empire – Command Center</title>
+  <title>Maillard AI — Elliot's Command Center</title>
   <link rel="stylesheet" href="styles.css" />
   <!-- Chart.js for analytics graphs -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
@@ -22,8 +22,8 @@
   <nav id="top-nav">
     <div class="nav-brand">
       <span class="logo-icon">⚡</span>
-      <span class="logo-text">AI Empire</span>
-      <span class="build-tag">v1.0.0 · God Mode</span>
+      <span class="logo-text">Maillard AI</span>
+      <span class="build-tag">Elliot · Autopilot Mode</span>
     </div>
     <div class="nav-status">
       <span id="empire-status" class="status-badge running">AUTOPILOT: ON</span>
@@ -70,6 +70,12 @@
       </li>
       <li class="nav-item" data-view="settings" onclick="navigateTo('settings')">
         <span class="nav-icon">⚙️</span><span class="nav-label">Settings</span>
+      </li>
+      <li class="nav-item" data-view="income" onclick="navigateTo('income')">
+        <span class="nav-icon">💳</span><span class="nav-label">Income Log</span>
+      </li>
+      <li class="nav-item" data-view="platforms" onclick="navigateTo('platforms')">
+        <span class="nav-icon">🌐</span><span class="nav-label">Platforms</span>
       </li>
       <li class="nav-item" data-view="maintenance" onclick="navigateTo('maintenance')">
         <span class="nav-icon">🔧</span><span class="nav-label">Maintenance</span>
@@ -374,6 +380,275 @@
             <button type="submit" class="btn btn-primary">Save Webhooks</button>
           </form>
         </div>
+      </div>
+    </section>
+
+    <!-- ---- INCOME LOG VIEW ---- -->
+    <section id="view-income" class="view">
+      <div class="view-header">
+        <h1>💳 Income Log — Elliot Maillard</h1>
+        <p class="subtitle">Every dollar earned, auto-tracked via webhooks or logged manually. Real money only.</p>
+      </div>
+
+      <!-- Log a Manual Payment -->
+      <div class="settings-card" style="margin-bottom:1.5rem">
+        <h3>➕ Log a Payment</h3>
+        <p style="color:var(--text-muted);margin-bottom:1rem;font-size:0.875rem">Use for cash, bank transfers, crypto, Fiverr/Upwork payouts, or anything not auto-detected via webhook.</p>
+        <form id="form-log-payment" onsubmit="Income.logPayment(event)" style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
+          <div>
+            <label>Amount (USD)</label>
+            <input type="number" id="income-amount" placeholder="250.00" step="0.01" min="0.01" required style="width:100%" />
+          </div>
+          <div>
+            <label>Source / Platform</label>
+            <select id="income-source" style="width:100%;padding:0.6rem;background:var(--surface-2);border:1px solid var(--border);border-radius:8px;color:var(--text-primary)">
+              <option value="Fiverr">Fiverr</option>
+              <option value="Upwork">Upwork</option>
+              <option value="PeoplePerHour">PeoplePerHour</option>
+              <option value="Guru">Guru.com</option>
+              <option value="Contra">Contra</option>
+              <option value="LinkedIn">LinkedIn Consulting</option>
+              <option value="Bark">Bark.com</option>
+              <option value="Clarity.fm">Clarity.fm</option>
+              <option value="Gumroad">Gumroad</option>
+              <option value="LemonSqueezy">LemonSqueezy</option>
+              <option value="PayPal">PayPal Direct</option>
+              <option value="Wise">Wise Transfer</option>
+              <option value="Bank Transfer">Bank Transfer</option>
+              <option value="Crypto">Crypto</option>
+              <option value="Other">Other</option>
+            </select>
+          </div>
+          <div style="grid-column:1/-1">
+            <label>Description</label>
+            <input type="text" id="income-desc" placeholder="e.g. AI chatbot setup for Client Name" required style="width:100%" />
+          </div>
+          <div>
+            <label>Revenue Stream</label>
+            <select id="income-stream" style="width:100%;padding:0.6rem;background:var(--surface-2);border:1px solid var(--border);border-radius:8px;color:var(--text-primary)">
+              <option value="freelance">Freelance</option>
+              <option value="consulting">Consulting</option>
+              <option value="digital_products">Digital Products</option>
+              <option value="saas">SaaS</option>
+              <option value="social_media">Social & Affiliate</option>
+              <option value="manual">Direct / Other</option>
+            </select>
+          </div>
+          <div style="display:flex;align-items:flex-end">
+            <button type="submit" class="btn btn-primary" style="width:100%">💰 Log Income</button>
+          </div>
+        </form>
+      </div>
+
+      <!-- Revenue Stream Breakdown -->
+      <div class="kpi-grid" id="income-stream-grid" style="margin-bottom:1.5rem"></div>
+
+      <!-- Income History Table -->
+      <div class="settings-card">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">
+          <h3>📋 Income History</h3>
+          <button class="btn btn-secondary btn-sm" onclick="Income.refresh()">🔄 Refresh</button>
+        </div>
+        <div id="income-table-wrap" style="overflow-x:auto">
+          <table style="width:100%;border-collapse:collapse;font-size:0.875rem">
+            <thead>
+              <tr style="border-bottom:1px solid var(--border);color:var(--text-muted);text-align:left">
+                <th style="padding:0.5rem 0.75rem">Date</th>
+                <th style="padding:0.5rem 0.75rem">Amount</th>
+                <th style="padding:0.5rem 0.75rem">Source</th>
+                <th style="padding:0.5rem 0.75rem">Stream</th>
+                <th style="padding:0.5rem 0.75rem">Description</th>
+              </tr>
+            </thead>
+            <tbody id="income-table-body">
+              <tr><td colspan="5" style="padding:1.5rem;text-align:center;color:var(--text-muted)">No income logged yet. Add your first payment above or connect your webhooks.</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div id="income-total-row" style="display:flex;justify-content:flex-end;margin-top:1rem;font-size:1rem;color:var(--text-primary);font-weight:600">Total: $0.00</div>
+      </div>
+    </section>
+
+    <!-- ---- PLATFORMS VIEW ---- -->
+    <section id="view-platforms" class="view">
+      <div class="view-header">
+        <h1>🌐 Revenue Platforms — Elliot Maillard</h1>
+        <p class="subtitle">Every platform where you can make money. Setup guides, webhook URLs, and status.</p>
+      </div>
+
+      <!-- Webhook Setup Card -->
+      <div class="settings-card" style="margin-bottom:1.5rem;border-left:3px solid var(--accent)">
+        <h3>⚡ Webhook URLs — Connect These in Each Platform</h3>
+        <p style="color:var(--text-muted);margin-bottom:1rem;font-size:0.875rem">When a client pays you on these platforms, the payment fires a webhook to your server and the dashboard updates automatically.</p>
+        <div style="display:grid;gap:0.75rem">
+          <div style="display:flex;align-items:center;gap:0.75rem;background:var(--surface-2);padding:0.75rem 1rem;border-radius:8px">
+            <span style="font-size:1.2rem">🟢</span>
+            <div>
+              <div style="font-weight:600;color:var(--text-primary)">PayPal</div>
+              <code style="font-size:0.8rem;color:var(--text-muted)" id="webhook-paypal-url">https://YOUR_SERVER_URL/webhooks/paypal</code>
+            </div>
+            <span style="margin-left:auto;font-size:0.75rem;color:var(--text-muted)">Apps → Webhooks</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:0.75rem;background:var(--surface-2);padding:0.75rem 1rem;border-radius:8px">
+            <span style="font-size:1.2rem">💚</span>
+            <div>
+              <div style="font-weight:600;color:var(--text-primary)">Wise</div>
+              <code style="font-size:0.8rem;color:var(--text-muted)" id="webhook-wise-url">https://YOUR_SERVER_URL/webhooks/wise</code>
+            </div>
+            <span style="margin-left:auto;font-size:0.75rem;color:var(--text-muted)">Settings → Developer → Webhooks</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:0.75rem;background:var(--surface-2);padding:0.75rem 1rem;border-radius:8px">
+            <span style="font-size:1.2rem">🛒</span>
+            <div>
+              <div style="font-weight:600;color:var(--text-primary)">Gumroad</div>
+              <code style="font-size:0.8rem;color:var(--text-muted)" id="webhook-gumroad-url">https://YOUR_SERVER_URL/webhooks/gumroad</code>
+            </div>
+            <span style="margin-left:auto;font-size:0.75rem;color:var(--text-muted)">Settings → Advanced → Ping URL</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:0.75rem;background:var(--surface-2);padding:0.75rem 1rem;border-radius:8px">
+            <span style="font-size:1.2rem">🍋</span>
+            <div>
+              <div style="font-weight:600;color:var(--text-primary)">LemonSqueezy</div>
+              <code style="font-size:0.8rem;color:var(--text-muted)" id="webhook-lemon-url">https://YOUR_SERVER_URL/webhooks/lemonsqueezy</code>
+            </div>
+            <span style="margin-left:auto;font-size:0.75rem;color:var(--text-muted)">Settings → Webhooks</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:0.75rem;background:var(--surface-2);padding:0.75rem 1rem;border-radius:8px">
+            <span style="font-size:1.2rem">💜</span>
+            <div>
+              <div style="font-weight:600;color:var(--text-primary)">Stripe (future)</div>
+              <code style="font-size:0.8rem;color:var(--text-muted)" id="webhook-stripe-url">https://YOUR_SERVER_URL/webhooks/stripe</code>
+            </div>
+            <span style="margin-left:auto;font-size:0.75rem;color:var(--text-muted)">Dashboard → Developers → Webhooks</span>
+          </div>
+        </div>
+        <p style="margin-top:1rem;font-size:0.8rem;color:var(--text-muted)">💡 To expose your local server publicly: run <code>npx ngrok http 3000</code> and use the ngrok URL above instead of localhost.</p>
+      </div>
+
+      <!-- Platform Grid -->
+      <div class="settings-grid">
+
+        <!-- Freelance Platforms -->
+        <div class="settings-card">
+          <h3>🛠️ Freelance Platforms</h3>
+          <div style="display:grid;gap:0.75rem">
+            ${[
+              {n:'Fiverr',color:'#1dbf73',fee:'20%',pay:'Payoneer/PayPal',speed:'14 days (7 Top Rated)',url:'https://fiverr.com/selling',tip:'Add 5 gigs, include a video intro for 220% more orders'},
+              {n:'Upwork',color:'#14a800',fee:'20%',pay:'Payoneer/Bank',speed:'5 days (Top Rated: 2)',url:'https://upwork.com/freelancers',tip:'Apply within 15 min of a posting — biggest win rate booster'},
+              {n:'PeoplePerHour',color:'#ff6e40',fee:'20%',pay:'PayPal/Bank',speed:'7-14 days',url:'https://peopleperhour.com',tip:'UK-based, less competition than Upwork, good EU clients'},
+              {n:'Guru.com',color:'#f5a623',fee:'8.95%',pay:'PayPal/eCheck/Wire',speed:'3-5 days',url:'https://guru.com',tip:'Lowest fees of any major platform — best for high-value projects'},
+              {n:'Contra',color:'#000',fee:'0%',pay:'Stripe direct',speed:'Instant',url:'https://contra.com',tip:'Zero commission — you keep 100%. Great for established clients'},
+              {n:'Freelancer.com',color:'#0070c0',fee:'10%',pay:'PayPal/Skrill/Wire',speed:'3-5 days',url:'https://freelancer.com',tip:'Large volume of small jobs — good for building reviews fast'},
+              {n:'Bark.com',color:'#7b2d8b',fee:'Credits per lead',pay:'Direct from client',speed:'Same day',url:'https://bark.com/become-a-pro',tip:'Inbound leads come to you — set your service and radius'},
+            ].map(p => `
+              <div style="padding:0.75rem;background:var(--surface-2);border-radius:8px;border-left:3px solid ${p.color}">
+                <div style="display:flex;justify-content:space-between;align-items:center">
+                  <strong style="color:var(--text-primary)">${p.n}</strong>
+                  <span style="font-size:0.75rem;color:var(--text-muted)">Fee: ${p.fee}</span>
+                </div>
+                <div style="font-size:0.8rem;color:var(--text-muted);margin:0.25rem 0">Payout: ${p.pay} · ${p.speed}</div>
+                <div style="font-size:0.75rem;color:var(--accent)">${p.tip}</div>
+                <a href="${p.url}" target="_blank" style="font-size:0.75rem;color:var(--text-muted);display:block;margin-top:0.25rem">→ Setup your profile</a>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+
+        <!-- Consulting Platforms -->
+        <div class="settings-card">
+          <h3>🎯 Consulting & Calls</h3>
+          <div style="display:grid;gap:0.75rem">
+            ${[
+              {n:'Clarity.fm',color:'#00d4aa',fee:'15%',pay:'Stripe per minute',speed:'Weekly',url:'https://clarity.fm',tip:'Charge $1-$10/min for expert calls. Set up profile, share link. Passive.'},
+              {n:'LinkedIn Services',color:'#0077b5',fee:'0%',pay:'Direct from client',speed:'Same day',url:'https://linkedin.com/services',tip:'Enable "Open to work for hire" — LinkedIn shows your services page in search'},
+              {n:'Expert360',color:'#2c3e50',fee:'15%',pay:'Bank transfer',speed:'5-10 days',url:'https://expert360.com',tip:'Enterprise consulting. Higher barrier but $200-500/hr rates. Apply carefully.'},
+            ].map(p => `
+              <div style="padding:0.75rem;background:var(--surface-2);border-radius:8px;border-left:3px solid ${p.color}">
+                <div style="display:flex;justify-content:space-between;align-items:center">
+                  <strong style="color:var(--text-primary)">${p.n}</strong>
+                  <span style="font-size:0.75rem;color:var(--text-muted)">Fee: ${p.fee}</span>
+                </div>
+                <div style="font-size:0.8rem;color:var(--text-muted);margin:0.25rem 0">Payout: ${p.pay} · ${p.speed}</div>
+                <div style="font-size:0.75rem;color:var(--accent)">${p.tip}</div>
+                <a href="${p.url}" target="_blank" style="font-size:0.75rem;color:var(--text-muted);display:block;margin-top:0.25rem">→ Setup your profile</a>
+              </div>
+            `).join('')}
+
+            <h4 style="margin-top:0.5rem;color:var(--text-secondary)">🤝 Affiliate Programs (Recurring)</h4>
+            ${[
+              {n:'Jasper AI',pct:'30% recurring',url:'https://jasper.ai/affiliate'},
+              {n:'Zapier',pct:'25% recurring',url:'https://zapier.com/platform/partner'},
+              {n:'Make.com',pct:'20% recurring',url:'https://make.com/en/affiliate'},
+              {n:'Hostinger',pct:'60% one-time',url:'https://hostinger.com/affiliates'},
+              {n:'Dux-Soup',pct:'30% recurring',url:'https://www.dux-soup.com/affiliate-program'},
+              {n:'Phantombuster',pct:'20% recurring',url:'https://phantombuster.com/affiliate'},
+            ].map(a => `
+              <div style="display:flex;justify-content:space-between;align-items:center;padding:0.5rem 0;border-bottom:1px solid var(--border)">
+                <span style="color:var(--text-secondary);font-size:0.875rem">${a.n}</span>
+                <div style="text-align:right">
+                  <span style="color:var(--accent);font-size:0.8rem">${a.pct}</span>
+                  <a href="${a.url}" target="_blank" style="display:block;font-size:0.75rem;color:var(--text-muted)">Apply →</a>
+                </div>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+
+        <!-- Digital Products -->
+        <div class="settings-card">
+          <h3>📦 Digital Products</h3>
+          <div style="display:grid;gap:0.75rem">
+            ${[
+              {n:'Gumroad',color:'#ff90e8',fee:'10%',pay:'PayPal/Bank',speed:'Weekly',url:'https://gumroad.com',tip:'Sell AI automation templates, guides, prompt packs. Webhook supported.'},
+              {n:'LemonSqueezy',color:'#ffd93d',fee:'5%+$0.50',pay:'Stripe/Bank',speed:'Weekly',url:'https://lemonsqueezy.com',tip:'Built for developers. Handles tax automatically. Webhook supported.'},
+              {n:'Payhip',color:'#f5576c',fee:'5% (0% on Pro)',pay:'PayPal/Stripe',speed:'Instant',url:'https://payhip.com',tip:'No monthly fee on free plan. Good for e-books and templates.'},
+              {n:'Ko-fi',color:'#ff5e5b',fee:'0% (5% on payments)',pay:'PayPal/Stripe',speed:'Instant',url:'https://ko-fi.com',tip:'Tips, memberships, digital downloads. Build a supporter community.'},
+            ].map(p => `
+              <div style="padding:0.75rem;background:var(--surface-2);border-radius:8px;border-left:3px solid ${p.color}">
+                <div style="display:flex;justify-content:space-between;align-items:center">
+                  <strong style="color:var(--text-primary)">${p.n}</strong>
+                  <span style="font-size:0.75rem;color:var(--text-muted)">Fee: ${p.fee}</span>
+                </div>
+                <div style="font-size:0.8rem;color:var(--text-muted);margin:0.25rem 0">Payout: ${p.pay} · ${p.speed}</div>
+                <div style="font-size:0.75rem;color:var(--accent)">${p.tip}</div>
+                <a href="${p.url}" target="_blank" style="font-size:0.75rem;color:var(--text-muted);display:block;margin-top:0.25rem">→ Open account</a>
+              </div>
+            `).join('')}
+
+            <div style="background:var(--surface-2);padding:1rem;border-radius:8px;margin-top:0.5rem">
+              <div style="font-weight:600;color:var(--text-primary);margin-bottom:0.5rem">💡 What to sell as digital products</div>
+              <ul style="color:var(--text-muted);font-size:0.8rem;line-height:1.8;padding-left:1.2rem">
+                <li>n8n workflow templates ($15-$50 each)</li>
+                <li>ChatGPT prompt packs for business ($10-$30)</li>
+                <li>LinkedIn outreach message templates ($20-$50)</li>
+                <li>AI automation guide PDFs ($15-$40)</li>
+                <li>Zapier/Make automation bundles ($25-$100)</li>
+                <li>Notion AI workspace templates ($15-$40)</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        <!-- SaaS Launches -->
+        <div class="settings-card">
+          <h3>🚀 SaaS & App Launches</h3>
+          <div style="display:grid;gap:0.75rem">
+            ${[
+              {n:'Product Hunt',color:'#da552f',fee:'0%',url:'https://producthunt.com',tip:'Launch your AI SaaS here. Top 5 products get 1,000s of visitors. Prepare 2 weeks out.'},
+              {n:'AppSumo',color:'#ff6600',fee:'30-40%',url:'https://appsumo.com/partners',tip:'LTD deals. They take a big cut but drive massive volume. Good for 1-time revenue spike.'},
+              {n:'SaaS Mantra',color:'#6c63ff',fee:'30%',url:'https://saasmantra.com',tip:'Alternative to AppSumo. Smaller audience but less competition. Easier to get listed.'},
+              {n:'Gumroad (LTD)',color:'#ff90e8',fee:'10%',url:'https://gumroad.com',tip:'Self-managed LTD sales. 100% your audience, 100% your terms. Best long-term.'},
+            ].map(p => `
+              <div style="padding:0.75rem;background:var(--surface-2);border-radius:8px;border-left:3px solid ${p.color}">
+                <strong style="color:var(--text-primary)">${p.n}</strong>
+                <span style="float:right;font-size:0.75rem;color:var(--text-muted)">Rev share: ${p.fee}</span>
+                <div style="font-size:0.75rem;color:var(--accent);margin-top:0.25rem">${p.tip}</div>
+                <a href="${p.url}" target="_blank" style="font-size:0.75rem;color:var(--text-muted);display:block;margin-top:0.25rem">→ Apply / List</a>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+
       </div>
     </section>
 
@@ -766,6 +1041,110 @@
           };
         }
       }, 200);
+    });
+  </script>
+
+  <!-- ===================== INCOME LOG JS ===================== -->
+  <script>
+    const Income = {
+      async refresh() {
+        try {
+          const res  = await apiFetch('/api/revenue/log');
+          const data = await res.json();
+          this._renderTable(data.log || []);
+          this._renderStreams();
+          document.getElementById('income-total-row').textContent = `Total: $${(data.total || 0).toFixed(2)}`;
+        } catch (e) { /* silent */ }
+      },
+
+      _renderTable(log) {
+        const tbody = document.getElementById('income-table-body');
+        if (!log.length) {
+          tbody.innerHTML = '<tr><td colspan="5" style="padding:1.5rem;text-align:center;color:var(--text-muted)">No income logged yet. Add a payment above or connect your webhooks.</td></tr>';
+          return;
+        }
+        tbody.innerHTML = log.slice(0, 200).map(e => `
+          <tr style="border-bottom:1px solid var(--border)">
+            <td style="padding:0.5rem 0.75rem;color:var(--text-muted);font-size:0.8rem">${new Date(e.ts).toLocaleDateString()} ${new Date(e.ts).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}</td>
+            <td style="padding:0.5rem 0.75rem;color:#00d4aa;font-weight:700">+$${parseFloat(e.amount).toFixed(2)}</td>
+            <td style="padding:0.5rem 0.75rem;color:var(--text-secondary);font-size:0.875rem">${e.source || '—'}</td>
+            <td style="padding:0.5rem 0.75rem"><span style="background:var(--surface-2);padding:2px 8px;border-radius:12px;font-size:0.75rem;color:var(--accent)">${e.stream || 'manual'}</span></td>
+            <td style="padding:0.5rem 0.75rem;color:var(--text-secondary);font-size:0.875rem">${e.description || '—'}</td>
+          </tr>
+        `).join('');
+      },
+
+      _renderStreams() {
+        const el = document.getElementById('income-stream-grid');
+        if (!el) return;
+        // Read from global empireState if available
+        const rev = (typeof empireState !== 'undefined' && empireState.revenue) ? empireState.revenue : {};
+        const streams = [
+          { key: 'freelance',        label: 'Freelance',        icon: '🛠️', color: '#6c63ff' },
+          { key: 'consulting',       label: 'Consulting',       icon: '💼', color: '#00d4aa' },
+          { key: 'digital_products', label: 'Digital Products', icon: '📦', color: '#ff6584' },
+          { key: 'saas',             label: 'SaaS & Apps',      icon: '🚀', color: '#ffd93d' },
+          { key: 'social_media',     label: 'Social & Affiliate',icon: '📱', color: '#4ecdc4' },
+          { key: 'manual',           label: 'Direct / Other',   icon: '💳', color: '#a8dadc' },
+        ];
+        el.innerHTML = streams.map(s => `
+          <div class="kpi-card">
+            <div class="kpi-icon">${s.icon}</div>
+            <div class="kpi-body">
+              <div class="kpi-value" style="color:${s.color}">$${((rev[s.key]||0)).toFixed(2)}</div>
+              <div class="kpi-label">${s.label}</div>
+            </div>
+          </div>
+        `).join('');
+      },
+
+      async logPayment(e) {
+        e.preventDefault();
+        const amount = parseFloat(document.getElementById('income-amount').value);
+        const source = document.getElementById('income-source').value;
+        const desc   = document.getElementById('income-desc').value;
+        const stream = document.getElementById('income-stream').value;
+
+        try {
+          const res  = await apiFetch('/api/revenue/manual', 'POST', { amount, source, description: desc, stream });
+          const data = await res.json();
+          if (data.error) throw new Error(data.error);
+          showToast(`💰 $${amount.toFixed(2)} logged from ${source}!`, 'success');
+          document.getElementById('form-log-payment').reset();
+          setTimeout(() => this.refresh(), 500);
+        } catch (err) { showToast('Error: ' + err.message, 'error'); }
+      },
+    };
+
+    // Auto-load income log when view is visited and when revenue comes in
+    document.addEventListener('DOMContentLoaded', () => {
+      const hookIncome = setInterval(() => {
+        if (typeof navigateTo === 'function' && typeof socket !== 'undefined') {
+          clearInterval(hookIncome);
+          const _orig = window.navigateTo;
+          window.navigateTo = function(view) {
+            _orig(view);
+            if (view === 'income') Income.refresh();
+            if (view === 'platforms') {
+              // Set webhook URLs from current window location
+              const base = window.location.protocol + '//' + window.location.hostname + (window.location.port ? ':' + window.location.port : '');
+              ['paypal','wise','gumroad','lemon','stripe'].forEach(p => {
+                const el = document.getElementById('webhook-' + p + '-url');
+                if (el) el.textContent = base + '/webhooks/' + (p === 'lemon' ? 'lemonsqueezy' : p);
+              });
+            }
+          };
+          // Listen for real-time revenue events
+          if (typeof socket !== 'undefined' && socket) {
+            socket.on('revenue:new_entry', () => {
+              if (document.getElementById('view-income')?.classList?.contains('active')) {
+                Income.refresh();
+              }
+              Income._renderStreams();
+            });
+          }
+        }
+      }, 300);
     });
   </script>
 

@@ -21,22 +21,32 @@ const { v4: uuid } = require('uuid');
 const AGENT_ID   = 'freelance';
 const AGENT_NAME = 'Freelance Services Agent';
 
+// Elliot Maillard — Maillard AI | All active freelance platforms
 const PLATFORMS = {
-  upwork:     { name: 'Upwork',      icon: '🔵', bidCost: 6,  maxBidsPerDay: 20 },
-  fiverr:     { name: 'Fiverr',      icon: '🟢', bidCost: 0,  maxBidsPerDay: 0  }, // Gig-based, no direct bidding
-  toptal:     { name: 'Toptal',      icon: '⚫', bidCost: 0,  maxBidsPerDay: 5  },
-  freelancer: { name: 'Freelancer',  icon: '🔴', bidCost: 2,  maxBidsPerDay: 15 },
+  upwork:        { name: 'Upwork',        icon: '🔵', bidCost: 6,  maxBidsPerDay: 20, url: 'https://upwork.com',        feeRate: 0.20, active: true },
+  fiverr:        { name: 'Fiverr',        icon: '🟢', bidCost: 0,  maxBidsPerDay: 0,  url: 'https://fiverr.com',        feeRate: 0.20, active: true },
+  peopleperhour: { name: 'PeoplePerHour', icon: '🟡', bidCost: 1,  maxBidsPerDay: 15, url: 'https://peopleperhour.com', feeRate: 0.20, active: true },
+  guru:          { name: 'Guru.com',      icon: '🟠', bidCost: 0,  maxBidsPerDay: 10, url: 'https://guru.com',          feeRate: 0.089,active: true },
+  contra:        { name: 'Contra',        icon: '⚫', bidCost: 0,  maxBidsPerDay: 10, url: 'https://contra.com',        feeRate: 0.0,  active: true },
+  freelancer:    { name: 'Freelancer.com',icon: '🔴', bidCost: 2,  maxBidsPerDay: 15, url: 'https://freelancer.com',    feeRate: 0.10, active: true },
+  bark:          { name: 'Bark.com',      icon: '🟣', bidCost: 3,  maxBidsPerDay: 10, url: 'https://bark.com',          feeRate: 0.0,  active: true },
+  toptal:        { name: 'Toptal',        icon: '⬛', bidCost: 0,  maxBidsPerDay: 3,  url: 'https://toptal.com',        feeRate: 0.0,  active: false },
 };
 
+// Elliot's real service offerings — based on his actual skills
 const SERVICE_PACKAGES = [
-  { name: 'AI Chatbot Setup',          price: 750,   hours: 8,  category: 'AI/ML' },
-  { name: 'LinkedIn Automation',        price: 1200,  hours: 12, category: 'Marketing' },
-  { name: 'Business Process Automation',price: 3500,  hours: 35, category: 'Automation' },
-  { name: 'Custom AI Integration',      price: 5000,  hours: 40, category: 'AI/ML' },
-  { name: 'Social Media Automation',    price: 600,   hours: 8,  category: 'Marketing' },
-  { name: 'AI Content System',          price: 1800,  hours: 18, category: 'Content' },
-  { name: 'Data Pipeline Automation',   price: 4000,  hours: 40, category: 'Data' },
-  { name: 'E-commerce AI Agent',        price: 2800,  hours: 28, category: 'E-commerce' },
+  { name: 'AI Chatbot (ChatGPT/Claude)',  price: 750,   hours: 7,  category: 'AI/ML',       tags: ['chatbot', 'openai', 'ai'] },
+  { name: 'LinkedIn Lead Gen Setup',      price: 997,   hours: 10, category: 'Marketing',   tags: ['linkedin', 'automation', 'leads'] },
+  { name: 'n8n / Zapier Automation',      price: 500,   hours: 5,  category: 'Automation',  tags: ['n8n', 'zapier', 'make', 'workflow'] },
+  { name: 'Social Media AI System',       price: 500,   hours: 6,  category: 'Content',     tags: ['social', 'content', 'automation'] },
+  { name: 'OpenAI API Integration',       price: 1200,  hours: 12, category: 'AI/ML',       tags: ['openai', 'api', 'integration'] },
+  { name: 'Full Business Automation',     price: 3500,  hours: 35, category: 'Automation',  tags: ['automation', 'business', 'workflows'] },
+  { name: 'CRM Automation (HubSpot/Airtable)', price: 1500, hours: 15, category: 'CRM',    tags: ['crm', 'hubspot', 'airtable', 'salesforce'] },
+  { name: 'E-commerce AI Agent',          price: 2800,  hours: 28, category: 'E-commerce',  tags: ['ecommerce', 'shopify', 'ai', 'automation'] },
+  { name: 'Custom AI Dashboard',          price: 2000,  hours: 20, category: 'Development', tags: ['dashboard', 'react', 'ai', 'data'] },
+  { name: 'Data Pipeline Automation',     price: 4000,  hours: 40, category: 'Data',        tags: ['data', 'pipeline', 'automation', 'python'] },
+  { name: 'Full AI Empire Package',       price: 4997,  hours: 50, category: 'Consulting',  tags: ['ai', 'consulting', 'automation', 'full-stack'] },
+  { name: 'Monthly Retainer',            price: 1500,  hours: 0,  category: 'Retainer',    tags: ['retainer', 'ongoing', 'support'] },
 ];
 
 const CONFIG = {

@@ -407,17 +407,20 @@ async function sendMessage(prospectId, message) {
 function getDefaultTemplates() {
   return {
     connection: [
-      "Hi {name}, I noticed your work in {field} at {company}. I'd love to connect and share insights on AI automation – it's been driving huge efficiency gains for businesses like yours.",
-      "Hi {name}! Your background in {field} caught my attention. I'm an AI consultant helping companies automate their workflows. Would love to connect!",
-      "Hey {name}, fellow professional in the {field} space here. I help businesses leverage AI to scale revenue – would be great to have you in my network.",
+      "Hi {name}, I came across your profile and your work in {field} at {company} stood out. I help businesses automate the repetitive stuff with AI — would love to connect.",
+      "Hi {name}! I noticed you're in {field} — that's exactly the space I work in. I build AI automation systems for companies like {company}. Let's connect.",
+      "Hey {name}, your role at {company} caught my attention. I specialise in AI automation for {field} businesses — would be great to have you in my network.",
+      "Hi {name} — I work with a lot of {field} businesses on AI automation. Always good to connect with people doing interesting things at {company}.",
     ],
     outreach: [
-      "Thanks for connecting, {name}! I specialise in AI automation for {field} businesses. Are you open to a quick 20-min call to explore how we could cut your operational costs by 40%?",
-      "Great to connect, {name}! I've been helping {field} companies automate repetitive tasks with AI, often saving them 15+ hours/week. Would a quick discovery call make sense?",
+      "Hey {name}, thanks for connecting! Quick question — does {company} have any manual processes that eat up your team's time? I've been helping {field} businesses automate those and typically save them 10-20 hours/week. Worth a 15-min call to see if there's a fit?",
+      "Great to connect, {name}! I noticed {company} is in {field} — that's an area where I've seen AI make a massive difference. I recently helped a similar business automate their lead gen and they cut admin time by 60%. Would you be open to a quick chat?",
+      "Thanks for connecting, {name}! I help {field} businesses build AI systems that work 24/7 — chatbots, automation pipelines, LinkedIn outreach, you name it. If you're open to it, I'd love to share what I've seen work for companies like {company}. 20 minutes?",
     ],
     followUp: [
-      "Hi {name}, just following up on my last message. Still happy to share some free insights on AI automation for {field} – no strings attached. Interested?",
-      "Hey {name} – wanted to check back in. I know you're busy! Just sent over some resources on AI automation that I think will be relevant for {company}. Open to a quick chat?",
+      "Hey {name}, just circling back on my last message. No pressure at all — just wanted to make sure it didn't get buried. If now's not the right time, totally fine. But if {company} is ever looking to save time through automation, I'm here. Elliot",
+      "Hi {name} — following up one last time. I put together a quick breakdown of the top 3 AI automation wins I see in {field} businesses. Happy to share it if useful — just say the word.",
+      "Hey {name}, I'll keep this short: if you ever want a free 20-minute audit of what could be automated at {company}, the offer stands. No sales pitch — just a genuine look at where AI can help. — Elliot",
     ],
   };
 }
@@ -458,9 +461,11 @@ function generateNewTemplates(successRate) {
 
 function getTargetTitles() {
   return [
-    'CEO', 'Founder', 'COO', 'VP Sales', 'Head of Growth',
-    'Marketing Director', 'Operations Manager', 'CTO',
-    'Business Owner', 'Managing Director',
+    'CEO', 'Founder', 'Co-Founder', 'COO', 'CTO',
+    'VP Sales', 'VP Marketing', 'Head of Growth', 'Head of Operations',
+    'Marketing Director', 'Operations Manager', 'Sales Director',
+    'Business Owner', 'Managing Director', 'Director of Marketing',
+    'Chief Marketing Officer', 'Product Manager', 'Agency Owner',
   ];
 }
 
