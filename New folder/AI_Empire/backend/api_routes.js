@@ -117,7 +117,8 @@ module.exports = function buildApiRoutes(EmpireState, logger, io) {
       freelance:         { icon: '🛠️', description: 'Upwork, Fiverr, and Toptal bid automation' },
       ai_development:    { icon: '🧬', description: 'AI tool generation, deployment, and monetisation' },
       virtual_consultant:{ icon: '🎯', description: 'AI consultant persona and inquiry management' },
-      maintenance_bot:   { icon: '🔧', description: 'System health, workflow creation, and auto-repair' },
+      maintenance_bot:   { icon: '🔧', description: 'NON-REVENUE: Fixes bugs, runs tests, debugs errors, monitors system health only' },
+      email_outreach:    { icon: '✉️', description: 'Automated 5-email drip campaigns to sales prospects' },
     };
 
     const agents = Object.values(EmpireState.agents).map(a => ({

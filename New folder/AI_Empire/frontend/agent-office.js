@@ -11,7 +11,7 @@ const AgentOffice = {
     { id: 'ai_development',     name: '👨‍💼 Sam',      role: '🤖 AI Builder',          emoji: '👨‍💼', color: '#FF6B6B' },
     { id: 'email_outreach',     name: '👩‍💼 Casey',    role: '✉️ Email Campaign',      emoji: '👩‍💼', color: '#4ECDC4' },
     { id: 'virtual_consultant', name: '🧑‍💼 Taylor',   role: '💡 Consultant',          emoji: '🧑‍💼', color: '#FFD93D' },
-    { id: 'maintenance_bot',    name: '🤖 Morgan',   role: '🔧 System Monitor',      emoji: '🤖', color: '#95E1D3' },
+    { id: 'maintenance_bot',    name: '🤖 Morgan',   role: '🔧 Fixer (No Revenue)',  emoji: '🤖', color: '#95E1D3' },
   ],
 
   currentActivities: {},

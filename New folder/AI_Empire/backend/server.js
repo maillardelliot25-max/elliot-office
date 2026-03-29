@@ -82,7 +82,7 @@ const EmpireState = {
     freelance:         { id:'freelance',         name:'Freelance Services', status:'idle', tasksToday:0, revenue:0,    successRate:0,  errors:0, lastActive:null },
     ai_development:    { id:'ai_development',    name:'AI Development',     status:'idle', tasksToday:0, revenue:0,    successRate:0,  errors:0, lastActive:null },
     virtual_consultant:{ id:'virtual_consultant',name:'Virtual Consultant', status:'idle', tasksToday:0, revenue:0,    successRate:0,  errors:0, lastActive:null },
-    maintenance_bot:   { id:'maintenance_bot',   name:'Maintenance Bot',   status:'idle', tasksToday:0, revenue:0,    successRate:0,  errors:0, lastActive:null },
+    maintenance_bot:   { id:'maintenance_bot',   name:'🔧 Maintenance Bot (Non-Revenue)',   status:'idle', tasksToday:0, revenue:0,    successRate:0,  errors:0, lastActive:null },
     email_outreach:    { id:'email_outreach',    name:'Email Outreach',    status:'idle', tasksToday:0, revenue:0,    successRate:0,  errors:0, lastActive:null },
   },
   revenue: { linkedin: 0, social_media: 0, freelance: 0, ai_development: 0, consulting: 0, digital_products: 0, saas: 0, manual: 0 },
