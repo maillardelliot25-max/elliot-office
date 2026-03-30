@@ -5,7 +5,9 @@
       "Bash(git -C \"/c/Users/reinaldo nurse\" branch -a)",
       "Bash(git -C \"/c/Users/reinaldo nurse\" rev-parse --show-toplevel)",
       "Bash(git -C \"C:/Users/reinaldo nurse\" remote -v)",
-      "Bash(git -C \"C:/Users/reinaldo nurse\" status --short)"
+      "Bash(git -C \"C:/Users/reinaldo nurse\" status --short)",
+      "Bash(PORT=4000 timeout 5 node AI_Empire/backend/server.js)",
+      "mcp__Claude_Preview__preview_start"
     ]
   }
 }
