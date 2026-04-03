@@ -1,0 +1,238 @@
+COLD EMAIL TEMPLATES (A/B Testing)
+
+=== TEMPLATE A: Problem-Based ===
+Subject: [COMPANY] needs a better [PRODUCT/FEATURE]
+
+Hi [NAME],
+
+I came across [COMPANY] and noticed you're focused on [PRODUCT/PROBLEM].
+
+I've built similar solutions for [SIMILAR INDUSTRY], and here's what worked:
+[1-2 sentences of specific insight]
+
+This could cut your development timeline by 4+ weeks and improve [SPECIFIC METRIC].
+
+Would it make sense to chat for 15 minutes?
+
+Best,
+[Your Name]
+Portfolio: [LINK]
+
+---
+
+=== TEMPLATE B: Value-First ===
+Subject: Quick idea for [COMPANY]
+
+Hi [NAME],
+
+I noticed you just [RECENT ACHIEVEMENT]. Congrats.
+
+I specialize in [RELEVANT SKILL], and I could help you:
+✓ [Benefit 1]
+✓ [Benefit 2]
+✓ [Benefit 3]
+
+I've done this for [X clients/companies], which freed up their team to focus on core business.
+
+Open to a quick chat?
+
+Best,
+[Your Name]
+
+---
+
+=== TEMPLATE C: Case Study ===
+Subject: [COMPANY] + Full-Stack Development
+
+Hi [NAME],
+
+I worked with a company similar to yours in [INDUSTRY]. They needed [SPECIFIC PROBLEM].
+
+Here's what we built:
+[Brief description of solution]
+
+Results:
+- [Metric 1]: [Improvement]%
+- [Metric 2]: [Improvement]%
+- Timeline: [X] weeks (under budget)
+
+I think I could do similar work for [COMPANY]. Would you be open to a 20-min conversation?
+
+Best,
+[Your Name]
+Portfolio: [LINK]
+
+---
+
+=== TEMPLATE D: Direct Ask ===
+Subject: Let's build something great together
+
+Hi [NAME],
+
+I'm a full-stack developer looking for [PROJECT TYPE/ROLE TYPE].
+
+I've built:
+✓ Maillard AI (revenue tracking system)
+✓ SaaS Metrics Visualizer (Canvas analytics)
+✓ 10+ other production apps
+
+I'm available to start immediately and maintain weekly updates.
+
+Are you hiring or know someone who is?
+
+Best,
+[Your Name]
+Portfolio: maillardelliot25-max.github.io/portfolio
+
+---
+
+=== LINKEDIN CONNECTION REQUEST (Recruiters) ===
+
+Hi [NAME], I'm a full-stack developer focused on [TECH/INDUSTRY].
+I saw you're recruiting for [ROLE]. Would love to chat about how I can help.
+Portfolio: maillardelliot25-max.github.io/portfolio
+
+---
+
+=== LINKEDIN MESSAGING (1st message after connect) ===
+
+Hi [NAME],
+
+Great to connect! I saw you're involved with [COMPANY/ROLE].
+
+I specialize in [RELEVANT SKILL] and I'm looking to help teams like yours.
+
+If you know anyone hiring for [ROLE TYPE], I'd love a referral.
+
+[Your Name]
+
+---
+
+=== FOLLOW-UP EMAIL (7 days, no response) ===
+Subject: Re: [ORIGINAL SUBJECT] - Follow-up
+
+Hi [NAME],
+
+Just following up on my previous message about [PROJECT/OPPORTUNITY].
+
+I know you're busy—no pressure. If you're interested in discussing [RELEVANT WORK],
+I've got a window opening up in [X weeks].
+
+Hope your [RECENT ACHIEVEMENT] goes well!
+
+Best,
+[Your Name]
+
+---
+
+=== FOLLOW-UP EMAIL (14 days) ===
+Subject: One more thing about [COMPANY]
+
+Hi [NAME],
+
+Last follow-up on this.
+
+I'm genuinely interested in working with [COMPANY] on [PROJECT TYPE].
+
+If it's not the right time, I'll circle back in Q[X]. No hard feelings either way.
+
+Best,
+[Your Name]
+
+---
+
+=== REFERRAL REQUEST (To past clients/colleagues) ===
+Subject: Let's work together again
+
+Hi [NAME],
+
+Hope you're doing well! I'm expanding my client base and would love to work with more teams like yours.
+
+Do you know anyone who might benefit from [SERVICE]? I'm looking for:
+- [Client type/project type]
+- Budget: [Range]
+- Timeline: [Flexible/Specific]
+
+I'd be happy to return the favor if I know someone who can help you.
+
+Thanks!
+[Your Name]
+
+---
+
+=== PROPOSAL FOLLOW-UP (Pending decision) ===
+Subject: Quick follow-up: [PROJECT] proposal
+
+Hi [NAME],
+
+I'm excited about the [PROJECT] opportunity we discussed.
+
+Quick recap of what I'm offering:
+✓ [Feature 1]
+✓ [Feature 2]
+✓ [Timeline]
+✓ [Investment]
+
+I can start immediately and have a prototype ready within [X days] of approval.
+
+Any questions or concerns I can address?
+
+Best,
+[Your Name]
+
+---
+
+=== REJECTION RESPONSE (Professional) ===
+Subject: Re: [PROJECT] - No worries
+
+Hi [NAME],
+
+Thanks for considering me for [PROJECT]. No worries—I completely understand.
+
+If timing changes or another opportunity comes up, I'd love to chat.
+
+Best of luck with the project!
+
+[Your Name]
+
+---
+
+=== NEGOTIATION (Rate/Scope discussion) ===
+Subject: Re: Budget for [PROJECT]
+
+Hi [NAME],
+
+I appreciate you getting back to me on [PROJECT].
+
+I understand [X] is challenging, but here's why [MY RATE] makes sense:
+- [Justification 1]
+- [Justification 2]
+- [Justification 3]
+
+I'm open to [ALTERNATIVE] to make this work. What would you think?
+
+Looking forward to your thoughts.
+
+Best,
+[Your Name]
+
+---
+
+=== SUCCESS STORY (Post-project, request for testimonial) ===
+Subject: [PROJECT] is live!
+
+Hi [NAME],
+
+Wanted to share that [PROJECT] launched successfully!
+
+Results:
+✓ [Metric 1]: [Improvement]
+✓ [Metric 2]: [Improvement]
+✓ Timeline: Delivered [on time / early]
+
+Would you be willing to write a quick testimonial about our work together?
+(Willing to post on LinkedIn, portfolio, etc.)
+
+Thanks for being an awesome partner!
+
+[Your Name]

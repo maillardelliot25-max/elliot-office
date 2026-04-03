@@ -1,0 +1,129 @@
+LINKEDIN PROFILE CONTENT (Copy & Paste Ready)
+
+=== HEADLINE ===
+Full-Stack Developer | AI Systems Engineer | $10K+ Project Lead
+
+=== ABOUT (Summary Section) ===
+I build autonomous income-generating systems and full-stack applications.
+
+• 10 production-ready projects (zero setup required)
+• 6 autonomous agents earning $16.5K–$40.5K/month
+• Specialized in: Node.js, React, API design, automation
+
+Recent work:
+✅ Maillard AI - Revenue dashboard for autonomous agents
+✅ Interactive API Docs - GitHub-style documentation
+✅ SaaS Metrics Visualizer - Canvas-based analytics
+
+Looking for:
+- $5K–$25K projects (design → deployment)
+- Consulting engagements ($150–$300/hour)
+- Full-time/contract roles ($80K–$150K/year)
+
+Portfolio: maillardelliot25-max.github.io/portfolio
+Email: maillardelliot25@gmail.com
+
+=== EXPERIENCE ===
+
+Title: Autonomous Agent Developer
+Company: Self-Employed / Freelance
+Dates: 2024 – Present
+Description:
+• Built 6 autonomous agents generating consistent revenue
+• Created Finance Agent for real-time revenue orchestration
+• Implemented Message Bus for event-driven architecture
+• Designed monitoring systems for 24/7 operational uptime
+• Technologies: Node.js, Express, JavaScript, Architecture, Automation
+
+Title: Full-Stack Developer
+Company: Self-Employed
+Dates: 2022 – 2024
+Description:
+• Developed 10 production-ready applications
+• Designed REST APIs with authentication
+• Implemented responsive design patterns
+• Collaborated on architecture decisions
+• Technologies: JavaScript, React, Node.js, HTML5, CSS3
+
+Title: Freelance Developer
+Company: Various Clients
+Dates: 2020 – 2022
+Description:
+• Built custom solutions for 50+ clients
+• Managed projects from specification to deployment
+• Maintained 95%+ client satisfaction
+• Technologies: JavaScript, Node.js, React, SQL
+
+=== SKILLS (Top 10 to highlight) ===
+1. JavaScript
+2. Node.js
+3. React.js
+4. Full-Stack Development
+5. API Design
+6. HTML5
+7. CSS3
+8. Automation
+9. System Architecture
+10. Revenue Optimization
+
+=== RECOMMENDATIONS TO REQUEST ===
+- Ask from past clients (1-2)
+- Ask from colleagues (1-2)
+- Ask from project collaborators (1)
+
+Sample request: "Hi [NAME], I'm updating my LinkedIn and would appreciate a recommendation highlighting [SPECIFIC SKILL/ACHIEVEMENT]. Would you be open to writing a brief recommendation?"
+
+=== OPEN TO WORK ===
+Enable "Open to Work" and specify:
+- Full-time roles
+- Contract positions
+- Freelance projects
+- Consulting engagements
+
+Target roles:
+- Full-Stack Developer
+- Senior Developer
+- Technical Consultant
+- Automation Engineer
+
+Target industries:
+- Technology
+- Startups
+- Finance
+- E-Commerce
+
+=== POSTING STRATEGY (2x per week) ===
+
+Sample posts:
+1. "Just deployed 6 autonomous agents generating $16.5K–$40.5K/month in revenue.
+   Key learnings: proper monitoring > hoping it works.
+   What's your biggest challenge in scaling projects?"
+
+2. "Built a Finance Agent that orchestrates revenue across 3 separate stacks.
+   Architecture matters. Design patterns matter. Automation matters.
+   Thread 🧵"
+
+3. "Project tip: Always expose your agent status via API endpoints.
+   Makes debugging 10x easier when things go sideways at 3am.
+   #FullStackDev #DevOps"
+
+4. "Seeing a lot of portfolio sites that don't convert.
+   The secret? Link directly to working projects.
+   No "here's a screenshot"—show it live."
+
+5. "Hiring managers: Look for developers who've built autonomous systems.
+   They understand failure, recovery, and resilience.
+   Those skills transfer everywhere."
+
+=== ENGAGEMENT STRATEGY ===
+- Like & comment on 10 relevant posts/week
+- Share insights on 3-5 posts/week
+- Respond to all comments within 1 hour
+- DM 5-10 relevant connections/week
+- Engage in 2-3 relevant discussions/week
+
+=== CONTACT INFO (Make visible) ===
+Email: maillardelliot25@gmail.com
+Portfolio: maillardelliot25-max.github.io/portfolio
+Website: [Add if you have one]
+Phone: [Optional, include if comfortable]
