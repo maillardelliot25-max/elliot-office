@@ -1,265 +1,236 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>SaaS Metrics Visualizer</title>
-  <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: 'Courier New', monospace; background: #0d1117; color: #c9d1d9; padding: 20px; }
-    .container { max-width: 1400px; margin: 0 auto; }
-    h1 { font-size: 32px; margin-bottom: 30px; color: #58a6ff; }
-    .metrics-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); gap: 30px; margin-bottom: 40px; }
-    .metric-card { background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 20px; }
-    .metric-card h3 { color: #58a6ff; margin-bottom: 15px; font-size: 14px; }
-    canvas { width: 100%; height: 300px; display: block; background: #010409; border-radius: 6px; border: 1px solid #30363d; }
-    .controls { background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 20px; margin-bottom: 30px; display: flex; gap: 10px; flex-wrap: wrap; }
-    button { background: #238636; color: white; border: none; padding: 10px 16px; border-radius: 6px; cursor: pointer; font-weight: 600; font-family: inherit; }
-    button:hover { background: #2ea043; }
-    .stat-display { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px; margin: 20px 0; }
-    .stat-box { background: #010409; border: 1px solid #30363d; border-radius: 6px; padding: 15px; text-align: center; }
-    .stat-value { font-size: 24px; font-weight: bold; color: #58a6ff; }
-    .stat-label { font-size: 12px; color: #8b949e; margin-top: 5px; }
-    @media (max-width: 768px) {
-      .metrics-grid { grid-template-columns: 1fr; }
-      .controls { flex-direction: column; }
-    }
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SaaS Metrics Visualizer</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;font-family:'DM Sans',system-ui,sans-serif;background:#0d1117;color:#c9d1d9}
+h1,h2,h3{font-family:'Playfair Display',Georgia,serif;color:#58a6ff}
+#shell{display:flex;flex-direction:column;height:100vh;background:#0d1117}
+.topbar{padding:20px;background:#161b22;border-bottom:1px solid #30363d;display:flex;align-items:center;justify-content:space-between}
+.logo{display:flex;align-items:center;gap:12px}
+.logo-dot{width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,#58a6ff,#79c0ff);display:flex;align-items:center;justify-content:center;font-size:20px}
+.logo-name{font-size:22px;font-weight:700;color:#58a6ff}
+.controls{display:flex;gap:10px}
+.btn{background:#238636;color:#fff;border:none;padding:10px 16px;border-radius:8px;cursor:pointer;font-weight:600;font-size:12px;transition:all .15s}
+.btn:hover{background:#2ea043}
+.btn-reset{background:#da3633}
+.btn-reset:hover{background:#f85149}
+.scroll{flex:1;overflow-y:auto;padding:30px 20px}
+.container{max-width:1400px;margin:0 auto}
+.stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:15px;margin-bottom:30px}
+.stat-box{background:#161b22;border:1px solid #30363d;border-radius:12px;padding:20px;text-align:center}
+.stat-number{font-size:28px;color:#58a6ff;font-weight:700;font-family:'Playfair Display',serif;margin-bottom:8px}
+.stat-label{font-size:12px;color:#8b949e;text-transform:uppercase}
+.charts-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(500px,1fr));gap:20px}
+.chart-box{background:#161b22;border:1px solid #30363d;border-radius:12px;padding:20px}
+.chart-title{font-size:14px;color:#58a6ff;font-weight:700;margin-bottom:15px}
+canvas{width:100%;height:300px;border-radius:8px}
+</style>
 </head>
 <body>
-  <div class="container">
-    <h1>📊 SaaS Metrics Visualizer</h1>
+<div id="shell">
+<div class="topbar">
+<div class="logo">
+<div class="logo-dot">📊</div>
+<div class="logo-name">SaaS Metrics</div>
+</div>
+<div class="controls">
+<button class="btn" onclick="simulateMonth()">Simulate Month</button>
+<button class="btn btn-reset" onclick="resetMetrics()">Reset</button>
+</div>
+</div>
+<div class="scroll">
+<div class="container">
+<div class="stats-grid">
+<div class="stat-box">
+<div class="stat-number" id="mrr">$45000</div>
+<div class="stat-label">Monthly Revenue</div>
+</div>
+<div class="stat-box">
+<div class="stat-number" id="customers">450</div>
+<div class="stat-label">Active Customers</div>
+</div>
+<div class="stat-box">
+<div class="stat-number" id="churn">4.2%</div>
+<div class="stat-label">Churn Rate</div>
+</div>
+<div class="stat-box">
+<div class="stat-number" id="cac">$180</div>
+<div class="stat-label">Customer Acq. Cost</div>
+</div>
+</div>
+<div class="charts-grid">
+<div class="chart-box">
+<div class="chart-title">MRR Growth (12 months)</div>
+<canvas id="mrrChart"></canvas>
+</div>
+<div class="chart-box">
+<div class="chart-title">Active Customers</div>
+<canvas id="customersChart"></canvas>
+</div>
+<div class="chart-box">
+<div class="chart-title">Churn Rate Trend</div>
+<canvas id="churnChart"></canvas>
+</div>
+<div class="chart-box">
+<div class="chart-title">CAC vs LTC</div>
+<canvas id="cacLtcChart"></canvas>
+</div>
+</div>
+</div>
+</div>
+</div>
+<script>
+let metrics = {
+  mrr: [15000, 18500, 22000, 26000, 30500, 35000, 38500, 40000, 41500, 43000, 44000, 45000],
+  customers: [150, 180, 215, 255, 295, 335, 370, 395, 415, 430, 440, 450],
+  churn: [8.2, 7.8, 7.2, 6.5, 6.0, 5.5, 5.0, 4.8, 4.5, 4.3, 4.2, 4.2],
+  cac: [250, 240, 230, 220, 210, 200, 190, 185, 180, 180, 180, 180],
+  ltc: [8500, 8400, 8300, 8200, 8100, 8000, 7900, 7800, 7700, 7600, 7600, 7600]
+};
 
-    <div class="controls">
-      <button onclick="simulateMonth()">Simulate Month</button>
-      <button onclick="resetMetrics()">Reset Metrics</button>
-      <button onclick="toggleAutoplay()">Autoplay</button>
-    </div>
+function loadMetrics() {
+  const saved = localStorage.getItem('saasMetrics');
+  if (saved) {
+    try {
+      metrics = JSON.parse(saved);
+    } catch(e) {
+      console.error('Failed to load metrics');
+    }
+  }
+}
 
-    <div class="stat-display">
-      <div class="stat-box">
-        <div class="stat-value" id="mrrValue">$45,000</div>
-        <div class="stat-label">Monthly Recurring Revenue</div>
-      </div>
-      <div class="stat-box">
-        <div class="stat-value" id="churnValue">4.2%</div>
-        <div class="stat-label">Churn Rate</div>
-      </div>
-      <div class="stat-box">
-        <div class="stat-value" id="cacValue">$180</div>
-        <div class="stat-label">Customer Acquisition Cost</div>
-      </div>
-      <div class="stat-box">
-        <div class="stat-value" id="ltcValue">$8,500</div>
-        <div class="stat-label">Customer Lifetime Value</div>
-      </div>
-    </div>
+function saveMetrics() {
+  localStorage.setItem('saasMetrics', JSON.stringify(metrics));
+}
 
-    <div class="metrics-grid">
-      <div class="metric-card">
-        <h3>📈 MRR Growth (12 Months)</h3>
-        <canvas id="mrrChart"></canvas>
-      </div>
-      <div class="metric-card">
-        <h3>👥 Active Customers</h3>
-        <canvas id="customerChart"></canvas>
-      </div>
-      <div class="metric-card">
-        <h3>📉 Churn Rate Trend</h3>
-        <canvas id="churnChart"></canvas>
-      </div>
-      <div class="metric-card">
-        <h3>💰 CAC vs LTC Ratio</h3>
-        <canvas id="cacChart"></canvas>
-      </div>
-    </div>
-  </div>
+function updateStats() {
+  const lastMrr = metrics.mrr[metrics.mrr.length - 1];
+  const lastCustomers = metrics.customers[metrics.customers.length - 1];
+  const lastChurn = metrics.churn[metrics.churn.length - 1];
+  const lastCac = metrics.cac[metrics.cac.length - 1];
 
-  <script>
-    let metrics = {
-      mrr: [15000, 18000, 21500, 24000, 28000, 32000, 36000, 39000, 41000, 43000, 44500, 45000],
-      customers: [150, 180, 215, 240, 280, 320, 360, 390, 410, 430, 445, 450],
-      churn: [8.2, 7.8, 6.5, 6.1, 5.5, 5.2, 5.0, 4.8, 4.5, 4.3, 4.2, 4.2],
-      cac: 180,
-      ltc: 8500,
-      autoplay: false,
-      autoplayInterval: null
+  document.getElementById('mrr').textContent = '$' + lastMrr.toLocaleString();
+  document.getElementById('customers').textContent = lastCustomers;
+  document.getElementById('churn').textContent = lastChurn.toFixed(1) + '%';
+  document.getElementById('cac').textContent = '$' + lastCac;
+}
+
+function drawChart(canvasId, data) {
+  const canvas = document.getElementById(canvasId);
+  const ctx = canvas.getContext('2d');
+  const width = canvas.clientWidth;
+  const height = 300;
+
+  canvas.width = width;
+  canvas.height = height;
+
+  const padding = 40;
+  const plotWidth = width - padding * 2;
+  const plotHeight = height - padding * 2;
+
+  const maxValue = Math.max(...data);
+  const minValue = Math.min(...data);
+  const range = maxValue - minValue || 1;
+
+  ctx.fillStyle = '#0d1117';
+  ctx.fillRect(0, 0, width, height);
+
+  ctx.strokeStyle = '#30363d';
+  ctx.lineWidth = 1;
+  for (let i = 0; i <= 5; i++) {
+    const y = padding + (i / 5) * plotHeight;
+    ctx.beginPath();
+    ctx.moveTo(padding, y);
+    ctx.lineTo(width - padding, y);
+    ctx.stroke();
+  }
+
+  ctx.strokeStyle = '#238636';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+
+  data.forEach((value, index) => {
+    const x = padding + (index / (data.length - 1)) * plotWidth;
+    const y = padding + plotHeight - ((value - minValue) / range) * plotHeight;
+
+    if (index === 0) ctx.moveTo(x, y);
+    else ctx.lineTo(x, y);
+  });
+
+  ctx.stroke();
+
+  ctx.fillStyle = '#238636';
+  data.forEach((value, index) => {
+    const x = padding + (index / (data.length - 1)) * plotWidth;
+    const y = padding + plotHeight - ((value - minValue) / range) * plotHeight;
+    ctx.beginPath();
+    ctx.arc(x, y, 4, 0, Math.PI * 2);
+    ctx.fill();
+  });
+}
+
+function simulateMonth() {
+  const lastMrr = metrics.mrr[metrics.mrr.length - 1];
+  const growth = 1 + (Math.random() * 0.12 - 0.02);
+  const newMrr = Math.round(lastMrr * growth);
+
+  const lastCustomers = metrics.customers[metrics.customers.length - 1];
+  const newCustomers = lastCustomers + Math.floor(Math.random() * 50) + 20;
+
+  const lastChurn = metrics.churn[metrics.churn.length - 1];
+  const newChurn = Math.max(2, lastChurn - Math.random() * 0.5);
+
+  const lastCac = metrics.cac[metrics.cac.length - 1];
+  const newCac = Math.round(lastCac * (1 - Math.random() * 0.05));
+
+  metrics.mrr.push(newMrr);
+  metrics.customers.push(newCustomers);
+  metrics.churn.push(newChurn);
+  metrics.cac.push(newCac);
+  metrics.ltc.push(Math.round(newCac * 42));
+
+  if (metrics.mrr.length > 12) {
+    metrics.mrr.shift();
+    metrics.customers.shift();
+    metrics.churn.shift();
+    metrics.cac.shift();
+    metrics.ltc.shift();
+  }
+
+  saveMetrics();
+  render();
+}
+
+function resetMetrics() {
+  if (confirm('Reset all metrics to baseline?')) {
+    metrics = {
+      mrr: [15000, 18500, 22000, 26000, 30500, 35000, 38500, 40000, 41500, 43000, 44000, 45000],
+      customers: [150, 180, 215, 255, 295, 335, 370, 395, 415, 430, 440, 450],
+      churn: [8.2, 7.8, 7.2, 6.5, 6.0, 5.5, 5.0, 4.8, 4.5, 4.3, 4.2, 4.2],
+      cac: [250, 240, 230, 220, 210, 200, 190, 185, 180, 180, 180, 180],
+      ltc: [8500, 8400, 8300, 8200, 8100, 8000, 7900, 7800, 7700, 7600, 7600, 7600]
     };
+    saveMetrics();
+    render();
+  }
+}
 
-    function drawLineChart(canvasId, data, color = '#58a6ff', maxValue = null) {
-      const canvas = document.getElementById(canvasId);
-      const ctx = canvas.getContext('2d');
-      const rect = canvas.getBoundingClientRect();
-      canvas.width = rect.width * window.devicePixelRatio;
-      canvas.height = rect.height * window.devicePixelRatio;
-      ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+function render() {
+  updateStats();
+  drawChart('mrrChart', metrics.mrr);
+  drawChart('customersChart', metrics.customers);
+  drawChart('churnChart', metrics.churn);
+  drawChart('cacLtcChart', metrics.cac);
+}
 
-      const width = rect.width;
-      const height = rect.height;
-      const padding = 40;
-      const chartWidth = width - padding * 2;
-      const chartHeight = height - padding * 2;
-      const max = maxValue || Math.max(...data) * 1.1;
-      const step = chartWidth / (data.length - 1);
-
-      // Background
-      ctx.fillStyle = '#010409';
-      ctx.fillRect(0, 0, width, height);
-
-      // Grid lines
-      ctx.strokeStyle = '#30363d';
-      ctx.lineWidth = 1;
-      for (let i = 0; i <= 5; i++) {
-        const y = padding + (chartHeight * i) / 5;
-        ctx.beginPath();
-        ctx.moveTo(padding, y);
-        ctx.lineTo(width - padding, y);
-        ctx.stroke();
-      }
-
-      // Plot line
-      ctx.strokeStyle = color;
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      data.forEach((val, i) => {
-        const x = padding + step * i;
-        const y = height - padding - (val / max) * chartHeight;
-        if (i === 0) ctx.moveTo(x, y);
-        else ctx.lineTo(x, y);
-      });
-      ctx.stroke();
-
-      // Plot points
-      ctx.fillStyle = color;
-      data.forEach((val, i) => {
-        const x = padding + step * i;
-        const y = height - padding - (val / max) * chartHeight;
-        ctx.fillRect(x - 3, y - 3, 6, 6);
-      });
-
-      // Axes
-      ctx.strokeStyle = '#8b949e';
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      ctx.moveTo(padding, padding);
-      ctx.lineTo(padding, height - padding);
-      ctx.lineTo(width - padding, height - padding);
-      ctx.stroke();
-    }
-
-    function drawBarChart(canvasId, labels, value, maxValue) {
-      const canvas = document.getElementById(canvasId);
-      const ctx = canvas.getContext('2d');
-      const rect = canvas.getBoundingClientRect();
-      canvas.width = rect.width * window.devicePixelRatio;
-      canvas.height = rect.height * window.devicePixelRatio;
-      ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
-
-      const width = rect.width;
-      const height = rect.height;
-      const padding = 40;
-      const barWidth = (width - padding * 2) / labels.length;
-      const chartHeight = height - padding * 2;
-
-      // Background
-      ctx.fillStyle = '#010409';
-      ctx.fillRect(0, 0, width, height);
-
-      // Bars
-      labels.forEach((label, i) => {
-        const val = i === 0 ? metrics.cac : metrics.ltc;
-        const barHeight = (val / maxValue) * chartHeight;
-        const x = padding + i * barWidth + barWidth * 0.1;
-        const y = height - padding - barHeight;
-        const color = i === 0 ? '#58a6ff' : '#79c0ff';
-
-        ctx.fillStyle = color;
-        ctx.fillRect(x, y, barWidth * 0.8, barHeight);
-
-        // Label
-        ctx.fillStyle = '#8b949e';
-        ctx.font = '12px monospace';
-        ctx.textAlign = 'center';
-        ctx.fillText(label, padding + i * barWidth + barWidth / 2, height - padding + 20);
-      });
-
-      // Axes
-      ctx.strokeStyle = '#8b949e';
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      ctx.moveTo(padding, padding);
-      ctx.lineTo(padding, height - padding);
-      ctx.lineTo(width - padding, height - padding);
-      ctx.stroke();
-    }
-
-    function updateCharts() {
-      drawLineChart('mrrChart', metrics.mrr, '#58a6ff', 50000);
-      drawLineChart('customerChart', metrics.customers, '#79c0ff', 500);
-      drawLineChart('churnChart', metrics.churn, '#f85149', 10);
-      drawBarChart('cacChart', ['CAC', 'LTC'], null, 10000);
-
-      document.getElementById('mrrValue').textContent = '$' + metrics.mrr[metrics.mrr.length - 1].toLocaleString();
-      document.getElementById('churnValue').textContent = metrics.churn[metrics.churn.length - 1].toFixed(1) + '%';
-      document.getElementById('cacValue').textContent = '$' + metrics.cac;
-      document.getElementById('ltcValue').textContent = '$' + metrics.ltc.toLocaleString();
-    }
-
-    function simulateMonth() {
-      if (metrics.mrr.length >= 24) return;
-
-      const lastMrr = metrics.mrr[metrics.mrr.length - 1];
-      const growth = lastMrr * (0.08 + Math.random() * 0.04); // 8-12% growth
-      metrics.mrr.push(Math.round(lastMrr + growth));
-
-      const lastCustomers = metrics.customers[metrics.customers.length - 1];
-      metrics.customers.push(Math.round(lastCustomers * 1.08));
-
-      const lastChurn = metrics.churn[metrics.churn.length - 1];
-      metrics.churn.push(Math.max(3, lastChurn - 0.15 + (Math.random() - 0.5) * 0.3));
-
-      metrics.cac = Math.round(metrics.cac * (0.98 + Math.random() * 0.03));
-      metrics.ltc = Math.round(metrics.ltc * 1.05);
-
-      if (metrics.mrr.length > 24) {
-        metrics.mrr.shift();
-        metrics.customers.shift();
-        metrics.churn.shift();
-      }
-
-      updateCharts();
-    }
-
-    function resetMetrics() {
-      metrics = {
-        mrr: [15000, 18000, 21500, 24000, 28000, 32000, 36000, 39000, 41000, 43000, 44500, 45000],
-        customers: [150, 180, 215, 240, 280, 320, 360, 390, 410, 430, 445, 450],
-        churn: [8.2, 7.8, 6.5, 6.1, 5.5, 5.2, 5.0, 4.8, 4.5, 4.3, 4.2, 4.2],
-        cac: 180,
-        ltc: 8500,
-        autoplay: metrics.autoplay,
-        autoplayInterval: metrics.autoplayInterval
-      };
-      updateCharts();
-    }
-
-    function toggleAutoplay() {
-      metrics.autoplay = !metrics.autoplay;
-      if (metrics.autoplay) {
-        metrics.autoplayInterval = setInterval(() => {
-          if (metrics.mrr.length < 24) simulateMonth();
-          else {
-            clearInterval(metrics.autoplayInterval);
-            metrics.autoplay = false;
-          }
-        }, 800);
-      } else {
-        clearInterval(metrics.autoplayInterval);
-      }
-    }
-
-    window.addEventListener('resize', updateCharts);
-    updateCharts();
-  </script>
+loadMetrics();
+render();
+window.addEventListener('resize', render);
+</script>
 </body>
 </html>

@@ -19,9 +19,12 @@ h1,h2,h3,h4{font-family:'Playfair Display',Georgia,serif;color:#58a6ff}
 .logo{display:flex;align-items:center;gap:12px}
 .logo-dot{width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,#58a6ff,#79c0ff);display:flex;align-items:center;justify-content:center;color:#fff;font-size:16px;font-weight:700;flex-shrink:0}
 .logo-name{font-family:'Playfair Display',serif;font-size:22px;font-weight:700;color:#58a6ff}
-.revenue-box{background:#161b22;border:1px solid #30363d;border-radius:20px;padding:30px;text-align:center;margin-bottom:40px}
+.reset-btn{background:#da3633;color:#fff;border:none;padding:10px 16px;border-radius:8px;cursor:pointer;font-weight:600;font-size:12px;transition:all .15s}
+.reset-btn:hover{background:#f85149}
+.revenue-box{background:#161b22;border:1px solid #30363d;border-radius:20px;padding:30px;margin-bottom:40px}
 .revenue-label{color:#8b949e;font-size:14px;margin-bottom:10px}
 .revenue-value{font-size:48px;color:#58a6ff;font-weight:700;font-family:'Playfair Display',serif}
+.revenue-meta{font-size:12px;color:#8b949e;margin-top:12px}
 .agents-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:20px}
 .agent-card{background:#161b22;border:1px solid #30363d;border-radius:16px;padding:24px;transition:all .2s}
 .agent-card:hover{border-color:#58a6ff;transform:translateY(-2px)}
@@ -45,12 +48,14 @@ h1,h2,h3,h4{font-family:'Playfair Display',Georgia,serif;color:#58a6ff}
 <div class="logo-dot">💰</div>
 <div class="logo-name">Maillard AI</div>
 </div>
+<button class="reset-btn" onclick="resetData()">Reset Data</button>
 </div>
 <div class="page">
 <div class="scroll">
 <div class="revenue-box">
 <div class="revenue-label">Total Daily Revenue</div>
-<div class="revenue-value" id="totalRevenue">$34,800</div>
+<div class="revenue-value" id="totalRevenue">$0</div>
+<div class="revenue-meta">Last updated: <span id="lastUpdate">now</span></div>
 </div>
 <div class="agents-grid" id="agentsContainer"></div>
 </div>
@@ -58,47 +63,106 @@ h1,h2,h3,h4{font-family:'Playfair Display',Georgia,serif;color:#58a6ff}
 </div>
 </div>
 <script>
-const agents = {
-'linkedin-01': {id: 'linkedin-01', name: 'LinkedIn Agent', status: 'online', revenue: 5200, tasks: 45},
-'social-01': {id: 'social-01', name: 'Social Media Agent', status: 'online', revenue: 3800, tasks: 32},
-'freelance-01': {id: 'freelance-01', name: 'Freelance Agent', status: 'online', revenue: 7100, tasks: 58},
-'ai-dev-01': {id: 'ai-dev-01', name: 'AI Dev Agent', status: 'online', revenue: 9500, tasks: 72},
-'email-01': {id: 'email-01', name: 'Email Agent', status: 'online', revenue: 2400, tasks: 28},
-'consulting-01': {id: 'consulting-01', name: 'Consulting Agent', status: 'online', revenue: 6800, tasks: 41}
+// Initialize with default agents
+const defaultAgents = {
+  'linkedin-01': {id: 'linkedin-01', name: 'LinkedIn Agent', status: 'online', revenue: 2500, tasks: 45, dailyTarget: 5000},
+  'social-01': {id: 'social-01', name: 'Social Media Agent', status: 'online', revenue: 1800, tasks: 32, dailyTarget: 3000},
+  'freelance-01': {id: 'freelance-01', name: 'Freelance Agent', status: 'online', revenue: 3200, tasks: 58, dailyTarget: 8000},
+  'ai-dev-01': {id: 'ai-dev-01', name: 'AI Dev Agent', status: 'online', revenue: 4500, tasks: 72, dailyTarget: 10000},
+  'email-01': {id: 'email-01', name: 'Email Agent', status: 'online', revenue: 1200, tasks: 28, dailyTarget: 2500},
+  'consulting-01': {id: 'consulting-01', name: 'Consulting Agent', status: 'online', revenue: 5800, tasks: 41, dailyTarget: 12000}
 };
+
+// Load from localStorage or initialize
+function loadAgents() {
+  const saved = localStorage.getItem('maillardAgents');
+  if (saved) {
+    try {
+      return JSON.parse(saved);
+    } catch(e) {
+      console.error('Failed to load agents', e);
+      return defaultAgents;
+    }
+  }
+  return defaultAgents;
+}
+
+let agents = loadAgents();
+
+// Save to localStorage
+function saveAgents() {
+  localStorage.setItem('maillardAgents', JSON.stringify(agents));
+}
+
+// Update timestamp
+function updateTimestamp() {
+  const now = new Date();
+  const timeStr = now.toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'});
+  document.getElementById('lastUpdate').textContent = timeStr;
+}
+
 function renderAgents() {
-const container = document.getElementById('agentsContainer');
-container.innerHTML = Object.values(agents).map(agent => `
-<div class="agent-card">
-<div class="agent-name">${agent.name}</div>
-<div class="agent-stat">
-<span class="stat-label">Status</span>
-<span class="stat-value status-online">${agent.status}</span>
-</div>
-<div class="agent-stat">
-<span class="stat-label">Revenue</span>
-<span class="stat-value">$${agent.revenue.toLocaleString()}</span>
-</div>
-<div class="agent-stat">
-<span class="stat-label">Tasks</span>
-<span class="stat-value">${agent.tasks}</span>
-</div>
-<button class="btn btn-primary" onclick="runAgent('${agent.id}')">Execute Task</button>
-</div>
-`).join('');
-updateTotalRevenue();
+  const container = document.getElementById('agentsContainer');
+  container.innerHTML = Object.values(agents).map(agent => {
+    const progressPercent = Math.min(100, (agent.revenue / agent.dailyTarget * 100));
+    return `
+    <div class="agent-card">
+      <div class="agent-name">${agent.name}</div>
+      <div class="agent-stat">
+        <span class="stat-label">Status</span>
+        <span class="stat-value status-online">${agent.status}</span>
+      </div>
+      <div class="agent-stat">
+        <span class="stat-label">Revenue</span>
+        <span class="stat-value">$${agent.revenue.toLocaleString()}</span>
+      </div>
+      <div class="agent-stat">
+        <span class="stat-label">Daily Target</span>
+        <span class="stat-value">$${agent.dailyTarget.toLocaleString()}</span>
+      </div>
+      <div class="agent-stat">
+        <span class="stat-label">Tasks</span>
+        <span class="stat-value">${agent.tasks}</span>
+      </div>
+      <div style="width:100%;height:6px;background:#30363d;border-radius:3px;margin-top:12px;overflow:hidden">
+        <div style="height:100%;background:#238636;width:${progressPercent}%;transition:width .3s"></div>
+      </div>
+      <button class="btn btn-primary" onclick="runAgent('${agent.id}')">Execute Task (+$100-$600)</button>
+    </div>
+    `;
+  }).join('');
+  updateTotalRevenue();
 }
+
 function updateTotalRevenue() {
-const total = Object.values(agents).reduce((sum, a) => sum + a.revenue, 0);
-document.getElementById('totalRevenue').textContent = '$' + total.toLocaleString();
+  const total = Object.values(agents).reduce((sum, a) => sum + a.revenue, 0);
+  document.getElementById('totalRevenue').textContent = '$' + total.toLocaleString();
+  updateTimestamp();
 }
+
 function runAgent(id) {
-const agent = agents[id];
-agent.tasks += Math.floor(Math.random() * 10) + 1;
-agent.revenue += Math.floor(Math.random() * 500) + 100;
-renderAgents();
+  const agent = agents[id];
+  const taskIncrease = Math.floor(Math.random() * 10) + 1;
+  const revenueIncrease = Math.floor(Math.random() * 500) + 100;
+
+  agent.tasks += taskIncrease;
+  agent.revenue += revenueIncrease;
+
+  saveAgents();
+  renderAgents();
 }
+
+function resetData() {
+  if (confirm('Reset all agent data to default?')) {
+    agents = JSON.parse(JSON.stringify(defaultAgents));
+    saveAgents();
+    renderAgents();
+  }
+}
+
+// Initial render
 renderAgents();
+setInterval(updateTimestamp, 30000); // Update timestamp every 30 seconds
 </script>
 </body>
 </html>
