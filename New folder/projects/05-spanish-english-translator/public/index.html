@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Spanish ↔ English Translator</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Courier New', monospace; background: #0d1117; color: #c9d1d9; padding: 20px; }
+    .container { max-width: 1000px; margin: 0 auto; }
+    h1 { color: #58a6ff; margin-bottom: 30px; text-align: center; }
+    .translator { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+    .pane { background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 20px; }
+    .pane h3 { color: #58a6ff; margin-bottom: 15px; font-size: 14px; }
+    textarea { width: 100%; height: 300px; background: #0d1117; border: 1px solid #30363d; color: #c9d1d9; padding: 12px; border-radius: 6px; font-family: inherit; resize: vertical; }
+    button { background: #238636; color: white; border: none; padding: 10px 16px; border-radius: 6px; cursor: pointer; font-weight: 600; margin-top: 10px; width: 100%; }
+    button:hover { background: #2ea043; }
+    .button-group { display: flex; gap: 10px; }
+    .button-group button { flex: 1; }
+    .swap-btn { background: #58a6ff; }
+    .swap-btn:hover { background: #79c0ff; }
+    .status { margin-top: 15px; padding: 10px; background: #010409; border-radius: 6px; font-size: 12px; color: #8b949e; }
+    @media (max-width: 768px) {
+      .translator { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🌐 Spanish ↔ English Translator</h1>
+
+    <div class="translator">
+      <div class="pane">
+        <h3>📝 Spanish</h3>
+        <textarea id="spanishText" placeholder="Enter Spanish text..."></textarea>
+        <button onclick="translateToEnglish()">Translate to English →</button>
+        <button class="swap-btn" onclick="swapLanguages()">Swap</button>
+      </div>
+
+      <div class="pane">
+        <h3>📝 English</h3>
+        <textarea id="englishText" placeholder="English translation..."></textarea>
+        <button onclick="translateToSpanish()">← Translate to Spanish</button>
+        <div class="status" id="status"></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    async function translate(text, targetLang) {
+      const status = document.getElementById('status');
+      status.textContent = 'Translating...';
+
+      try {
+        const res = await fetch('/api/translate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text, targetLang })
+        });
+        const data = await res.json();
+        status.textContent = `✓ ${data.source === 'cache' ? 'From cache' : 'API call'} - ${text.length} chars`;
+        return data.translated;
+      } catch (err) {
+        status.textContent = `✗ Error: ${err.message}`;
+        return '';
+      }
+    }
+
+    async function translateToEnglish() {
+      const spanish = document.getElementById('spanishText').value;
+      if (!spanish.trim()) return alert('Enter Spanish text');
+      const english = await translate(spanish, 'English');
+      document.getElementById('englishText').value = english;
+    }
+
+    async function translateToSpanish() {
+      const english = document.getElementById('englishText').value;
+      if (!english.trim()) return alert('Enter English text');
+      const spanish = await translate(english, 'Spanish');
+      document.getElementById('spanishText').value = spanish;
+    }
+
+    function swapLanguages() {
+      const spanish = document.getElementById('spanishText').value;
+      const english = document.getElementById('englishText').value;
+      document.getElementById('spanishText').value = english;
+      document.getElementById('englishText').value = spanish;
+    }
+  </script>
+</body>
+</html>

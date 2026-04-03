@@ -19,6 +19,36 @@
       "runtimeExecutable": "npx",
       "runtimeArgs": ["nodemon", "AI_Empire/backend/server.js"],
       "port": 3000
+    },
+    {
+      "name": "SaaS Metrics Visualizer",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["serve", "projects/10-saas-metrics-visualizer", "-p", "8000", "--no-clipboard"],
+      "port": 8000
+    },
+    {
+      "name": "Maillard AI (HTML)",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["serve", "projects/01-maillard-ai-app", "-p", "5000", "--no-clipboard"],
+      "port": 5000
+    },
+    {
+      "name": "Spanish Translator (HTML)",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["serve", "projects/05-spanish-english-translator", "-p", "5100", "--no-clipboard"],
+      "port": 5100
+    },
+    {
+      "name": "German Translator (HTML)",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["serve", "projects/06-german-french-translator", "-p", "5200", "--no-clipboard"],
+      "port": 5200
+    },
+    {
+      "name": "Dutch Translator (HTML)",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["serve", "projects/07-dutch-canadian-french-translator", "-p", "5300", "--no-clipboard"],
+      "port": 5300
     }
   ]
 }

@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Maillard AI — Autonomous Revenue System</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+:root{--p:#58a6ff;--pl:#79c0ff;--pd:#3fb950;--pp:#0d1117;--pb:#161b22;--g:#22c55e;--y:#f59e0b;--r:#ef4444;--b:#3b82f6;--gray:#f9fafb;--shadow:0 4px 20px rgba(0,0,0,.08)}
+html,body{height:100%;font-family:'DM Sans',system-ui,sans-serif;background:#0d1117;color:#c9d1d9;-webkit-font-smoothing:antialiased}
+h1,h2,h3,h4{font-family:'Playfair Display',Georgia,serif;color:#58a6ff}
+#shell{display:flex;flex-direction:column;height:100vh;max-width:1400px;margin:0 auto;background:#0d1117;position:relative;overflow:hidden}
+.page{display:flex;flex-direction:column;height:100%;overflow:hidden}
+.scroll{flex:1;overflow-y:auto;padding:40px 20px}
+.scroll::-webkit-scrollbar{width:8px}
+.scroll::-webkit-scrollbar-thumb{background:#30363d;border-radius:4px}
+.topbar{display:flex;align-items:center;justify-content:space-between;padding:20px;background:#161b22;border-bottom:1px solid #30363d;flex-shrink:0;z-index:10}
+.logo{display:flex;align-items:center;gap:12px}
+.logo-dot{width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,#58a6ff,#79c0ff);display:flex;align-items:center;justify-content:center;color:#fff;font-size:16px;font-weight:700;flex-shrink:0}
+.logo-name{font-family:'Playfair Display',serif;font-size:22px;font-weight:700;color:#58a6ff}
+.revenue-box{background:#161b22;border:1px solid #30363d;border-radius:20px;padding:30px;text-align:center;margin-bottom:40px}
+.revenue-label{color:#8b949e;font-size:14px;margin-bottom:10px}
+.revenue-value{font-size:48px;color:#58a6ff;font-weight:700;font-family:'Playfair Display',serif}
+.agents-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:20px}
+.agent-card{background:#161b22;border:1px solid #30363d;border-radius:16px;padding:24px;transition:all .2s}
+.agent-card:hover{border-color:#58a6ff;transform:translateY(-2px)}
+.agent-name{font-size:18px;font-weight:700;color:#58a6ff;margin-bottom:16px;font-family:'Playfair Display',serif}
+.agent-stat{display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid #30363d;font-size:13px}
+.agent-stat:last-child{border:none}
+.stat-label{color:#8b949e}
+.stat-value{color:#79c0ff;font-weight:600}
+.status-online{color:#3fb950;font-weight:700}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;border:none;cursor:pointer;font-family:inherit;font-weight:600;border-radius:10px;transition:all .15s;outline:none;font-size:14px;padding:12px 20px;margin-top:16px;width:100%}
+.btn-primary{background:#238636;color:#fff}
+.btn-primary:hover{background:#2ea043;transform:translateY(-1px)}
+.btn-primary:active{transform:none}
+.btn:disabled{opacity:.5;cursor:not-allowed;transform:none!important}
+</style>
+</head>
+<body>
+<div id="shell">
+<div class="topbar">
+<div class="logo">
+<div class="logo-dot">💰</div>
+<div class="logo-name">Maillard AI</div>
+</div>
+</div>
+<div class="page">
+<div class="scroll">
+<div class="revenue-box">
+<div class="revenue-label">Total Daily Revenue</div>
+<div class="revenue-value" id="totalRevenue">$34,800</div>
+</div>
+<div class="agents-grid" id="agentsContainer"></div>
+</div>
+</div>
+</div>
+</div>
+<script>
+const agents = {
+'linkedin-01': {id: 'linkedin-01', name: 'LinkedIn Agent', status: 'online', revenue: 5200, tasks: 45},
+'social-01': {id: 'social-01', name: 'Social Media Agent', status: 'online', revenue: 3800, tasks: 32},
+'freelance-01': {id: 'freelance-01', name: 'Freelance Agent', status: 'online', revenue: 7100, tasks: 58},
+'ai-dev-01': {id: 'ai-dev-01', name: 'AI Dev Agent', status: 'online', revenue: 9500, tasks: 72},
+'email-01': {id: 'email-01', name: 'Email Agent', status: 'online', revenue: 2400, tasks: 28},
+'consulting-01': {id: 'consulting-01', name: 'Consulting Agent', status: 'online', revenue: 6800, tasks: 41}
+};
+function renderAgents() {
+const container = document.getElementById('agentsContainer');
+container.innerHTML = Object.values(agents).map(agent => `
+<div class="agent-card">
+<div class="agent-name">${agent.name}</div>
+<div class="agent-stat">
+<span class="stat-label">Status</span>
+<span class="stat-value status-online">${agent.status}</span>
+</div>
+<div class="agent-stat">
+<span class="stat-label">Revenue</span>
+<span class="stat-value">$${agent.revenue.toLocaleString()}</span>
+</div>
+<div class="agent-stat">
+<span class="stat-label">Tasks</span>
+<span class="stat-value">${agent.tasks}</span>
+</div>
+<button class="btn btn-primary" onclick="runAgent('${agent.id}')">Execute Task</button>
+</div>
+`).join('');
+updateTotalRevenue();
+}
+function updateTotalRevenue() {
+const total = Object.values(agents).reduce((sum, a) => sum + a.revenue, 0);
+document.getElementById('totalRevenue').textContent = '$' + total.toLocaleString();
+}
+function runAgent(id) {
+const agent = agents[id];
+agent.tasks += Math.floor(Math.random() * 10) + 1;
+agent.revenue += Math.floor(Math.random() * 500) + 100;
+renderAgents();
+}
+renderAgents();
+</script>
+</body>
+</html>

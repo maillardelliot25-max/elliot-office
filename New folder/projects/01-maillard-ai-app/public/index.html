@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Maillard AI - Autonomous Revenue System</title>
+  <script src="/socket.io.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Courier New', monospace; background: #0d1117; color: #c9d1d9; padding: 20px; }
+    .container { max-width: 1400px; margin: 0 auto; }
+    h1 { color: #58a6ff; margin-bottom: 30px; }
+    .agents-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 20px; }
+    .agent-card { background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 20px; transition: all 0.3s; }
+    .agent-card:hover { border-color: #58a6ff; }
+    .agent-name { color: #58a6ff; font-weight: bold; margin-bottom: 10px; }
+    .agent-stat { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #30363d; }
+    .agent-stat:last-child { border: none; }
+    .stat-label { color: #8b949e; font-size: 12px; }
+    .stat-value { color: #79c0ff; font-weight: bold; }
+    .status-online { color: #3fb950; }
+    button { background: #238636; color: white; border: none; padding: 10px 16px; border-radius: 6px; cursor: pointer; font-weight: 600; margin-top: 15px; width: 100%; font-family: inherit; }
+    button:hover { background: #2ea043; }
+    .total-revenue { text-align: center; padding: 20px; background: #010409; border: 1px solid #30363d; border-radius: 8px; margin-bottom: 30px; }
+    .revenue-value { font-size: 36px; color: #58a6ff; font-weight: bold; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>💰 Maillard AI - Autonomous Revenue System</h1>
+
+    <div class="total-revenue">
+      <div style="color: #8b949e; margin-bottom: 10px;">Total Daily Revenue</div>
+      <div class="revenue-value" id="totalRevenue">$34,800</div>
+    </div>
+
+    <div class="agents-grid" id="agentsContainer"></div>
+  </div>
+
+  <script>
+    const socket = io();
+    let agents = {};
+
+    socket.on('agents', (data) => {
+      agents = {};
+      data.forEach(agent => agents[agent.id] = agent);
+      renderAgents();
+    });
+
+    socket.on('agent-update', (agent) => {
+      agents[agent.id] = agent;
+      updateAgentCard(agent.id);
+      updateTotalRevenue();
+    });
+
+    function renderAgents() {
+      const container = document.getElementById('agentsContainer');
+      container.innerHTML = Object.values(agents).map(agent => `
+        <div class="agent-card">
+          <div class="agent-name">${agent.name}</div>
+          <div class="agent-stat">
+            <span class="stat-label">Status</span>
+            <span class="stat-value status-online">${agent.status}</span>
+          </div>
+          <div class="agent-stat">
+            <span class="stat-label">Revenue</span>
+            <span class="stat-value">$${agent.revenue.toLocaleString()}</span>
+          </div>
+          <div class="agent-stat">
+            <span class="stat-label">Tasks</span>
+            <span class="stat-value">${agent.tasks}</span>
+          </div>
+          <button onclick="runAgent('${agent.id}')">Execute Task</button>
+        </div>
+      `).join('');
+      updateTotalRevenue();
+    }
+
+    function updateAgentCard(id) {
+      const agent = agents[id];
+      const card = document.querySelector(`[data-agent="${id}"]`);
+      if (card) card.querySelector('.revenue-value').textContent = `$${agent.revenue.toLocaleString()}`;
+    }
+
+    function updateTotalRevenue() {
+      const total = Object.values(agents).reduce((sum, a) => sum + a.revenue, 0);
+      document.getElementById('totalRevenue').textContent = `$${total.toLocaleString()}`;
+    }
+
+    async function runAgent(id) {
+      const res = await fetch(`/api/agents/${id}/run`, { method: 'POST' });
+      const agent = await res.json();
+      agents[id] = agent;
+      updateAgentCard(id);
+      updateTotalRevenue();
+    }
+
+    // Initial fetch
+    fetch('/api/agents').then(r => r.json()).then(data => {
+      data.forEach(a => agents[a.id] = a);
+      renderAgents();
+    });
+  </script>
+</body>
+</html>

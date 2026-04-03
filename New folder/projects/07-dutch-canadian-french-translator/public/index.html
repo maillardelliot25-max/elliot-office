@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dutch → Canadian French</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Courier New', monospace; background: #0d1117; color: #c9d1d9; padding: 20px; }
+    .container { max-width: 800px; margin: 0 auto; }
+    h1 { color: #58a6ff; text-align: center; margin-bottom: 30px; }
+    .translator { background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 30px; }
+    textarea { width: 100%; background: #0d1117; border: 1px solid #30363d; color: #c9d1d9; padding: 12px; border-radius: 6px; font-family: inherit; }
+    .input-section { margin-bottom: 20px; }
+    .label { color: #58a6ff; font-size: 14px; margin-bottom: 10px; }
+    #dutchText { height: 150px; margin-bottom: 15px; }
+    #frenchText { height: 150px; margin-top: 15px; }
+    button { background: #238636; color: white; border: none; padding: 12px 24px; border-radius: 6px; cursor: pointer; font-weight: 600; width: 100%; }
+    button:hover { background: #2ea043; }
+    .status { margin-top: 15px; padding: 10px; background: #010409; border-radius: 6px; font-size: 12px; color: #8b949e; }
+    .culture { color: #79c0ff; font-size: 12px; margin-top: 5px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🇳🇱 → 🍁 Dutch ↔ Canadian French</h1>
+
+    <div class="translator">
+      <div class="input-section">
+        <div class="label">📝 Dutch (Nederlands)</div>
+        <textarea id="dutchText" placeholder="Enter Dutch text..."></textarea>
+        <button onclick="translate()">Translate to Canadian French →</button>
+      </div>
+
+      <div class="input-section">
+        <div class="label">📝 Canadian French (Français Canadien)</div>
+        <textarea id="frenchText" placeholder="Traduction..." readonly></textarea>
+        <div class="culture">🏒 Montréal, hockey, poutine cultural references</div>
+      </div>
+
+      <div class="status" id="status"></div>
+    </div>
+  </div>
+
+  <script>
+    async function translate() {
+      const dutch = document.getElementById('dutchText').value;
+      if (!dutch.trim()) return alert('Enter Dutch text');
+
+      const status = document.getElementById('status');
+      status.textContent = 'Translating...';
+
+      try {
+        const res = await fetch('/api/translate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text: dutch })
+        });
+        const data = await res.json();
+        document.getElementById('frenchText').value = data.translated;
+        status.textContent = `✓ ${data.source} - Canadian cultural context`;
+      } catch (err) {
+        status.textContent = `✗ Error: ${err.message}`;
+      }
+    }
+  </script>
+</body>
+</html>
