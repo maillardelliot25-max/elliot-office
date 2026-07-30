@@ -5,13 +5,13 @@
 
 :root {
   /* Brand palette — do not hardcode colors outside this block */
-  --asphalt: #14151A;
-  --asphalt-raised: #1D1E25;
-  --asphalt-line: #2B2C35;
-  --signal: #FF5A1F;
-  --torque: #F2C230;
-  --chalk: #ECECE4;
-  --chalk-dim: #A9A9A2;
+  --asphalt: #211D1A;
+  --asphalt-raised: #2C2621;
+  --asphalt-line: #40372E;
+  --signal: #F0632A;
+  --torque: #F5B93A;
+  --chalk: #F5F0E8;
+  --chalk-dim: #BBAFA0;
 
   /* Type */
   --font-display: 'Oswald', 'Arial Narrow', sans-serif;
@@ -26,7 +26,10 @@
   --space-5: 4rem;
   --space-6: 6.4rem;
 
-  --radius: 2px;
+  --radius: 16px;
+  --radius-sm: 10px;
+  --radius-pill: 999px;
+  --shadow-soft: 0 8px 24px rgba(15, 12, 9, 0.35);
   --max-width: 1180px;
 }
 
@@ -79,6 +82,7 @@ select:focus-visible,
   font-family: var(--font-mono);
   font-weight: 700;
   padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm);
   z-index: 200;
 }
 .skip-link:focus {
@@ -122,14 +126,14 @@ select:focus-visible,
 
 /* ---------- Hazard stripe motif ---------- */
 .hazard-strip {
-  height: 10px;
+  height: 8px;
   width: 100%;
   background: repeating-linear-gradient(
     -45deg,
     var(--signal),
-    var(--signal) 18px,
-    var(--asphalt) 18px,
-    var(--asphalt) 36px
+    var(--signal) 26px,
+    var(--asphalt) 26px,
+    var(--asphalt) 52px
   );
 }
 
@@ -167,11 +171,14 @@ select:focus-visible,
   display: none;
   background: none;
   border: 1px solid var(--asphalt-line);
+  border-radius: var(--radius-sm);
   color: var(--chalk);
   font-family: var(--font-mono);
   padding: var(--space-1) var(--space-2);
   cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
 }
+.nav-toggle:hover { border-color: var(--signal); background: var(--asphalt-raised); }
 .nav-toggle-icon {
   display: block;
   width: 22px;
@@ -205,13 +212,15 @@ select:focus-visible,
 .nav-links a {
   color: var(--chalk);
   text-decoration: none;
-  padding: var(--space-1) 0;
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-pill);
   border-bottom: 2px solid transparent;
+  transition: color 0.15s ease, background 0.15s ease;
 }
 .nav-links a:hover,
 .nav-links a[aria-current="page"] {
   color: var(--signal);
-  border-bottom-color: var(--signal);
+  background: var(--asphalt-raised);
 }
 
 /* ---------- Buttons ---------- */
@@ -226,21 +235,23 @@ select:focus-visible,
   font-weight: 700;
   padding: var(--space-2) var(--space-4);
   border: 2px solid transparent;
-  border-radius: var(--radius);
+  border-radius: var(--radius-pill);
   cursor: pointer;
   text-decoration: none;
-  transition: transform 0.12s ease, background 0.12s ease;
+  box-shadow: var(--shadow-soft);
+  transition: transform 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
 }
-.btn:hover { transform: translateY(-1px); }
+.btn:hover { transform: translateY(-2px); }
 .btn-primary {
   background: var(--signal);
   color: var(--asphalt);
 }
 .btn-primary:hover { background: var(--torque); color: var(--asphalt); }
 .btn-secondary {
-  background: transparent;
-  border-color: var(--chalk);
+  background: var(--asphalt-raised);
+  border-color: var(--asphalt-line);
   color: var(--chalk);
+  box-shadow: none;
 }
 .btn-secondary:hover { border-color: var(--torque); color: var(--torque); }
 .btn-block { width: 100%; justify-content: center; }
@@ -259,7 +270,7 @@ select:focus-visible,
   content: "";
   position: absolute;
   inset: 0;
-  background: linear-gradient(180deg, rgba(20,21,26,0.55) 0%, rgba(20,21,26,0.92) 100%);
+  background: linear-gradient(180deg, rgba(33,29,26,0.45) 0%, rgba(33,29,26,0.90) 100%);
 }
 .hero-inner {
   position: relative;
@@ -305,11 +316,19 @@ section { padding: var(--space-6) 0; }
 .job-card {
   background: var(--asphalt-raised);
   border: 1px solid var(--asphalt-line);
-  border-top: 3px solid var(--signal);
+  border-top: 4px solid var(--signal);
+  border-radius: var(--radius);
+  overflow: hidden;
+  box-shadow: var(--shadow-soft);
   padding: var(--space-4);
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
+  transition: transform 0.18s ease, box-shadow 0.18s ease;
+}
+.job-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 14px 30px rgba(15, 12, 9, 0.4);
 }
 .job-card-image {
   margin: calc(var(--space-4) * -1) calc(var(--space-4) * -1) 0;
@@ -323,13 +342,15 @@ section { padding: var(--space-6) 0; }
 .work-gallery {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-  gap: var(--space-2);
+  gap: var(--space-3);
 }
 .work-gallery a {
   display: block;
   aspect-ratio: 1 / 1;
   overflow: hidden;
+  border-radius: var(--radius-sm);
   border: 1px solid var(--asphalt-line);
+  box-shadow: var(--shadow-soft);
   position: relative;
 }
 .work-gallery img {
@@ -340,6 +361,25 @@ section { padding: var(--space-6) 0; }
 }
 .work-gallery a:hover img,
 .work-gallery a:focus-visible img { transform: scale(1.06); }
+
+/* ---------- Gallery page cards ---------- */
+.gallery-card {
+  background: var(--asphalt-raised);
+  border: 1px solid var(--asphalt-line);
+  border-radius: var(--radius);
+  overflow: hidden;
+  box-shadow: var(--shadow-soft);
+  transition: transform 0.18s ease, box-shadow 0.18s ease;
+}
+.gallery-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 14px 30px rgba(15, 12, 9, 0.4);
+}
+.gallery-card-image { aspect-ratio: 4 / 3; overflow: hidden; background: var(--asphalt); }
+.gallery-card-image img { width: 100%; height: 100%; object-fit: cover; }
+.gallery-card-body { padding: var(--space-3) var(--space-4) var(--space-4); }
+.gallery-card-body h3 { font-size: 1.1rem; margin-bottom: var(--space-1); }
+.gallery-card-body p { margin-bottom: 0; font-size: 0.92rem; }
 .job-card .job-code {
   font-family: var(--font-mono);
   font-size: 0.75rem;
@@ -370,6 +410,9 @@ section { padding: var(--space-6) 0; }
 .spec-sheet {
   border: 1px solid var(--asphalt-line);
   background: var(--asphalt-raised);
+  border-radius: var(--radius);
+  overflow: hidden;
+  box-shadow: var(--shadow-soft);
 }
 .spec-sheet dl {
   margin: 0;
@@ -398,40 +441,6 @@ section { padding: var(--space-6) 0; }
   color: var(--chalk);
 }
 
-/* ---------- Vehicle listing ---------- */
-.vehicle-card {
-  background: var(--asphalt-raised);
-  border: 1px solid var(--asphalt-line);
-  display: grid;
-  grid-template-columns: 1fr;
-  overflow: hidden;
-}
-@media (min-width: 800px) {
-  .vehicle-card { grid-template-columns: 1fr 1fr; }
-}
-.vehicle-media { position: relative; background: var(--asphalt); }
-.vehicle-media img { width: 100%; height: 100%; object-fit: cover; }
-.vehicle-body { padding: var(--space-4); display: flex; flex-direction: column; gap: var(--space-2); }
-.vehicle-price {
-  font-family: var(--font-mono);
-  color: var(--torque);
-  font-size: 1.4rem;
-  font-weight: 700;
-}
-.stock-photo-tag {
-  position: absolute;
-  top: var(--space-2);
-  left: var(--space-2);
-  background: rgba(20,21,26,0.88);
-  border: 1px solid var(--signal);
-  color: var(--torque);
-  font-family: var(--font-mono);
-  text-transform: uppercase;
-  font-size: 0.68rem;
-  letter-spacing: 0.08em;
-  padding: 0.3em 0.6em;
-}
-
 /* ---------- Forms ---------- */
 .form-grid {
   display: grid;
@@ -451,9 +460,10 @@ input, textarea, select {
   color: var(--chalk);
   font-family: var(--font-body);
   font-size: 1rem;
-  padding: var(--space-2);
-  border-radius: var(--radius);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm);
   width: 100%;
+  transition: border-color 0.15s ease;
 }
 input:focus, textarea:focus, select:focus {
   border-color: var(--signal);
@@ -471,6 +481,7 @@ textarea { min-height: 140px; resize: vertical; }
   font-size: 0.9rem;
   padding: var(--space-2) var(--space-3);
   border: 1px solid var(--asphalt-line);
+  border-radius: var(--radius-sm);
   display: none;
 }
 .form-status[data-state="success"] {
