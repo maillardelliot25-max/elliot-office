@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 640" width="1600" height="640" role="img" aria-label="ZMAX Upgrades illustration">
+  <rect width="1600" height="640" fill="#14151A"/>
+  
+  <g opacity="0.55"><line x1="0" y1="0" x2="0" y2="640" stroke="#2B2C35" stroke-width="1"/><line x1="50" y1="0" x2="50" y2="640" stroke="#2B2C35" stroke-width="1"/><line x1="100" y1="0" x2="100" y2="640" stroke="#2B2C35" stroke-width="1"/><line x1="150" y1="0" x2="150" y2="640" stroke="#2B2C35" stroke-width="1"/><line x1="200" y1="0" x2="200" y2="640" stroke="#2B2C35" stroke-width="1"/><line x1="250" y1="0" x2="250" y2="640" stroke="#2B2C35" stroke-width="1"/><line x1="300" y1="0" x2="300" y2="640" stroke="#2B2C35" stroke-width="1"/><line x1="350" y1="0" x2="350" y2="640" stroke="#2B2C35" stroke-width="1"/><line x1="400" y1="0" x2="400" y2="640" stroke="#2B2C35" stroke-width="1"/><line x1="450" y1="0" x2="450" y2="640" stroke="#2B2C35" stroke-width="1"/><line x1="500" y1="0" x2="500" y2="640" stroke="#2B2C35" stroke-width="1"/><line x1="550" y1="0" x2="550" y2="640" stroke="#2B2C35" stroke-width="1"/><line x1="600" y1="0" x2="600" y2="640" stroke="#2B2C35" stroke-width="1"/><line x1="650" y1="0" x2="650" y2="640" stroke="#2B2C35" stroke-width="1"/><line x1="700" y1="0" x2="700" y2="640" stroke="#2B2C35" stroke-width="1"/><line x1="750" y1="0" x2="750" y2="640" stroke="#2B2C35" stroke-width="1"/><line x1="800" y1="0" x2="800" y2="640" stroke="#2B2C35" stroke-width="1"/><line x1="850" y1="0" x2="850" y2="640" stroke="#2B2C35" stroke-width="1"/><line x1="900" y1="0" x2="900" y2="640" stroke="#2B2C35" stroke-width="1"/><line x1="950" y1="0" x2="950" y2="640" stroke="#2B2C35" stroke-width="1"/><line x1="1000" y1="0" x2="1000" y2="640" stroke="#2B2C35" stroke-width="1"/><line x1="1050" y1="0" x2="1050" y2="640" stroke="#2B2C35" stroke-width="1"/><line x1="1100" y1="0" x2="1100" y2="640" stroke="#2B2C35" stroke-width="1"/><line x1="1150" y1="0" x2="1150" y2="640" stroke="#2B2C35" stroke-width="1"/><line x1="1200" y1="0" x2="1200" y2="640" stroke="#2B2C35" stroke-width="1"/><line x1="1250" y1="0" x2="1250" y2="640" stroke="#2B2C35" stroke-width="1"/><line x1="1300" y1="0" x2="1300" y2="640" stroke="#2B2C35" stroke-width="1"/><line x1="1350" y1="0" x2="1350" y2="640" stroke="#2B2C35" stroke-width="1"/><line x1="1400" y1="0" x2="1400" y2="640" stroke="#2B2C35" stroke-width="1"/><line x1="1450" y1="0" x2="1450" y2="640" stroke="#2B2C35" stroke-width="1"/><line x1="1500" y1="0" x2="1500" y2="640" stroke="#2B2C35" stroke-width="1"/><line x1="1550" y1="0" x2="1550" y2="640" stroke="#2B2C35" stroke-width="1"/><line x1="1600" y1="0" x2="1600" y2="640" stroke="#2B2C35" stroke-width="1"/><line x1="0" y1="0" x2="1600" y2="0" stroke="#2B2C35" stroke-width="1"/><line x1="0" y1="50" x2="1600" y2="50" stroke="#2B2C35" stroke-width="1"/><line x1="0" y1="100" x2="1600" y2="100" stroke="#2B2C35" stroke-width="1"/><line x1="0" y1="150" x2="1600" y2="150" stroke="#2B2C35" stroke-width="1"/><line x1="0" y1="200" x2="1600" y2="200" stroke="#2B2C35" stroke-width="1"/><line x1="0" y1="250" x2="1600" y2="250" stroke="#2B2C35" stroke-width="1"/><line x1="0" y1="300" x2="1600" y2="300" stroke="#2B2C35" stroke-width="1"/><line x1="0" y1="350" x2="1600" y2="350" stroke="#2B2C35" stroke-width="1"/><line x1="0" y1="400" x2="1600" y2="400" stroke="#2B2C35" stroke-width="1"/><line x1="0" y1="450" x2="1600" y2="450" stroke="#2B2C35" stroke-width="1"/><line x1="0" y1="500" x2="1600" y2="500" stroke="#2B2C35" stroke-width="1"/><line x1="0" y1="550" x2="1600" y2="550" stroke="#2B2C35" stroke-width="1"/><line x1="0" y1="600" x2="1600" y2="600" stroke="#2B2C35" stroke-width="1"/></g>
+  
+  <defs>
+    <pattern id="hz22942" width="28" height="28" patternTransform="rotate(-45)" patternUnits="userSpaceOnUse">
+      <rect width="28" height="28" fill="#14151A"/>
+      <rect width="14" height="28" fill="#FF5A1F"/>
+    </pattern>
+    <clipPath id="hz22942-clip">
+      <polygon points="1420,0 1600,0 1600,180"/>
+    </clipPath>
+  </defs>
+  <rect width="1600" height="640" fill="url(#hz22942)" clip-path="url(#hz22942-clip)"/>
+  
+  <g transform="translate(920,330) scale(1.7)" fill="none" stroke="#F2C230" stroke-width="4" stroke-linejoin="round">
+    <path d="M15,150 L15,100 Q15,85 32,80 L60,78 L85,30 Q92,20 108,20 L330,20 Q346,20 353,32 L372,78 L430,82 Q455,85 455,112 L455,150 Z"/>
+    <line x1="150" y1="24" x2="150" y2="80" stroke="#F2C230" stroke-width="3"/>
+    <line x1="260" y1="24" x2="260" y2="80" stroke="#F2C230" stroke-width="3"/>
+    <rect x="70" y="150" width="340" height="14" fill="#F2C230" opacity="0.5"/>
+    <circle cx="110" cy="158" r="38" fill="#14151A" stroke="#F2C230" stroke-width="7"/>
+    <circle cx="110" cy="158" r="13" fill="#F2C230"/>
+    <circle cx="370" cy="158" r="38" fill="#14151A" stroke="#F2C230" stroke-width="7"/>
+    <circle cx="370" cy="158" r="13" fill="#F2C230"/>
+  </g>
+  <line x1="150" y1="470" x2="760" y2="470" stroke="#F2C230" stroke-width="1.5" stroke-dasharray="6 5" opacity="0.85"/>
+  <circle cx="150" cy="470" r="3" fill="#F2C230"/><circle cx="760" cy="470" r="3" fill="#F2C230"/>
+  <text x="150" y="120" font-family="'JetBrains Mono', 'Courier New', monospace" font-size="40" fill="#ECECE4" letter-spacing="1.5" text-anchor="start" opacity="0.9">INVENTORY</text>
+  <text x="150" y="160" font-family="'JetBrains Mono', 'Courier New', monospace" font-size="18" fill="#FF5A1F" letter-spacing="1.5" text-anchor="start" opacity="0.9">VEHICLES FOR SALE</text>
+  
+</svg>
