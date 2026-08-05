@@ -94,6 +94,20 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
 
+  // ----- Portfolio gallery filter -----
+  const galleryFilterBtns = document.querySelectorAll('.gallery-filter .toggle-btn');
+  const galleryItems = document.querySelectorAll('.gallery-item');
+  galleryFilterBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+      galleryFilterBtns.forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      const genre = btn.dataset.genre;
+      galleryItems.forEach(item => {
+        item.classList.toggle('hidden', genre !== 'all' && item.dataset.genre !== genre);
+      });
+    });
+  });
+
   // ----- Pricing calculator -----
   const RATES = {
     photo: {
@@ -139,7 +153,7 @@ document.addEventListener('DOMContentLoaded', () => {
     },
   };
 
-  const modeToggleBtns = document.querySelectorAll('.toggle-btn');
+  const modeToggleBtns = document.querySelectorAll('.pricing-toggle .toggle-btn');
   const presetBtns = document.querySelectorAll('.preset-btn');
   const crewSelect = document.getElementById('calc-crew');
   const hoursSlider = document.getElementById('calc-hours');
