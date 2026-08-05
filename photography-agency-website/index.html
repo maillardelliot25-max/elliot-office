@@ -4,12 +4,18 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Liming Lens Productions | Trinidad Photography &amp; Film</title>
-<meta name="description" content="Liming Lens Productions — Trinidad-based photography and film production agency. Book our team, choose your rate, or join our 12-month training and contract program.">
+<meta name="description" content="Liming Lens Productions — Trinidad-based photography and film production agency. Build your own quote, meet the crew, or join our 12-month training and contract program.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Anton&family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
+
+<div class="cursor-ring" id="cursor-ring" aria-hidden="true"></div>
+
+<div class="scroll-progress" id="scroll-progress" aria-hidden="true">
+  <div class="scroll-progress-fill" id="scroll-progress-fill"></div>
+</div>
 
 <div class="topbar">
   <p>🎬 Based in Trinidad &amp; Tobago &nbsp;•&nbsp; Now booking for Carnival season &nbsp;•&nbsp; Applications open for our Training Program</p>
@@ -21,7 +27,7 @@
 
     <nav class="main-nav" id="main-nav">
       <a href="#services">Services</a>
-      <a href="#rates">Rates</a>
+      <a href="#rates">Build a Quote</a>
       <a href="#team">Our Team</a>
       <a href="#program">Training Program</a>
       <a href="#faq">FAQ</a>
@@ -44,16 +50,14 @@
   <!-- HERO -->
   <section class="hero" id="hero">
     <div class="hero-bg" aria-hidden="true">
-      <div class="hero-shape shape-a"></div>
-      <div class="hero-shape shape-b"></div>
-      <div class="hero-shape shape-c"></div>
+      <div class="lens-ring"></div>
     </div>
     <div class="container hero-inner">
       <p class="eyebrow reveal">Photography &amp; Film Production • Port of Spain, Trinidad &amp; Tobago</p>
       <h1 class="reveal">We shoot your story <span class="text-gradient">in 4K, in colour, in culture.</span></h1>
       <p class="hero-sub reveal">A four-person crew of Trini photographers and filmmakers, built for weddings, events, commercials, music videos and brand content — with our own pipeline for training the next generation of local talent.</p>
       <div class="hero-actions reveal">
-        <a href="#rates" class="btn btn-primary">See Rates &amp; Book Us</a>
+        <a href="#rates" class="btn btn-primary">Build Your Quote</a>
         <a href="#program" class="btn btn-outline">Join the Training Program</a>
       </div>
       <div class="hero-stats reveal">
@@ -65,6 +69,24 @@
     </div>
   </section>
 
+  <!-- MARQUEE -->
+  <div class="marquee" aria-hidden="true">
+    <div class="marquee-track">
+      <span>Weddings</span><span class="dot">✦</span>
+      <span>Commercials</span><span class="dot">✦</span>
+      <span>Music Videos</span><span class="dot">✦</span>
+      <span>Carnival</span><span class="dot">✦</span>
+      <span>Portraits</span><span class="dot">✦</span>
+      <span>Brand Films</span><span class="dot">✦</span>
+      <span>Weddings</span><span class="dot">✦</span>
+      <span>Commercials</span><span class="dot">✦</span>
+      <span>Music Videos</span><span class="dot">✦</span>
+      <span>Carnival</span><span class="dot">✦</span>
+      <span>Portraits</span><span class="dot">✦</span>
+      <span>Brand Films</span><span class="dot">✦</span>
+    </div>
+  </div>
+
   <!-- ABOUT / SERVICES -->
   <section class="section" id="services">
     <div class="container">
@@ -74,27 +96,47 @@
         <p class="section-sub">Liming Lens Productions is a Trinidad-grown crew delivering commercial-grade photo and video work — from a single portrait sitting to a full multi-camera event shoot. Everything is shot, edited and delivered locally.</p>
       </div>
 
-      <div class="grid grid-4 services-grid">
-        <article class="card service-card reveal">
-          <div class="card-icon">📸</div>
-          <h3>Portrait &amp; Studio</h3>
-          <p>Headshots, family portraits, personal branding and studio sessions with professional lighting setups.</p>
-        </article>
-        <article class="card service-card reveal">
-          <div class="card-icon">🎥</div>
-          <h3>Event &amp; Wedding Coverage</h3>
-          <p>Full-day photo and video coverage for weddings, Carnival events, fetes and private functions.</p>
-        </article>
-        <article class="card service-card reveal">
-          <div class="card-icon">🏢</div>
-          <h3>Commercial &amp; Brand Content</h3>
-          <p>Product photography, promotional videos, social media content and ad campaigns for local businesses.</p>
-        </article>
-        <article class="card service-card reveal">
-          <div class="card-icon">🎬</div>
-          <h3>Film &amp; Music Video</h3>
-          <p>Short films, music videos and documentary-style production shot on 4K/6K cinema cameras.</p>
-        </article>
+      <div class="service-list reveal">
+        <div class="service-row open">
+          <button class="service-row-head" aria-expanded="true">
+            <span class="service-num">01</span>
+            <span class="service-title">Portrait &amp; Studio</span>
+            <span class="service-arrow">→</span>
+          </button>
+          <div class="service-row-body">
+            <p>Headshots, family portraits, personal branding and studio sessions with professional lighting setups.</p>
+          </div>
+        </div>
+        <div class="service-row">
+          <button class="service-row-head" aria-expanded="false">
+            <span class="service-num">02</span>
+            <span class="service-title">Event &amp; Wedding Coverage</span>
+            <span class="service-arrow">→</span>
+          </button>
+          <div class="service-row-body">
+            <p>Full-day photo and video coverage for weddings, Carnival events, fetes and private functions.</p>
+          </div>
+        </div>
+        <div class="service-row">
+          <button class="service-row-head" aria-expanded="false">
+            <span class="service-num">03</span>
+            <span class="service-title">Commercial &amp; Brand Content</span>
+            <span class="service-arrow">→</span>
+          </button>
+          <div class="service-row-body">
+            <p>Product photography, promotional videos, social media content and ad campaigns for local businesses.</p>
+          </div>
+        </div>
+        <div class="service-row">
+          <button class="service-row-head" aria-expanded="false">
+            <span class="service-num">04</span>
+            <span class="service-title">Film &amp; Music Video</span>
+            <span class="service-arrow">→</span>
+          </button>
+          <div class="service-row-body">
+            <p>Short films, music videos and documentary-style production shot on 4K/6K cinema cameras.</p>
+          </div>
+        </div>
       </div>
 
       <div class="equipment-strip reveal">
@@ -111,13 +153,13 @@
     </div>
   </section>
 
-  <!-- RATES -->
+  <!-- RATES / CALCULATOR -->
   <section class="section section-alt" id="rates">
     <div class="container">
       <div class="section-head">
-        <p class="eyebrow">Book Our Services</p>
+        <p class="eyebrow">Build Your Quote</p>
         <h2>Choose the rate that fits your shoot</h2>
-        <p class="section-sub">Straightforward tiers for photography and video production. Every package can be customized — reach out and we'll build a quote around your event.</p>
+        <p class="section-sub">Pick a starting point or build your own package below — the price updates live, and you can send it straight into an application.</p>
       </div>
 
       <div class="pricing-toggle reveal">
@@ -125,84 +167,65 @@
         <button class="toggle-btn" data-mode="video">Video / Production</button>
       </div>
 
-      <div class="grid grid-3 pricing-grid" id="pricing-photo">
-        <article class="card price-card reveal">
-          <h3>Basic</h3>
-          <p class="price">$800<span>TTD / session</span></p>
-          <ul class="price-list">
-            <li>1 photographer, up to 2 hours</li>
-            <li>50+ edited high-res photos</li>
-            <li>Online gallery delivery</li>
-            <li>Ideal for portraits &amp; headshots</li>
-          </ul>
-          <a href="#apply" class="btn btn-outline btn-block">Choose Basic</a>
-        </article>
+      <div class="calculator reveal">
+        <div class="calc-presets">
+          <span class="preset-label">Quick presets:</span>
+          <button class="preset-btn active" data-preset="basic">Basic</button>
+          <button class="preset-btn" data-preset="standard">Standard</button>
+          <button class="preset-btn" data-preset="premium">Premium</button>
+        </div>
 
-        <article class="card price-card featured reveal">
-          <span class="badge">Most Popular</span>
-          <h3>Standard</h3>
-          <p class="price">$2,200<span>TTD / event</span></p>
-          <ul class="price-list">
-            <li>2 photographers, up to 5 hours</li>
-            <li>150+ edited high-res photos</li>
-            <li>Same-week preview gallery</li>
-            <li>Great for weddings &amp; medium events</li>
-          </ul>
-          <a href="#apply" class="btn btn-primary btn-block">Choose Standard</a>
-        </article>
+        <div class="calc-body">
+          <div class="calc-controls">
+            <div class="calc-field">
+              <label for="calc-crew">Crew size</label>
+              <select id="calc-crew">
+                <option value="solo">Solo shooter</option>
+                <option value="duo">2-person crew</option>
+                <option value="full">Full crew (4)</option>
+              </select>
+            </div>
 
-        <article class="card price-card reveal">
-          <h3>Premium</h3>
-          <p class="price">$4,500<span>TTD / event</span></p>
-          <ul class="price-list">
-            <li>Full crew, all-day coverage</li>
-            <li>300+ edited high-res photos</li>
-            <li>Drone shots &amp; same-day highlights</li>
-            <li>Custom-printed album included</li>
-          </ul>
-          <a href="#apply" class="btn btn-outline btn-block">Choose Premium</a>
-        </article>
+            <div class="calc-field">
+              <label for="calc-hours">Coverage hours — <span id="calc-hours-value">2</span>h</label>
+              <input type="range" id="calc-hours" min="1" max="10" step="1" value="2">
+            </div>
+
+            <div class="calc-field calc-addons">
+              <span class="calc-addons-label">Add-ons</span>
+              <label class="checkbox-row">
+                <input type="checkbox" data-addon="drone">
+                <span>Drone aerial footage</span>
+                <span class="addon-price" data-addon-price="drone"></span>
+              </label>
+              <label class="checkbox-row">
+                <input type="checkbox" data-addon="rush">
+                <span>Rush delivery (48h)</span>
+                <span class="addon-price" data-addon-price="rush"></span>
+              </label>
+              <label class="checkbox-row" data-addon-mode="photo">
+                <input type="checkbox" data-addon="album">
+                <span>Printed album</span>
+                <span class="addon-price" data-addon-price="album"></span>
+              </label>
+              <label class="checkbox-row" data-addon-mode="video">
+                <input type="checkbox" data-addon="revision">
+                <span>Extra revision round</span>
+                <span class="addon-price" data-addon-price="revision"></span>
+              </label>
+            </div>
+          </div>
+
+          <div class="calc-result">
+            <p class="calc-result-label">Estimated price</p>
+            <p class="calc-price" id="calc-price">$0<span>TTD</span></p>
+            <ul class="calc-breakdown" id="calc-breakdown"></ul>
+            <a href="#apply" class="btn btn-primary btn-block" id="calc-book-btn">Send This Quote to Us</a>
+          </div>
+        </div>
       </div>
 
-      <div class="grid grid-3 pricing-grid hidden" id="pricing-video">
-        <article class="card price-card reveal">
-          <h3>Basic</h3>
-          <p class="price">$1,500<span>TTD / project</span></p>
-          <ul class="price-list">
-            <li>1 videographer, up to 3 hours</li>
-            <li>1080p/4K single-cam edit</li>
-            <li>1 revision round</li>
-            <li>Great for social content</li>
-          </ul>
-          <a href="#apply" class="btn btn-outline btn-block">Choose Basic</a>
-        </article>
-
-        <article class="card price-card featured reveal">
-          <span class="badge">Most Popular</span>
-          <h3>Standard</h3>
-          <p class="price">$4,000<span>TTD / project</span></p>
-          <ul class="price-list">
-            <li>2-camera crew, up to 6 hours</li>
-            <li>4K edit with colour grading</li>
-            <li>Licensed music &amp; graphics</li>
-            <li>Great for weddings &amp; brand videos</li>
-          </ul>
-          <a href="#apply" class="btn btn-primary btn-block">Choose Standard</a>
-        </article>
-
-        <article class="card price-card reveal">
-          <h3>Premium</h3>
-          <p class="price">$8,500<span>TTD / project</span></p>
-          <ul class="price-list">
-            <li>Full crew + drone, all-day</li>
-            <li>6K cinema edit, multi-cam</li>
-            <li>Documentary-style storytelling</li>
-            <li>Unlimited revisions</li>
-          </ul>
-          <a href="#apply" class="btn btn-outline btn-block">Choose Premium</a>
-        </article>
-      </div>
-      <p class="pricing-note reveal">Rates shown in TTD as a starting guide — final pricing depends on location, hours and deliverables. All packages can be split into deposit + balance.</p>
+      <p class="pricing-note reveal">Rates shown in TTD as a starting guide — final pricing depends on location and deliverables. All packages can be split into deposit + balance.</p>
     </div>
   </section>
 
@@ -215,31 +238,35 @@
         <p class="section-sub">A small, tight-knit team means direct communication and consistent quality on every shoot.</p>
       </div>
 
-      <div class="grid grid-4 team-grid">
-        <article class="card team-card reveal">
-          <div class="avatar" style="--c1:#CE1126;--c2:#000000;">EL</div>
-          <h3>Elliot</h3>
-          <p class="role">Founder &amp; Lead Photographer</p>
-          <p class="bio">Runs the agency and leads on portraits, brand shoots and client direction.</p>
-        </article>
-        <article class="card team-card reveal">
-          <div class="avatar" style="--c1:#FFD100;--c2:#CE1126;">A</div>
-          <h3>Photographer #2</h3>
-          <p class="role">Event &amp; Wedding Specialist</p>
-          <p class="bio">Focused on candid, fast-paced event coverage and low-light shooting.</p>
-        </article>
-        <article class="card team-card reveal">
-          <div class="avatar" style="--c1:#0EA5A5;--c2:#000000;">B</div>
-          <h3>Photographer #3</h3>
-          <p class="role">Videographer / Editor</p>
-          <p class="bio">Handles multi-cam video capture, colour grading and motion editing.</p>
-        </article>
-        <article class="card team-card reveal">
-          <div class="avatar" style="--c1:#000000;--c2:#CE1126;">C</div>
-          <h3>Photographer #4</h3>
-          <p class="role">Studio &amp; Commercial Photographer</p>
-          <p class="bio">Specializes in product photography and studio lighting setups.</p>
-        </article>
+      <div class="filmstrip reveal">
+        <div class="filmstrip-perf" aria-hidden="true"></div>
+        <div class="grid grid-4 team-grid">
+          <article class="card team-card">
+            <div class="avatar" style="--c1:#CE1126;--c2:#000000;">EL</div>
+            <h3>Elliot</h3>
+            <p class="role">Founder &amp; Lead Photographer</p>
+            <p class="bio">Runs the agency and leads on portraits, brand shoots and client direction.</p>
+          </article>
+          <article class="card team-card">
+            <div class="avatar" style="--c1:#FFD100;--c2:#CE1126;">A</div>
+            <h3>Photographer #2</h3>
+            <p class="role">Event &amp; Wedding Specialist</p>
+            <p class="bio">Focused on candid, fast-paced event coverage and low-light shooting.</p>
+          </article>
+          <article class="card team-card">
+            <div class="avatar" style="--c1:#0EA5A5;--c2:#000000;">B</div>
+            <h3>Photographer #3</h3>
+            <p class="role">Videographer / Editor</p>
+            <p class="bio">Handles multi-cam video capture, colour grading and motion editing.</p>
+          </article>
+          <article class="card team-card">
+            <div class="avatar" style="--c1:#000000;--c2:#CE1126;">C</div>
+            <h3>Photographer #4</h3>
+            <p class="role">Studio &amp; Commercial Photographer</p>
+            <p class="bio">Specializes in product photography and studio lighting setups.</p>
+          </article>
+        </div>
+        <div class="filmstrip-perf" aria-hidden="true"></div>
       </div>
       <p class="team-note reveal">Swap in real names, headshots and bios once your crew is confirmed — this section is built to update in minutes.</p>
     </div>
@@ -396,7 +423,7 @@
     </div>
     <div class="footer-links">
       <a href="#services">Services</a>
-      <a href="#rates">Rates</a>
+      <a href="#rates">Build a Quote</a>
       <a href="#team">Team</a>
       <a href="#program">Training</a>
       <a href="#apply">Contact</a>
