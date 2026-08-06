@@ -371,6 +371,17 @@ p { line-height: 1.6; color: var(--text-muted); margin: 0 0 12px; }
   border-radius: 999px;
   font-size: 0.85rem;
 }
+.equipment-cta {
+  margin: 20px 0 0;
+  font-size: 0.9rem;
+  color: rgba(255, 255, 255, 0.75);
+}
+.equipment-cta a {
+  color: var(--gold);
+  font-weight: 600;
+  text-decoration: none;
+}
+.equipment-cta a:hover { text-decoration: underline; }
 
 /* ===== Editorial services list ===== */
 .service-list { border-top: 1px solid var(--border); margin-bottom: 56px; }
@@ -699,6 +710,56 @@ p { line-height: 1.6; color: var(--text-muted); margin: 0 0 12px; }
   text-align: center;
   padding: 24px;
 }
+
+/* ===== Equipment rental cards ===== */
+.equip-card { display: flex; flex-direction: column; }
+.equip-includes {
+  margin-top: auto;
+  padding-top: 16px;
+  border-top: 1px dashed var(--border);
+}
+.equip-includes-label {
+  display: block;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--teal);
+  margin-bottom: 6px;
+}
+.equip-includes p { font-size: 0.85rem; margin: 0; }
+.equip-includes strong { color: var(--text); }
+
+/* ===== Coverage tier cards (no pricing) ===== */
+.tier-card { position: relative; display: flex; flex-direction: column; }
+.tier-card.featured { border-color: var(--red); border-width: 2px; }
+.tier-card .badge {
+  position: absolute;
+  top: -14px;
+  right: 24px;
+  background: var(--gold);
+  color: var(--black);
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 4px 14px;
+  border-radius: 999px;
+  text-transform: uppercase;
+}
+.tier-block { margin-bottom: 16px; }
+.tier-block:last-of-type { margin-bottom: 24px; flex-grow: 1; }
+.tier-label {
+  display: block;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--red);
+  margin-bottom: 6px;
+}
+
+/* ===== Promotions / influencer cards ===== */
+.promo-card { display: flex; flex-direction: column; }
+.promo-card p { flex-grow: 1; }
 
 /* ===== Accordion ===== */
 .accordion-item {

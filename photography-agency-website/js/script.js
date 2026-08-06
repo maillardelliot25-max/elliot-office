@@ -108,205 +108,208 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
 
-  // ----- Pricing calculator -----
-  const RATES = {
-    photo: {
-      crew: {
-        solo: { base: 400, hourly: 150 },
-        duo: { base: 700, hourly: 280 },
-        full: { base: 1200, hourly: 450 },
+  if (document.getElementById('calc-price')) {
+    // ----- Pricing calculator -----
+    const RATES = {
+      photo: {
+        crew: {
+          solo: { base: 400, hourly: 150 },
+          duo: { base: 700, hourly: 280 },
+          full: { base: 1200, hourly: 450 },
+        },
+        addons: { drone: 500, rush: 400, album: 600 },
       },
-      addons: { drone: 500, rush: 400, album: 600 },
-    },
-    video: {
-      crew: {
-        solo: { base: 800, hourly: 300 },
-        duo: { base: 1500, hourly: 500 },
-        full: { base: 2800, hourly: 800 },
+      video: {
+        crew: {
+          solo: { base: 800, hourly: 300 },
+          duo: { base: 1500, hourly: 500 },
+          full: { base: 2800, hourly: 800 },
+        },
+        addons: { drone: 800, rush: 500, revision: 300 },
       },
-      addons: { drone: 800, rush: 500, revision: 300 },
-    },
-  };
+    };
 
-  const CREW_LABELS = {
-    photo: { solo: '1 Photographer', duo: '2 Photographers', full: 'Full Crew (4)' },
-    video: { solo: '1 Videographer', duo: '2-Camera Crew', full: 'Full Crew + Drone Team' },
-  };
+    const CREW_LABELS = {
+      photo: { solo: '1 Photographer', duo: '2 Photographers', full: 'Full Crew (4)' },
+      video: { solo: '1 Videographer', duo: '2-Camera Crew', full: 'Full Crew + Drone Team' },
+    };
 
-  const ADDON_LABELS = {
-    drone: 'Drone Aerial Footage',
-    rush: 'Rush Delivery (48h)',
-    album: 'Printed Album',
-    revision: 'Extra Revision Round',
-  };
+    const ADDON_LABELS = {
+      drone: 'Drone Aerial Footage',
+      rush: 'Rush Delivery (48h)',
+      album: 'Printed Album',
+      revision: 'Extra Revision Round',
+    };
 
-  const PRESETS = {
-    photo: {
-      basic: { crew: 'solo', hours: 2, addons: [] },
-      standard: { crew: 'duo', hours: 5, addons: ['drone'] },
-      premium: { crew: 'full', hours: 8, addons: ['drone', 'rush', 'album'] },
-    },
-    video: {
-      basic: { crew: 'solo', hours: 3, addons: [] },
-      standard: { crew: 'duo', hours: 6, addons: ['drone'] },
-      premium: { crew: 'full', hours: 8, addons: ['drone', 'rush', 'revision'] },
-    },
-  };
+    const PRESETS = {
+      photo: {
+        basic: { crew: 'solo', hours: 2, addons: [] },
+        standard: { crew: 'duo', hours: 5, addons: ['drone'] },
+        premium: { crew: 'full', hours: 8, addons: ['drone', 'rush', 'album'] },
+      },
+      video: {
+        basic: { crew: 'solo', hours: 3, addons: [] },
+        standard: { crew: 'duo', hours: 6, addons: ['drone'] },
+        premium: { crew: 'full', hours: 8, addons: ['drone', 'rush', 'revision'] },
+      },
+    };
 
-  const modeToggleBtns = document.querySelectorAll('.pricing-toggle .toggle-btn');
-  const presetBtns = document.querySelectorAll('.preset-btn');
-  const crewSelect = document.getElementById('calc-crew');
-  const hoursSlider = document.getElementById('calc-hours');
-  const hoursValueEl = document.getElementById('calc-hours-value');
-  const addonCheckboxes = document.querySelectorAll('.calc-addons input[type="checkbox"]');
-  const addonRows = document.querySelectorAll('.checkbox-row[data-addon-mode]');
-  const priceEl = document.getElementById('calc-price');
-  const breakdownEl = document.getElementById('calc-breakdown');
-  const bookBtn = document.getElementById('calc-book-btn');
-  const interestSelect = document.getElementById('interest');
-  const messageField = document.getElementById('message');
+    const modeToggleBtns = document.querySelectorAll('.pricing-toggle .toggle-btn');
+    const presetBtns = document.querySelectorAll('.preset-btn');
+    const crewSelect = document.getElementById('calc-crew');
+    const hoursSlider = document.getElementById('calc-hours');
+    const hoursValueEl = document.getElementById('calc-hours-value');
+    const addonCheckboxes = document.querySelectorAll('.calc-addons input[type="checkbox"]');
+    const addonRows = document.querySelectorAll('.checkbox-row[data-addon-mode]');
+    const priceEl = document.getElementById('calc-price');
+    const breakdownEl = document.getElementById('calc-breakdown');
+    const bookBtn = document.getElementById('calc-book-btn');
+    const interestSelect = document.getElementById('interest');
+    const messageField = document.getElementById('message');
 
-  let currentMode = 'photo';
-  let displayedPrice = 0;
+    let currentMode = 'photo';
+    let displayedPrice = 0;
 
-  function updateAddonVisibilityAndPrices() {
-    addonRows.forEach(row => {
-      const rowMode = row.dataset.addonMode;
-      const matches = rowMode === currentMode;
-      row.classList.toggle('hidden', !matches);
-      if (!matches) row.querySelector('input').checked = false;
-    });
-    document.querySelectorAll('.addon-price').forEach(span => {
-      const key = span.dataset.addonPrice;
-      const value = RATES[currentMode].addons[key];
-      span.textContent = value ? `+$${value.toLocaleString()}` : '';
-    });
-  }
-
-  function clearPresetActive() {
-    presetBtns.forEach(b => b.classList.remove('active'));
-  }
-
-  function getSelectedAddons() {
-    return Array.from(addonCheckboxes)
-      .filter(cb => cb.checked && !cb.closest('.checkbox-row').classList.contains('hidden'))
-      .map(cb => cb.dataset.addon);
-  }
-
-  function animatePriceTo(target) {
-    const start = displayedPrice;
-    if (prefersReducedMotion || start === target) {
-      priceEl.firstChild.textContent = `$${target.toLocaleString()}`;
-      displayedPrice = target;
-      return;
+    function updateAddonVisibilityAndPrices() {
+      addonRows.forEach(row => {
+        const rowMode = row.dataset.addonMode;
+        const matches = rowMode === currentMode;
+        row.classList.toggle('hidden', !matches);
+        if (!matches) row.querySelector('input').checked = false;
+      });
+      document.querySelectorAll('.addon-price').forEach(span => {
+        const key = span.dataset.addonPrice;
+        const value = RATES[currentMode].addons[key];
+        span.textContent = value ? `+$${value.toLocaleString()}` : '';
+      });
     }
-    const duration = 350;
-    const startTime = performance.now();
-    function step(now) {
-      const t = Math.min((now - startTime) / duration, 1);
-      const val = Math.round(start + (target - start) * t);
-      priceEl.firstChild.textContent = `$${val.toLocaleString()}`;
-      if (t < 1) {
-        requestAnimationFrame(step);
-      } else {
+
+    function clearPresetActive() {
+      presetBtns.forEach(b => b.classList.remove('active'));
+    }
+
+    function getSelectedAddons() {
+      return Array.from(addonCheckboxes)
+        .filter(cb => cb.checked && !cb.closest('.checkbox-row').classList.contains('hidden'))
+        .map(cb => cb.dataset.addon);
+    }
+
+    function animatePriceTo(target) {
+      const start = displayedPrice;
+      if (prefersReducedMotion || start === target) {
+        priceEl.firstChild.textContent = `$${target.toLocaleString()}`;
         displayedPrice = target;
+        return;
       }
+      const duration = 350;
+      const startTime = performance.now();
+      function step(now) {
+        const t = Math.min((now - startTime) / duration, 1);
+        const val = Math.round(start + (target - start) * t);
+        priceEl.firstChild.textContent = `$${val.toLocaleString()}`;
+        if (t < 1) {
+          requestAnimationFrame(step);
+        } else {
+          displayedPrice = target;
+        }
+      }
+      requestAnimationFrame(step);
     }
-    requestAnimationFrame(step);
-  }
 
-  function recalculate() {
-    const crew = crewSelect.value;
-    const hours = Number(hoursSlider.value);
-    hoursValueEl.textContent = hours;
-    const addons = getSelectedAddons();
+    function recalculate() {
+      const crew = crewSelect.value;
+      const hours = Number(hoursSlider.value);
+      hoursValueEl.textContent = hours;
+      const addons = getSelectedAddons();
 
-    const rateInfo = RATES[currentMode].crew[crew];
-    const hourCost = rateInfo.hourly * hours;
-    const addonCost = addons.reduce((sum, a) => sum + (RATES[currentMode].addons[a] || 0), 0);
-    const total = rateInfo.base + hourCost + addonCost;
+      const rateInfo = RATES[currentMode].crew[crew];
+      const hourCost = rateInfo.hourly * hours;
+      const addonCost = addons.reduce((sum, a) => sum + (RATES[currentMode].addons[a] || 0), 0);
+      const total = rateInfo.base + hourCost + addonCost;
 
-    breakdownEl.innerHTML = '';
-    const rows = [
-      { label: `${CREW_LABELS[currentMode][crew]} — base rate`, value: rateInfo.base },
-      { label: `${hours}h coverage (@ $${rateInfo.hourly.toLocaleString()}/hr)`, value: hourCost },
-    ];
-    addons.forEach(a => rows.push({ label: ADDON_LABELS[a], value: RATES[currentMode].addons[a] }));
-    rows.forEach(r => {
-      const li = document.createElement('li');
-      const labelSpan = document.createElement('span');
-      labelSpan.textContent = r.label;
-      const valueSpan = document.createElement('span');
-      valueSpan.textContent = `$${r.value.toLocaleString()}`;
-      li.append(labelSpan, valueSpan);
-      breakdownEl.appendChild(li);
+      breakdownEl.innerHTML = '';
+      const rows = [
+        { label: `${CREW_LABELS[currentMode][crew]} — base rate`, value: rateInfo.base },
+        { label: `${hours}h coverage (@ $${rateInfo.hourly.toLocaleString()}/hr)`, value: hourCost },
+      ];
+      addons.forEach(a => rows.push({ label: ADDON_LABELS[a], value: RATES[currentMode].addons[a] }));
+      rows.forEach(r => {
+        const li = document.createElement('li');
+        const labelSpan = document.createElement('span');
+        labelSpan.textContent = r.label;
+        const valueSpan = document.createElement('span');
+        valueSpan.textContent = `$${r.value.toLocaleString()}`;
+        li.append(labelSpan, valueSpan);
+        breakdownEl.appendChild(li);
+      });
+
+      animatePriceTo(total);
+      return { crew, hours, addons, total };
+    }
+
+    function applyPreset(name) {
+      const preset = PRESETS[currentMode][name];
+      crewSelect.value = preset.crew;
+      hoursSlider.value = preset.hours;
+      addonCheckboxes.forEach(cb => {
+        cb.checked = preset.addons.includes(cb.dataset.addon);
+      });
+      recalculate();
+    }
+
+    modeToggleBtns.forEach(btn => {
+      btn.addEventListener('click', () => {
+        modeToggleBtns.forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        currentMode = btn.dataset.mode;
+        updateAddonVisibilityAndPrices();
+        const activePreset = document.querySelector('.preset-btn.active');
+        if (activePreset) {
+          applyPreset(activePreset.dataset.preset);
+        } else {
+          recalculate();
+        }
+      });
     });
 
-    animatePriceTo(total);
-    return { crew, hours, addons, total };
-  }
-
-  function applyPreset(name) {
-    const preset = PRESETS[currentMode][name];
-    crewSelect.value = preset.crew;
-    hoursSlider.value = preset.hours;
-    addonCheckboxes.forEach(cb => {
-      cb.checked = preset.addons.includes(cb.dataset.addon);
+    presetBtns.forEach(btn => {
+      btn.addEventListener('click', () => {
+        clearPresetActive();
+        btn.classList.add('active');
+        applyPreset(btn.dataset.preset);
+      });
     });
-    recalculate();
-  }
 
-  modeToggleBtns.forEach(btn => {
-    btn.addEventListener('click', () => {
-      modeToggleBtns.forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-      currentMode = btn.dataset.mode;
-      updateAddonVisibilityAndPrices();
-      const activePreset = document.querySelector('.preset-btn.active');
-      if (activePreset) {
-        applyPreset(activePreset.dataset.preset);
-      } else {
+    [crewSelect, hoursSlider].forEach(control => {
+      control.addEventListener('input', () => {
+        clearPresetActive();
         recalculate();
-      }
+      });
     });
-  });
-
-  presetBtns.forEach(btn => {
-    btn.addEventListener('click', () => {
-      clearPresetActive();
-      btn.classList.add('active');
-      applyPreset(btn.dataset.preset);
+    addonCheckboxes.forEach(cb => {
+      cb.addEventListener('change', () => {
+        clearPresetActive();
+        recalculate();
+      });
     });
-  });
 
-  [crewSelect, hoursSlider].forEach(control => {
-    control.addEventListener('input', () => {
-      clearPresetActive();
-      recalculate();
+    bookBtn.addEventListener('click', () => {
+      const calc = recalculate();
+      interestSelect.value = currentMode === 'photo' ? 'book-photo' : 'book-video';
+      const addonText = calc.addons.length
+        ? calc.addons.map(a => ADDON_LABELS[a]).join(', ')
+        : 'none';
+      messageField.value =
+        `Quote request: ${CREW_LABELS[currentMode][calc.crew]}, ${calc.hours}h coverage ` +
+        `(${currentMode === 'photo' ? 'Photography' : 'Video / Production'}). ` +
+        `Add-ons: ${addonText}. Estimated total: $${calc.total.toLocaleString()} TTD ` +
+        `(from the pricing calculator — feel free to adjust).`;
     });
-  });
-  addonCheckboxes.forEach(cb => {
-    cb.addEventListener('change', () => {
-      clearPresetActive();
-      recalculate();
-    });
-  });
 
-  bookBtn.addEventListener('click', () => {
-    const calc = recalculate();
-    interestSelect.value = currentMode === 'photo' ? 'book-photo' : 'book-video';
-    const addonText = calc.addons.length
-      ? calc.addons.map(a => ADDON_LABELS[a]).join(', ')
-      : 'none';
-    messageField.value =
-      `Quote request: ${CREW_LABELS[currentMode][calc.crew]}, ${calc.hours}h coverage ` +
-      `(${currentMode === 'photo' ? 'Photography' : 'Video / Production'}). ` +
-      `Add-ons: ${addonText}. Estimated total: $${calc.total.toLocaleString()} TTD ` +
-      `(from the pricing calculator — feel free to adjust).`;
-  });
+    updateAddonVisibilityAndPrices();
+    applyPreset('basic');
 
-  updateAddonVisibilityAndPrices();
-  applyPreset('basic');
+  }
 
   // ----- Scroll reveal -----
   const revealEls = document.querySelectorAll('.reveal');
@@ -320,22 +323,33 @@ document.addEventListener('DOMContentLoaded', () => {
   }, { threshold: 0.15 });
   revealEls.forEach(el => observer.observe(el));
 
-  // ----- Application form -----
-  const form = document.getElementById('apply-form');
-  const status = document.getElementById('form-status');
-  form.addEventListener('submit', (e) => {
-    e.preventDefault();
-    if (!form.checkValidity()) {
-      status.textContent = 'Please fill out all required fields.';
-      status.className = 'form-status error';
-      return;
+  if (document.getElementById('apply-form')) {
+    // ----- Application form -----
+    const form = document.getElementById('apply-form');
+    const status = document.getElementById('form-status');
+
+    // Pre-select "I'm interested in" when linked from another page, e.g. rentals.html?interest=rental#apply
+    const interestSelect = document.getElementById('interest');
+    const presetInterest = new URLSearchParams(window.location.search).get('interest');
+    if (interestSelect && presetInterest && Array.from(interestSelect.options).some(o => o.value === presetInterest)) {
+      interestSelect.value = presetInterest;
     }
-    // No backend is connected yet — this simulates a successful submission.
-    // Wire this up to a real endpoint (Formspree, Netlify Forms, Supabase, etc.) when ready.
-    status.textContent = "Thanks! We've received your info and will be in touch soon.";
-    status.className = 'form-status success';
-    form.reset();
-  });
+
+    form.addEventListener('submit', (e) => {
+      e.preventDefault();
+      if (!form.checkValidity()) {
+        status.textContent = 'Please fill out all required fields.';
+        status.className = 'form-status error';
+        return;
+      }
+      // No backend is connected yet — this simulates a successful submission.
+      // Wire this up to a real endpoint (Formspree, Netlify Forms, Supabase, etc.) when ready.
+      status.textContent = "Thanks! We've received your info and will be in touch soon.";
+      status.className = 'form-status success';
+      form.reset();
+    });
+
+  }
 
   // ----- Footer year -----
   document.getElementById('year').textContent = new Date().getFullYear();

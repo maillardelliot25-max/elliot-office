@@ -1,12 +1,17 @@
 # Liming Lens Productions — Website
 
-A single-page, dependency-free site for the agency: services, bookable rate tiers,
-team, the 12-month training/contract program, FAQ, and an application form.
+A dependency-free site for the agency: services, a bookable-quote calculator, portfolio
+gallery, team, the 12-month training/contract program, FAQ, an application form, and a
+dedicated equipment rentals & promotions page.
 
 ## Structure
-- `index.html` — all page content/sections
+- `index.html` — the main site (all sections, one page)
+- `rentals.html` — Equipment Rental Offerings, Coverage Tiers (no pricing), and
+  Promotions & Influencer Packages; shares the same header/footer/CSS/JS as `index.html`
 - `css/style.css` — theme tokens, layout, dark/light mode
-- `js/script.js` — theme toggle, mobile nav, pricing toggle, FAQ accordion, scroll reveal, form handling
+- `js/script.js` — theme toggle, mobile nav, pricing calculator, FAQ accordion, gallery
+  filter, scroll reveal, form handling. Page-specific blocks (calculator, application form)
+  are guarded with an element-existence check so the same script runs safely on both pages.
 
 ## Running locally
 No build step. Open `index.html` directly, or serve it:
@@ -19,7 +24,7 @@ python3 -m http.server 8080
 - Update rates in `#rates` to match your actual pricing.
 - Replace the contact email/phone in the footer and form copy.
 - Swap in real photo/video work — hero section and service cards are built to hold background images (`.hero-bg`, `.card-icon`).
-- **`#portfolio` gallery is placeholder content.** The 8 tiles hotlink to freely-licensed
+- **`#portfolio` gallery is placeholder content.** The 16 tiles hotlink to freely-licensed
   Wikimedia Commons photos (Calypso Rose, a steelpan player, Trinidad Carnival fetes/mas,
   and stock wedding photos) as stand-ins for the four genres — Caribbean artists, fetes,
   parties/Carnival, weddings. If any tile's image fails to load, it falls back to a colored
