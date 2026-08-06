@@ -428,55 +428,6 @@ p { line-height: 1.6; color: var(--text-muted); margin: 0 0 12px; }
 .service-row-body p { padding: 0 0 26px 68px; margin: 0; }
 .service-row.open .service-row-body { max-height: 200px; }
 
-/* ===== Coverage bento grid ===== */
-.bento {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  grid-auto-rows: 160px;
-  grid-auto-flow: dense;
-  gap: 20px;
-}
-.bento-tile {
-  position: relative;
-  border-radius: var(--radius-md);
-  padding: 24px;
-  color: #fff;
-  background: linear-gradient(135deg, var(--tile-c1, var(--red)), var(--tile-c2, var(--black)));
-  display: flex;
-  flex-direction: column;
-  justify-content: flex-end;
-  overflow: hidden;
-  transition: transform 0.3s ease, box-shadow 0.3s ease;
-}
-.bento-tile:hover { transform: translateY(-6px); box-shadow: var(--shadow); }
-.bento-tile.large { grid-column: span 2; grid-row: span 2; }
-.bento-tile.wide { grid-column: span 2; }
-.bento-icon { font-size: 2rem; margin-bottom: 10px; }
-.bento-tile h3 {
-  color: #fff;
-  text-transform: none;
-  font-family: var(--font-display);
-  font-size: 1.15rem;
-  margin-bottom: 6px;
-}
-.bento-tile.large h3 { font-size: 1.5rem; }
-.bento-tile p { color: rgba(255, 255, 255, 0.85); font-size: 0.88rem; margin: 0; }
-
-@media (max-width: 900px) {
-  .bento { grid-template-columns: repeat(2, 1fr); grid-auto-rows: 170px; }
-  .bento-tile.large { grid-column: span 2; grid-row: span 1; }
-}
-@media (max-width: 560px) {
-  .bento { grid-template-columns: 1fr; grid-auto-rows: auto; }
-  .bento-tile,
-  .bento-tile.large,
-  .bento-tile.wide {
-    grid-column: auto;
-    grid-row: auto;
-    min-height: 150px;
-  }
-}
-
 /* ===== Portfolio gallery ===== */
 .gallery-filter {
   display: flex;
@@ -492,7 +443,7 @@ p { line-height: 1.6; color: var(--text-muted); margin: 0 0 12px; }
 }
 .gallery-item {
   position: relative;
-  aspect-ratio: 4 / 5;
+  aspect-ratio: 1 / 1;
   border-radius: var(--radius-md);
   overflow: hidden;
   background: linear-gradient(135deg, var(--tile-c1, var(--red)), var(--tile-c2, var(--black)));
@@ -500,13 +451,15 @@ p { line-height: 1.6; color: var(--text-muted); margin: 0 0 12px; }
   transition: transform 0.3s ease;
 }
 .gallery-item:hover { transform: translateY(-6px); }
-.gallery-item img {
+.gallery-visual {
   position: absolute;
   inset: 0;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 18%;
 }
+.gallery-visual svg { width: 100%; height: 100%; overflow: visible; }
 .gallery-item figcaption {
   position: absolute;
   left: 0;
@@ -704,12 +657,6 @@ p { line-height: 1.6; color: var(--text-muted); margin: 0 0 12px; }
 }
 .timeline-stage ul { padding-left: 20px; margin: 0; color: var(--text-muted); }
 .timeline-stage li { margin-bottom: 8px; font-size: 0.92rem; }
-
-.program-values { margin-top: 8px; }
-.value-card {
-  text-align: center;
-  padding: 24px;
-}
 
 /* ===== Equipment rental cards ===== */
 .equip-card { display: flex; flex-direction: column; }
