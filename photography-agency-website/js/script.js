@@ -1,3 +1,9 @@
+// Dedicated Supabase project for this site's application/inquiry form.
+// The anon/publishable key is safe to expose client-side — it only allows
+// what the table's row-level security policies permit (insert-only, no read).
+const SUPABASE_URL = 'https://vwtcxasrejpwftooqfjg.supabase.co';
+const SUPABASE_ANON_KEY = 'sb_publishable_6RD3Szoo7FPmeOWOI4dt3w_Lw2Q-lu4';
+
 document.addEventListener('DOMContentLoaded', () => {
   const root = document.documentElement;
   const themeToggle = document.getElementById('theme-toggle');
@@ -335,18 +341,53 @@ document.addEventListener('DOMContentLoaded', () => {
       interestSelect.value = presetInterest;
     }
 
-    form.addEventListener('submit', (e) => {
+    const submitBtn = form.querySelector('button[type="submit"]');
+
+    form.addEventListener('submit', async (e) => {
       e.preventDefault();
       if (!form.checkValidity()) {
         status.textContent = 'Please fill out all required fields.';
         status.className = 'form-status error';
         return;
       }
-      // No backend is connected yet — this simulates a successful submission.
-      // Wire this up to a real endpoint (Formspree, Netlify Forms, Supabase, etc.) when ready.
-      status.textContent = "Thanks! We've received your info and will be in touch soon.";
-      status.className = 'form-status success';
-      form.reset();
+
+      const formData = new FormData(form);
+      const payload = {
+        name: formData.get('name'),
+        email: formData.get('email'),
+        phone: formData.get('phone') || null,
+        interest: formData.get('interest'),
+        message: formData.get('message') || null,
+        source_page: window.location.pathname.split('/').pop() || 'index.html',
+      };
+
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Sending...';
+
+      try {
+        const res = await fetch(`${SUPABASE_URL}/rest/v1/website_inquiries`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            apikey: SUPABASE_ANON_KEY,
+            Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+            Prefer: 'return=minimal',
+          },
+          body: JSON.stringify(payload),
+        });
+
+        if (!res.ok) throw new Error(`Request failed: ${res.status}`);
+
+        status.textContent = "Thanks! We've received your info and will be in touch soon.";
+        status.className = 'form-status success';
+        form.reset();
+      } catch (err) {
+        status.textContent = "Something went wrong sending that — please try again, or email us directly.";
+        status.className = 'form-status error';
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Send Application';
+      }
     });
 
   }

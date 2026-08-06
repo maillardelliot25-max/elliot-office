@@ -796,6 +796,9 @@ p { line-height: 1.6; color: var(--text-muted); margin: 0 0 12px; }
 }
 .site-footer .logo { color: #fff; }
 .site-footer p { color: rgba(255,255,255,0.6); }
+.footer-contact { margin-top: 8px; font-size: 0.9rem; }
+.footer-contact a { color: rgba(255,255,255,0.85); text-decoration: none; }
+.footer-contact a:hover { color: var(--gold); text-decoration: underline; }
 .footer-links { display: flex; gap: 24px; flex-wrap: wrap; }
 .footer-links a { color: rgba(255,255,255,0.8); text-decoration: none; font-size: 0.9rem; }
 .footer-links a:hover { color: var(--gold); }
