@@ -3,9 +3,11 @@ import { useNavigate } from 'react-router-dom'
 import { useAllExercises, useStore } from '../store/useStore'
 import { Badge, Button, Card, EmptyState, Input, PageHeader } from '../components/ui'
 import RestTimerBar from '../components/RestTimerBar'
+import RepCounterModal from '../components/RepCounterModal'
 import { useRestTimer } from '../hooks/useRestTimer'
 import { suggestProgression } from '../lib/calculations'
 import { displayWeight, formatDuration, weightToKg } from '../lib/format'
+import { getRepCounterConfig, type RepCounterExerciseConfig } from '../lib/repCounterExercises'
 import type { WorkoutSetEntry } from '../types'
 
 export default function Workout() {
@@ -26,6 +28,10 @@ export default function Workout() {
 
   const timer = useRestTimer()
   const [query, setQuery] = useState('')
+  const [repCounterFor, setRepCounterFor] = useState<{
+    workoutExerciseId: string
+    config: RepCounterExerciseConfig
+  } | null>(null)
 
   const routine = activeWorkout?.routineId ? routines.find((r) => r.id === activeWorkout.routineId) : undefined
 
@@ -97,6 +103,7 @@ export default function Workout() {
         {activeWorkout.exercises.map((entry) => {
           const exercise = allExercises.find((e) => e.id === entry.exerciseId)
           const target = routine?.exercises.find((re) => re.exerciseId === entry.exerciseId)
+          const repConfig = getRepCounterConfig(entry.exerciseId)
           const prevSets = lastPerformance(entry.exerciseId)
           const completedSets = entry.sets.filter((s) => s.completed && !s.isWarmup)
           const suggestion = suggestProgression(
@@ -190,15 +197,25 @@ export default function Workout() {
               </div>
 
               <div className="mt-2 flex items-center justify-between">
-                <button
-                  className="text-xs font-medium text-primary"
-                  onClick={() => {
-                    const last = entry.sets[entry.sets.length - 1]
-                    addSet(entry.id, last ? { weightKg: last.weightKg, reps: last.reps } : undefined)
-                  }}
-                >
-                  + Add set
-                </button>
+                <div className="flex items-center gap-3">
+                  <button
+                    className="text-xs font-medium text-primary"
+                    onClick={() => {
+                      const last = entry.sets[entry.sets.length - 1]
+                      addSet(entry.id, last ? { weightKg: last.weightKg, reps: last.reps } : undefined)
+                    }}
+                  >
+                    + Add set
+                  </button>
+                  {repConfig && (
+                    <button
+                      className="text-xs font-medium text-muted hover:text-text"
+                      onClick={() => setRepCounterFor({ workoutExerciseId: entry.id, config: repConfig })}
+                    >
+                      📷 Count reps
+                    </button>
+                  )}
+                </div>
                 {completedSets.length > 0 && (
                   <Badge tone="primary">{completedSets.length} sets done</Badge>
                 )}
@@ -234,6 +251,17 @@ export default function Workout() {
         onAdd={timer.addSeconds}
         onStop={timer.stop}
       />
+
+      {repCounterFor && (
+        <RepCounterModal
+          config={repCounterFor.config}
+          onApply={(reps) => {
+            addSet(repCounterFor.workoutExerciseId, { reps })
+            setRepCounterFor(null)
+          }}
+          onClose={() => setRepCounterFor(null)}
+        />
+      )}
     </div>
   )
 }
