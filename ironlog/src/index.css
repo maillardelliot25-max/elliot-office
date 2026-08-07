@@ -1,0 +1,31 @@
+@import 'tailwindcss';
+
+@theme {
+  --font-sans: 'Inter', system-ui, 'Segoe UI', Roboto, sans-serif;
+
+  --color-bg: #0b0c10;
+  --color-surface: #14161b;
+  --color-surface-2: #1c1f26;
+  --color-border: #262a33;
+  --color-text: #e6e8ec;
+  --color-muted: #8b90a0;
+  --color-primary: #6ee7b7;
+  --color-primary-dark: #34d399;
+  --color-danger: #f87171;
+  --color-warn: #fbbf24;
+}
+
+@layer base {
+  html {
+    color-scheme: dark;
+  }
+
+  body {
+    @apply bg-bg text-text antialiased;
+    font-feature-settings: 'tnum' 1;
+  }
+
+  #root {
+    min-height: 100svh;
+  }
+}
