@@ -29,3 +29,18 @@
     min-height: 100svh;
   }
 }
+
+/*
+ * Tailwind wraps all of the above in @layer, and per the CSS cascade spec any
+ * *unlayered* stylesheet always beats layered rules regardless of source order
+ * or specificity. When this app is embedded inside another page's chrome (e.g.
+ * a hosted preview) that page's own unlayered body styling can silently win
+ * over @layer base and leave the app rendering white-on-white. This unlayered
+ * rule guarantees the dark theme always applies, everywhere this is embedded.
+ */
+html,
+body {
+  background-color: #0b0c10 !important;
+  color: #e6e8ec !important;
+  color-scheme: dark !important;
+}
