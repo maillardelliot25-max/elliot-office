@@ -1,5 +1,5 @@
 import { lazy, Suspense } from 'react'
-import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
+import { HashRouter, Navigate, Route, Routes } from 'react-router-dom'
 import Layout from './components/Layout'
 import Dashboard from './pages/Dashboard'
 import Exercises from './pages/Exercises'
@@ -16,7 +16,7 @@ const Progress = lazy(() => import('./pages/Progress'))
 
 export default function App() {
   return (
-    <BrowserRouter>
+    <HashRouter>
       <Suspense fallback={<div className="p-8 text-sm text-muted">Loading…</div>}>
         <Routes>
           <Route element={<Layout />}>
@@ -35,6 +35,6 @@ export default function App() {
           </Route>
         </Routes>
       </Suspense>
-    </BrowserRouter>
+    </HashRouter>
   )
 }

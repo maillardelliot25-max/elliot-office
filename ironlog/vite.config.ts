@@ -5,6 +5,9 @@ import tailwindcss from '@tailwindcss/vite'
 
 // https://vite.dev/config/
 export default defineConfig({
+  // GitHub Pages serves this project at /elliot-office/ (a project page, not
+  // a user/org root page); local dev and other hosts keep the normal root.
+  base: process.env.GITHUB_PAGES ? '/elliot-office/' : '/',
   plugins: [react(), tailwindcss()],
   resolve: {
     alias: {
