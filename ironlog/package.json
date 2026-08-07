@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
+    "build:standalone": "tsc -b && STANDALONE=1 vite build",
     "lint": "oxlint",
     "preview": "vite preview"
   },
@@ -36,6 +37,7 @@
     "tailwindcss": "^4.3.3",
     "typescript": "~6.0.2",
     "vite": "^8.2.0",
+    "vite-plugin-singlefile": "2.3.3",
     "vitest": "^4.1.10"
   }
 }

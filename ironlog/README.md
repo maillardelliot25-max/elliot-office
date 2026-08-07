@@ -41,10 +41,13 @@ All data is stored in `localStorage` — there's no server, so nothing leaves th
 
 ```bash
 npm install
-npm run dev       # start the dev server
-npm run build      # type-check + production build
-npm test           # run the unit test suite
+npm run dev              # start the dev server
+npm run build             # type-check + production build
+npm run build:standalone   # bundle everything into one dist/index.html — no server, no build step to share it
+npm test                  # run the unit test suite
 ```
+
+The standalone build is fully self-contained (JS, CSS, and favicon all inlined) — open `dist/index.html` directly in a browser, email it, or host it anywhere as a single file. Everything works offline except the camera rep counter, which needs normal internet access the first time it's used (to download the pose-detection model).
 
 ## Project structure
 
