@@ -119,19 +119,19 @@ document.addEventListener('DOMContentLoaded', () => {
     const RATES = {
       photo: {
         crew: {
-          solo: { base: 400, hourly: 150 },
-          duo: { base: 700, hourly: 280 },
-          full: { base: 1200, hourly: 450 },
+          solo: { base: 600, hourly: 200 },
+          duo: { base: 1800, hourly: 450 },
+          full: { base: 3500, hourly: 800 },
         },
-        addons: { drone: 500, rush: 400, album: 600 },
+        addons: { drone: 800, rush: 600, album: 1200 },
       },
       video: {
         crew: {
-          solo: { base: 800, hourly: 300 },
-          duo: { base: 1500, hourly: 500 },
-          full: { base: 2800, hourly: 800 },
+          solo: { base: 1200, hourly: 350 },
+          duo: { base: 3500, hourly: 700 },
+          full: { base: 7000, hourly: 1200 },
         },
-        addons: { drone: 800, rush: 500, revision: 300 },
+        addons: { drone: 1200, rush: 800, revision: 500 },
       },
     };
 
