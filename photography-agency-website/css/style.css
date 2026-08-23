@@ -199,40 +199,55 @@ p { line-height: 1.6; color: var(--text-muted); margin: 0 0 12px; }
 .hamburger { display: none; flex-direction: column; gap: 4px; }
 .hamburger span { width: 18px; height: 2px; background: var(--text); border-radius: 2px; }
 
-/* ===== Quick nav (jump-to-section bar) ===== */
-.quick-nav {
-  position: sticky;
-  top: 76px;
-  z-index: 95;
-  background: var(--bg);
-  border-bottom: 1px solid var(--border);
-  overflow-x: auto;
-  scrollbar-width: none;
+/* ===== Table of contents box ===== */
+.toc-box {
+  margin: 24px 0;
+  padding: 24px 28px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  box-shadow: var(--shadow);
 }
-.quick-nav::-webkit-scrollbar { display: none; }
-.quick-nav-inner {
+.toc-title {
+  font-family: var(--font-display);
+  font-size: 0.8rem;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--red);
+  margin: 0 0 16px;
+}
+.toc-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 4px 24px;
+}
+.toc-link {
   display: flex;
-  gap: 8px;
-  padding: 10px 24px;
-  white-space: nowrap;
-}
-.quick-nav-link {
-  flex-shrink: 0;
-  padding: 8px 16px;
-  border-radius: 999px;
-  font-size: 0.85rem;
-  font-weight: 600;
-  color: var(--text-muted);
+  align-items: center;
+  gap: 10px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+  color: var(--text);
   text-decoration: none;
-  border: 1px solid transparent;
-  transition: color 0.2s ease, background 0.2s ease, border-color 0.2s ease;
+  font-weight: 600;
+  font-size: 0.92rem;
+  transition: color 0.2s ease;
 }
-.quick-nav-link:hover { color: var(--text); background: var(--bg-alt); }
-.quick-nav-link.active { color: #fff; background: var(--red); }
-.quick-nav-external { border: 1px solid var(--border); }
+.toc-link:hover { color: var(--red); }
+.toc-num {
+  font-family: var(--font-display);
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  flex-shrink: 0;
+  width: 20px;
+}
+.toc-external { color: var(--red); }
+@media (max-width: 900px) {
+  .toc-grid { grid-template-columns: repeat(2, 1fr); }
+}
 @media (max-width: 640px) {
-  .quick-nav { top: 66px; }
-  .quick-nav-inner { padding: 10px 16px; }
+  .toc-box { margin: 16px 0; padding: 20px; }
+  .toc-grid { grid-template-columns: 1fr; }
 }
 
 /* ===== Custom cursor ring (additive, native cursor stays visible) ===== */

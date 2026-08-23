@@ -317,25 +317,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
   }
 
-  // ----- Quick nav active-section highlighting -----
-  const quickNavLinks = document.querySelectorAll('.quick-nav-link[href^="#"]');
-  if (quickNavLinks.length) {
-    const linkMap = new Map();
-    quickNavLinks.forEach(link => linkMap.set(link.getAttribute('href').slice(1), link));
-    const quickNavObserver = new IntersectionObserver((entries) => {
-      entries.forEach(entry => {
-        const link = linkMap.get(entry.target.id);
-        if (!link || !entry.isIntersecting) return;
-        quickNavLinks.forEach(l => l.classList.remove('active'));
-        link.classList.add('active');
-      });
-    }, { rootMargin: '-40% 0px -55% 0px', threshold: 0 });
-    linkMap.forEach((link, id) => {
-      const section = document.getElementById(id);
-      if (section) quickNavObserver.observe(section);
-    });
-  }
-
   // ----- Scroll reveal -----
   const revealEls = document.querySelectorAll('.reveal');
   const observer = new IntersectionObserver((entries) => {
