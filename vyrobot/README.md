@@ -2,7 +2,8 @@
 
 An async, Termux-native trading bot for Polymarket and Kalshi that turns
 polled news into LLM-scored probability estimates and sizes positions with
-a hard-capped fractional-Kelly criterion.
+a hard-capped fractional-Kelly criterion, a cross-exchange arbitrage
+scanner, and real-time order-book-depth-aware slippage protection.
 
 ## Files
 
@@ -11,10 +12,11 @@ a hard-capped fractional-Kelly criterion.
 | `setup.sh` | Termux/Android bootstrap: system packages + Python venv + pip deps |
 | `config.py` | Env-driven configuration, risk constants, logging setup |
 | `market_client.py` | `BaseMarketClient`, `StateManager`, `PolymarketClient`, `KalshiClient` |
-| `analytics.py` | News ingestion, LLM scoring, Kelly sizing, `RiskManager` |
-| `main.py` | Async event loop tying data streams to trade decisions |
+| `analytics.py` | News ingestion, LLM scoring, Kelly sizing, `ArbitrageScanner`, `RiskManager` |
+| `main.py` | Async event loop tying data streams, arbitrage, and depth-aware execution together |
 | `.env.example` | Template for all environment variables / secrets |
 | `markets.json.example` | Template for the news-keyword -> market watch-list |
+| `arbitrage_pairs.json.example` | Template linking equivalent Polymarket/Kalshi markets |
 
 ## 1. Install (Termux, one time)
 
@@ -37,6 +39,8 @@ and copies `.env.example` to `.env`.
 nano .env               # API keys, wallet key, risk knobs — VYROBOT_DRY_RUN=true by default
 cp markets.json.example markets.json
 nano markets.json       # which markets to watch and which keywords route news to them
+cp arbitrage_pairs.json.example arbitrage_pairs.json
+nano arbitrage_pairs.json   # optional: equivalent Polymarket/Kalshi market pairs to arbitrage
 ```
 
 Required secrets, only for the venues you enable:
@@ -88,8 +92,41 @@ or set `VYROBOT_DRY_RUN=false` in `.env`.
 - All order submission uses **limit** prices derived from the live book
   (best ask for buys / `1 - best bid` for sells) with **IOC** time-in-force
   by default, so the bot never chases the book or accepts slippage.
+- **Depth-based dynamic downscaling**: immediately before every order is
+  sent (both directional Kelly trades and each leg of an arbitrage),
+  `analytics.compute_depth_adjusted_size` walks the live book from the top
+  and shrinks the intended contract count to whatever size can be filled
+  without the volume-weighted fill price drifting more than
+  `VYROBOT_MAX_SLIPPAGE_PCT` (default 2%) from the top-of-book price. A
+  book that has thinned out since sizing time yields a smaller order, never
+  a worse fill.
 
-## 6. Stopping
+## 6. Cross-exchange arbitrage
+
+When both `VYROBOT_POLYMARKET_ENABLED` and `VYROBOT_KALSHI_ENABLED` are
+`true` and `arbitrage_pairs.json` lists at least one pair of equivalent
+markets (same real-world event, one Polymarket market id + one Kalshi
+ticker), a background scanner (`analytics.ArbitrageScanner`) runs every
+`VYROBOT_ARBITRAGE_SCAN_INTERVAL_SECONDS` and checks both directions:
+
+- Buy YES on Polymarket + buy NO on Kalshi
+- Buy YES on Kalshi + buy NO on Polymarket
+
+If the combined cost of both legs is less than $1 by more than
+`VYROBOT_MIN_ARBITRAGE_EDGE_PCT` (after subtracting a flat
+`VYROBOT_ARBITRAGE_FEE_BUFFER_PCT` fee approximation — calibrate this
+against each venue's real fee schedule), the position is sized against the
+same 5% max-allocation cap (applied to the *combined* notional of both
+legs) and the daily loss / open-position gates, then both legs are
+submitted **concurrently** to minimize leg risk. If one leg fails after the
+other has already filled, the engine logs a `CRITICAL` leg-risk alert and
+attempts a best-effort unwind of the filled leg by immediately crossing the
+spread on that same market — eliminating the residual naked position takes
+priority over price at that point. Watch the log for `LEG RISK` and
+`MANUAL INTERVENTION REQUIRED` markers; automated unwinds are best-effort,
+not guaranteed.
+
+## 7. Stopping
 
 `Ctrl+C` (SIGINT) or `SIGTERM` triggers a graceful shutdown: background
 tasks are cancelled, websockets and HTTP sessions are closed, and the final

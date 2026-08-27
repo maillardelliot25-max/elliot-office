@@ -120,6 +120,9 @@ class RiskConfig:
     max_open_positions: int = 10              # Portfolio-wide concurrent position cap.
     min_order_notional_usd: float = 1.0       # Skip dust-sized orders.
     max_daily_loss_pct: float = 0.15          # Circuit breaker: halt trading for the day.
+    max_slippage_pct: float = 0.02            # Max tolerated VWAP deviation from top-of-book when sizing into depth.
+    min_arbitrage_edge_pct: float = 0.02      # Minimum guaranteed cross-venue profit (after fee buffer) to act on.
+    arbitrage_fee_buffer_pct: float = 0.02    # Flat approximation of combined venue taker fees for arb math.
 
 
 @dataclass(frozen=True)
@@ -185,6 +188,17 @@ class WatchedMarket:
 
 
 @dataclass(frozen=True)
+class ArbitragePair:
+    """Links two markets on different venues that resolve on the same
+    real-world event, so their implied probabilities must sum to ~1."""
+
+    pair_id: str
+    polymarket_market_id: str
+    kalshi_market_id: str
+    question: str
+
+
+@dataclass(frozen=True)
 class AppConfig:
     risk: RiskConfig
     llm: LLMConfig
@@ -192,6 +206,8 @@ class AppConfig:
     polymarket: PolymarketConfig
     kalshi: KalshiConfig
     watched_markets: Tuple[WatchedMarket, ...]
+    arbitrage_pairs: Tuple[ArbitragePair, ...]
+    arbitrage_scan_interval_seconds: float
     dry_run: bool
     state_snapshot_path: str
     decision_loop_interval_seconds: float
@@ -251,6 +267,47 @@ def _load_watched_markets() -> Tuple[WatchedMarket, ...]:
     return tuple(markets)
 
 
+def _load_arbitrage_pairs() -> Tuple[ArbitragePair, ...]:
+    """Loads cross-venue equivalent-market pairs for arbitrage scanning.
+
+    Format::
+
+        [
+          {"pair_id": "fed-dec-cut", "polymarket_market_id": "...",
+           "kalshi_market_id": "FED-24DEC-T4.50", "question": "..."}
+        ]
+
+    The file path is controlled by ``VYROBOT_ARBITRAGE_PAIRS_FILE`` (default:
+    ``arbitrage_pairs.json`` next to this module). Missing file -> empty
+    tuple, the arbitrage scanner simply has nothing to scan until configured.
+    """
+    pairs_file = Path(_env("VYROBOT_ARBITRAGE_PAIRS_FILE", str(BASE_DIR / "arbitrage_pairs.json")))
+    if not pairs_file.exists():
+        logger.info("Arbitrage-pairs file %s not found; cross-exchange scanning disabled.", pairs_file)
+        return ()
+
+    try:
+        raw = json.loads(pairs_file.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        logger.error("Failed to parse arbitrage-pairs file %s: %s", pairs_file, exc)
+        return ()
+
+    pairs = []
+    for entry in raw:
+        try:
+            pairs.append(
+                ArbitragePair(
+                    pair_id=str(entry["pair_id"]),
+                    polymarket_market_id=str(entry["polymarket_market_id"]),
+                    kalshi_market_id=str(entry["kalshi_market_id"]),
+                    question=str(entry.get("question", "")),
+                )
+            )
+        except (KeyError, TypeError) as exc:
+            logger.warning("Skipping malformed arbitrage-pair entry %r: %s", entry, exc)
+    return tuple(pairs)
+
+
 def load_config() -> AppConfig:
     """Builds the full application configuration from the environment."""
 
@@ -262,6 +319,9 @@ def load_config() -> AppConfig:
         max_open_positions=_env_int("VYROBOT_MAX_OPEN_POSITIONS", 10),
         min_order_notional_usd=_env_float("VYROBOT_MIN_ORDER_NOTIONAL_USD", 1.0),
         max_daily_loss_pct=_env_float("VYROBOT_MAX_DAILY_LOSS_PCT", 0.15),
+        max_slippage_pct=_env_float("VYROBOT_MAX_SLIPPAGE_PCT", 0.02),
+        min_arbitrage_edge_pct=_env_float("VYROBOT_MIN_ARBITRAGE_EDGE_PCT", 0.02),
+        arbitrage_fee_buffer_pct=_env_float("VYROBOT_ARBITRAGE_FEE_BUFFER_PCT", 0.02),
     )
 
     # Hard safety clamps regardless of what an operator puts in the environment.
@@ -346,6 +406,8 @@ def load_config() -> AppConfig:
         polymarket=polymarket,
         kalshi=kalshi,
         watched_markets=_load_watched_markets(),
+        arbitrage_pairs=_load_arbitrage_pairs(),
+        arbitrage_scan_interval_seconds=_env_float("VYROBOT_ARBITRAGE_SCAN_INTERVAL_SECONDS", 10.0),
         dry_run=_env_bool("VYROBOT_DRY_RUN", True),
         state_snapshot_path=_env("VYROBOT_STATE_SNAPSHOT_PATH", str(BASE_DIR / "state_snapshot.json")),
         decision_loop_interval_seconds=_env_float("VYROBOT_DECISION_LOOP_INTERVAL_SECONDS", 5.0),

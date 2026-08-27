@@ -2,10 +2,12 @@
 Signal generation and quantitative risk layer for the VyRobot Prediction
 Engine:
 
-    * NewsIngestor  - async polling of RSS feeds + the free GDELT news API
-    * LLMScorer     - async LLM call that turns a news item into (p, c)
-    * KellyCriterion - fractional Kelly position sizing
-    * RiskManager   - hard safety gates applied before every order
+    * NewsIngestor      - async polling of RSS feeds + the free GDELT news API
+    * LLMScorer         - async LLM call that turns a news item into (p, c)
+    * KellyCriterion    - fractional Kelly position sizing
+    * ArbitrageScanner  - cross-exchange (Polymarket <-> Kalshi) mispricing detector
+    * RiskManager       - hard safety gates applied before every order, including
+                          real-time order-book-depth-aware size downscaling
 """
 from __future__ import annotations
 
@@ -21,8 +23,8 @@ from typing import Any, Callable, Coroutine, Dict, List, Optional, Set, Tuple
 
 import aiohttp
 
-from config import LLMConfig, NewsConfig, RiskConfig
-from market_client import OrderBook
+from config import ArbitragePair, LLMConfig, NewsConfig, RiskConfig
+from market_client import OrderBook, OrderBookLevel, StateManager
 
 logger = logging.getLogger("vyrobot.analytics")
 
@@ -451,6 +453,188 @@ class KellyCriterion:
 
 
 # --------------------------------------------------------------------------- #
+# Cross-exchange arbitrage
+# --------------------------------------------------------------------------- #
+
+@dataclass(frozen=True)
+class ArbitrageLeg:
+    """One side of a two-leg arbitrage trade.
+
+    ``side`` follows the same convention used throughout this codebase and
+    ``market_client``: ``"buy"`` submits a literal buy order on the venue's
+    YES book at ``price``; ``"sell"`` submits a sell order at ``price``,
+    which is the mechanism used to obtain synthetic NO exposure at a true
+    cost of ``1 - price`` (Kalshi supports this directly as a short; the
+    Polymarket client mirrors it against the same simplified single-sided
+    order-book model used elsewhere in this engine).
+    """
+
+    venue: str
+    market_id: str
+    side: str                # "buy" or "sell"
+    price: float              # literal limit price to submit
+    cost_per_contract: float  # true USD cost per contract (== price for buy, 1-price for sell)
+    available_size: float     # depth resting at that exact top-of-book level
+
+
+@dataclass(frozen=True)
+class ArbitrageOpportunity:
+    pair_id: str
+    question: str
+    leg_a: ArbitrageLeg
+    leg_b: ArbitrageLeg
+    edge_pct: float       # guaranteed profit per $1 of combined notional, net of the fee buffer
+    max_contracts: float  # depth-limited ceiling, before capital sizing
+
+
+class ArbitrageScanner:
+    """Detects locked-in cross-venue mispricings between Polymarket and
+    Kalshi markets that reference the same real-world event.
+
+    For a pair of equivalent binary markets, buying YES on one venue and
+    buying NO on the other locks in a payout of exactly $1 per contract
+    regardless of outcome. If the combined cost of both legs is less than
+    $1 (after a conservative flat fee-buffer), the difference is riskless
+    profit modulo execution/leg risk and the assumption that both markets
+    truly resolve identically.
+    """
+
+    def __init__(self, pairs: Tuple[ArbitragePair, ...], min_edge_pct: float, fee_buffer_pct: float) -> None:
+        self.pairs = pairs
+        self.min_edge_pct = min_edge_pct
+        self.fee_buffer_pct = fee_buffer_pct
+
+    def scan(self, state: StateManager) -> List[ArbitrageOpportunity]:
+        opportunities: List[ArbitrageOpportunity] = []
+        for pair in self.pairs:
+            poly_book = state.get_orderbook(pair.polymarket_market_id)
+            kalshi_book = state.get_orderbook(pair.kalshi_market_id)
+            if poly_book is None or kalshi_book is None:
+                continue
+            if poly_book.best_bid is None or poly_book.best_ask is None:
+                continue
+            if kalshi_book.best_bid is None or kalshi_book.best_ask is None:
+                continue
+
+            # Direction A: buy YES on Polymarket, buy NO on Kalshi (sell Kalshi YES).
+            cost_a = poly_book.best_ask.price + (1.0 - kalshi_book.best_bid.price)
+            edge_a = 1.0 - cost_a - self.fee_buffer_pct
+
+            # Direction B: buy YES on Kalshi, buy NO on Polymarket (sell Polymarket YES).
+            cost_b = kalshi_book.best_ask.price + (1.0 - poly_book.best_bid.price)
+            edge_b = 1.0 - cost_b - self.fee_buffer_pct
+
+            if edge_a < self.min_edge_pct and edge_b < self.min_edge_pct:
+                continue
+
+            if edge_a >= edge_b:
+                leg_a = ArbitrageLeg(
+                    venue="polymarket", market_id=pair.polymarket_market_id, side="buy",
+                    price=poly_book.best_ask.price, cost_per_contract=poly_book.best_ask.price,
+                    available_size=poly_book.best_ask.size,
+                )
+                leg_b = ArbitrageLeg(
+                    venue="kalshi", market_id=pair.kalshi_market_id, side="sell",
+                    price=kalshi_book.best_bid.price, cost_per_contract=1.0 - kalshi_book.best_bid.price,
+                    available_size=kalshi_book.best_bid.size,
+                )
+                edge_pct = edge_a
+            else:
+                leg_a = ArbitrageLeg(
+                    venue="kalshi", market_id=pair.kalshi_market_id, side="buy",
+                    price=kalshi_book.best_ask.price, cost_per_contract=kalshi_book.best_ask.price,
+                    available_size=kalshi_book.best_ask.size,
+                )
+                leg_b = ArbitrageLeg(
+                    venue="polymarket", market_id=pair.polymarket_market_id, side="sell",
+                    price=poly_book.best_bid.price, cost_per_contract=1.0 - poly_book.best_bid.price,
+                    available_size=poly_book.best_bid.size,
+                )
+                edge_pct = edge_b
+
+            if edge_pct < self.min_edge_pct:
+                continue
+
+            opportunities.append(
+                ArbitrageOpportunity(
+                    pair_id=pair.pair_id, question=pair.question, leg_a=leg_a, leg_b=leg_b,
+                    edge_pct=edge_pct, max_contracts=min(leg_a.available_size, leg_b.available_size),
+                )
+            )
+        return opportunities
+
+
+# --------------------------------------------------------------------------- #
+# Order-book-depth-aware sizing (slippage protection)
+# --------------------------------------------------------------------------- #
+
+def compute_depth_adjusted_size(
+    book: OrderBook, side: str, desired_contracts: float, max_slippage_pct: float
+) -> Tuple[float, float]:
+    """Walks the live order book from the top and returns the largest size
+    (capped at ``desired_contracts``) that can be filled without the
+    volume-weighted average price drifting more than ``max_slippage_pct``
+    away from the top-of-book reference price.
+
+    This is what lets the engine dynamically downscale a Kelly-derived bet
+    size in real time: a book that is thin beyond the first level yields a
+    smaller executable size than the one Kelly/RiskManager originally sized
+    against, and the caller is expected to re-run this against the freshest
+    available book immediately before submitting the order.
+
+    Returns ``(allowed_size, expected_vwap)``. ``allowed_size`` of 0.0 means
+    there is no tradable depth within tolerance at all.
+    """
+    levels: Tuple[OrderBookLevel, ...] = book.asks if side == "buy" else book.bids
+    if not levels or desired_contracts <= 0:
+        return 0.0, 0.0
+
+    reference_price = levels[0].price
+    if reference_price <= 0:
+        return 0.0, 0.0
+
+    max_price = reference_price * (1.0 + max_slippage_pct) if side == "buy" else reference_price * (1.0 - max_slippage_pct)
+
+    cum_size = 0.0
+    cum_cost = 0.0
+    for level in levels:
+        remaining = desired_contracts - cum_size
+        if remaining <= 0:
+            break
+        take = min(level.size, remaining)
+        if take <= 0:
+            continue
+
+        prospective_size = cum_size + take
+        prospective_cost = cum_cost + take * level.price
+        prospective_vwap = prospective_cost / prospective_size
+
+        breaches = prospective_vwap > max_price if side == "buy" else prospective_vwap < max_price
+        if breaches:
+            # Solve for the partial size at this level that keeps the
+            # cumulative VWAP exactly at the slippage boundary.
+            denom = level.price - max_price
+            if denom == 0:
+                partial = 0.0
+            else:
+                partial = (max_price * cum_size - cum_cost) / denom
+            partial = max(0.0, min(partial, take))
+            cum_size += partial
+            cum_cost += partial * level.price
+            break
+
+        cum_size = prospective_size
+        cum_cost = prospective_cost
+
+    if cum_size <= 0:
+        return 0.0, 0.0
+
+    allowed_size = min(cum_size, desired_contracts)
+    vwap = cum_cost / cum_size
+    return allowed_size, vwap
+
+
+# --------------------------------------------------------------------------- #
 # Risk manager
 # --------------------------------------------------------------------------- #
 
@@ -462,6 +646,15 @@ class RiskDecision:
     size_usd: float = 0.0
     contracts: float = 0.0
     limit_price: float = 0.0
+
+
+@dataclass(frozen=True)
+class ArbitrageDecision:
+    approved: bool
+    reason: str
+    contracts: float = 0.0
+    notional_usd: float = 0.0
+    expected_profit_usd: float = 0.0
 
 
 class RiskManager:
@@ -552,4 +745,52 @@ class RiskManager:
             size_usd=size_usd,
             contracts=contracts,
             limit_price=limit_price,
+        )
+
+    def evaluate_arbitrage(
+        self,
+        opportunity: ArbitrageOpportunity,
+        total_capital_usd: float,
+        open_position_count: int,
+        daily_pnl_usd: float,
+    ) -> ArbitrageDecision:
+        """Sizes a two-leg arbitrage trade under the same hard safety
+        ceilings used for directional trades: the daily-loss circuit
+        breaker, the portfolio position cap, and the 5% max-allocation cap
+        (applied here to the *combined* notional of both legs, since the
+        capital is deployed simultaneously across both venues)."""
+
+        if total_capital_usd > 0 and (-daily_pnl_usd / total_capital_usd) >= self.config.max_daily_loss_pct:
+            return ArbitrageDecision(approved=False, reason="daily loss circuit breaker triggered")
+
+        if open_position_count >= self.config.max_open_positions:
+            return ArbitrageDecision(approved=False, reason="max open positions reached")
+
+        if opportunity.edge_pct < self.config.min_arbitrage_edge_pct:
+            return ArbitrageDecision(
+                approved=False,
+                reason=f"edge {opportunity.edge_pct:.4f} below floor {self.config.min_arbitrage_edge_pct:.4f}",
+            )
+
+        combined_cost_per_contract = opportunity.leg_a.cost_per_contract + opportunity.leg_b.cost_per_contract
+        if combined_cost_per_contract <= 0:
+            return ArbitrageDecision(approved=False, reason="invalid combined leg cost")
+
+        max_notional = total_capital_usd * self.config.max_allocation_pct
+        max_contracts_by_capital = max_notional / combined_cost_per_contract
+
+        contracts = min(opportunity.max_contracts, max_contracts_by_capital)
+        notional_usd = contracts * combined_cost_per_contract
+
+        if contracts <= 0 or notional_usd < self.config.min_order_notional_usd:
+            return ArbitrageDecision(approved=False, reason=f"sized notional ${notional_usd:.2f} below minimum")
+
+        expected_profit_usd = contracts * opportunity.edge_pct
+
+        return ArbitrageDecision(
+            approved=True,
+            reason="approved",
+            contracts=contracts,
+            notional_usd=notional_usd,
+            expected_profit_usd=expected_profit_usd,
         )
