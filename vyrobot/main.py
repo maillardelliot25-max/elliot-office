@@ -22,7 +22,7 @@ import asyncio
 import logging
 import signal
 import time
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 import aiohttp
 
@@ -30,6 +30,7 @@ from analytics import (
     ArbitrageOpportunity,
     ArbitrageScanner,
     KellyCriterion,
+    LLMScore,
     LLMScorer,
     NewsIngestor,
     NewsItem,
@@ -37,6 +38,7 @@ from analytics import (
     compute_depth_adjusted_size,
 )
 from config import AppConfig, WatchedMarket, configure_logging, load_config
+from decision_log import arbitrage_record, directional_record, log_decision
 from market_client import (
     Balance,
     BaseMarketClient,
@@ -71,6 +73,7 @@ class VyRobotEngine:
         self._tasks: List[asyncio.Task] = []
         self._news_queue: "asyncio.Queue[NewsItem]" = asyncio.Queue(maxsize=1000)
         self._day_start = time.time()
+        self._circuit_breaker_alerted_today = False
 
         self._markets_by_venue: Dict[str, List[WatchedMarket]] = {"polymarket": [], "kalshi": []}
         for market in config.watched_markets:
@@ -87,6 +90,26 @@ class VyRobotEngine:
             elif venue == "kalshi":
                 ids.add(pair.kalshi_market_id)
         return list(ids)
+
+    # ------------------------------------------------------------------ #
+    # Alerting: push a notification without ever blocking or crashing the
+    # engine on it. Any HTTP endpoint that accepts a POST works; a free
+    # ntfy.sh topic (POST body=message, header Title=...) is the simplest
+    # way to get these onto a phone with zero signup.
+    # ------------------------------------------------------------------ #
+    async def _send_alert(self, title: str, message: str, priority: str = "default") -> None:
+        if not self.config.alert_webhook_url or self._http_session is None:
+            return
+        try:
+            timeout = aiohttp.ClientTimeout(total=5.0)
+            headers = {"Title": title, "Priority": priority}
+            async with self._http_session.post(
+                self.config.alert_webhook_url, data=message.encode("utf-8"), headers=headers, timeout=timeout
+            ) as resp:
+                if resp.status >= 300:
+                    logger.warning("Alert webhook returned HTTP %d", resp.status)
+        except Exception:
+            logger.warning("Failed to deliver alert (webhook unreachable); continuing without it")
 
     # ------------------------------------------------------------------ #
     # Setup / teardown
@@ -232,7 +255,7 @@ class VyRobotEngine:
                 )
 
                 for market in matches:
-                    await self._evaluate_and_trade(market, score)
+                    await self._evaluate_and_trade(market, score, item)
 
             except asyncio.CancelledError:
                 raise
@@ -240,7 +263,21 @@ class VyRobotEngine:
                 logger.exception("Unexpected error in decision loop; continuing")
         logger.info("Decision loop stopped")
 
-    async def _evaluate_and_trade(self, market: WatchedMarket, score) -> None:
+    async def _log_directional(
+        self, market: WatchedMarket, score: LLMScore, item: NewsItem, mid_price: float, spread_pct: float,
+        approved: bool, reason: str, side: str = "none", size_usd: float = 0.0, contracts: float = 0.0,
+        limit_price: float = 0.0, order_id: str = "", order_status: str = "",
+    ) -> None:
+        record = directional_record(
+            dry_run=self.config.dry_run, venue=market.venue, market_id=market.market_id, question=market.question,
+            item_title=item.title, item_url=item.url, llm_probability=score.probability,
+            llm_confidence=score.confidence, llm_rationale=score.rationale, mid_price=mid_price,
+            spread_pct=spread_pct, approved=approved, reason=reason, side=side, size_usd=size_usd,
+            contracts=contracts, limit_price=limit_price, order_id=order_id, order_status=order_status,
+        )
+        await log_decision(self.config.decisions_log_path, record)
+
+    async def _evaluate_and_trade(self, market: WatchedMarket, score: LLMScore, item: NewsItem) -> None:
         client = self.clients.get(market.venue)
         if client is None:
             return
@@ -260,10 +297,22 @@ class VyRobotEngine:
 
         open_positions = len(self.state.all_positions())
         daily_pnl = self.state.get_daily_pnl()
+        mid_price = self.risk.mid_price(book) or 0.0
+        spread_pct = self.risk.spread_pct(book) or 0.0
 
         decision = self.risk.evaluate(score, book, total_capital, open_positions, daily_pnl)
         if not decision.approved:
             logger.info("Trade rejected for %s (%s): %s", market.market_id, market.venue, decision.reason)
+            await self._log_directional(market, score, item, mid_price, spread_pct, False, decision.reason)
+
+            if decision.reason.startswith("daily loss circuit breaker") and not self._circuit_breaker_alerted_today:
+                self._circuit_breaker_alerted_today = True
+                await self._send_alert(
+                    "VyRobot: daily loss limit hit",
+                    f"Daily loss circuit breaker triggered (PnL ${daily_pnl:.2f} on ${total_capital:.2f} capital). "
+                    "New trades are paused until the daily reset.",
+                    priority="high",
+                )
             return
 
         logger.info(
@@ -274,6 +323,16 @@ class VyRobotEngine:
 
         if self.config.dry_run:
             logger.info("DRY RUN active; order not sent to %s", market.venue)
+            await self._log_directional(
+                market, score, item, mid_price, spread_pct, True, "approved (dry run)",
+                decision.side, decision.size_usd, decision.contracts, decision.limit_price,
+            )
+            if self.config.alert_on_dry_run:
+                await self._send_alert(
+                    "VyRobot (dry run): trade would fire",
+                    f"{decision.side} {decision.contracts:.2f} {market.market_id} @ {decision.limit_price:.4f} "
+                    f"(~${decision.size_usd:.2f}) on {market.venue}",
+                )
             return
 
         # Dynamic depth-based downscale: re-check the freshest order book
@@ -303,6 +362,11 @@ class VyRobotEngine:
                 "slippage tolerance",
                 market.market_id, execution_notional, self.config.risk.max_slippage_pct * 100,
             )
+            await self._log_directional(
+                market, score, item, mid_price, spread_pct, False,
+                "insufficient depth within slippage tolerance", decision.side, decision.size_usd,
+                decision.contracts, decision.limit_price,
+            )
             return
 
         try:
@@ -314,10 +378,28 @@ class VyRobotEngine:
                 time_in_force="IOC",
             )
             logger.info("Order submitted: %s (status=%s)", order.order_id, order.status)
+            await self._log_directional(
+                market, score, item, mid_price, spread_pct, True, "executed", decision.side,
+                adjusted_contracts * decision.limit_price, adjusted_contracts, decision.limit_price,
+                order.order_id, order.status,
+            )
+            await self._send_alert(
+                "VyRobot: trade executed",
+                f"{decision.side} {adjusted_contracts:.2f} {market.market_id} @ {decision.limit_price:.4f} "
+                f"on {market.venue} (order {order.order_id}, status={order.status})",
+            )
         except OrderRejectedError as exc:
             logger.error("Order rejected by %s for %s: %s", market.venue, market.market_id, exc)
+            await self._log_directional(
+                market, score, item, mid_price, spread_pct, False, f"order rejected: {exc}", decision.side,
+                decision.size_usd, adjusted_contracts, decision.limit_price,
+            )
         except MarketClientError as exc:
             logger.error("Order submission failed for %s on %s: %s", market.market_id, market.venue, exc)
+            await self._log_directional(
+                market, score, item, mid_price, spread_pct, False, f"submission failed: {exc}", decision.side,
+                decision.size_usd, adjusted_contracts, decision.limit_price,
+            )
 
     # ------------------------------------------------------------------ #
     # Cross-exchange arbitrage: scan -> risk-size -> concurrent two-leg execution
@@ -342,6 +424,16 @@ class VyRobotEngine:
                 pass
         logger.info("Arbitrage scanner stopped")
 
+    def _arb_record_kwargs(self, opportunity: ArbitrageOpportunity) -> Dict[str, Any]:
+        return dict(
+            dry_run=self.config.dry_run, pair_id=opportunity.pair_id, question=opportunity.question,
+            leg_a_venue=opportunity.leg_a.venue, leg_a_market_id=opportunity.leg_a.market_id,
+            leg_a_side=opportunity.leg_a.side, leg_a_price=opportunity.leg_a.price,
+            leg_b_venue=opportunity.leg_b.venue, leg_b_market_id=opportunity.leg_b.market_id,
+            leg_b_side=opportunity.leg_b.side, leg_b_price=opportunity.leg_b.price,
+            edge_pct=opportunity.edge_pct,
+        )
+
     async def _evaluate_and_execute_arbitrage(self, opportunity: ArbitrageOpportunity) -> None:
         total_capital = self.state.total_capital_usd()
         if total_capital <= 0:
@@ -353,6 +445,10 @@ class VyRobotEngine:
         decision = self.risk.evaluate_arbitrage(opportunity, total_capital, open_positions, daily_pnl)
         if not decision.approved:
             logger.debug("Arbitrage opportunity %s rejected: %s", opportunity.pair_id, decision.reason)
+            await log_decision(
+                self.config.decisions_log_path,
+                arbitrage_record(**self._arb_record_kwargs(opportunity), approved=False, reason=decision.reason),
+            )
             return
 
         logger.info(
@@ -366,22 +462,63 @@ class VyRobotEngine:
 
         if self.config.dry_run:
             logger.info("DRY RUN active; arbitrage legs not sent for %s", opportunity.pair_id)
+            await log_decision(
+                self.config.decisions_log_path,
+                arbitrage_record(
+                    **self._arb_record_kwargs(opportunity), approved=True, reason="approved (dry run)",
+                    contracts=decision.contracts, notional_usd=decision.notional_usd,
+                    expected_profit_usd=decision.expected_profit_usd,
+                ),
+            )
+            if self.config.alert_on_dry_run:
+                await self._send_alert(
+                    "VyRobot (dry run): arbitrage would fire",
+                    f"{opportunity.pair_id}: edge {opportunity.edge_pct:.2%}, "
+                    f"{decision.contracts:.2f} contracts (~${decision.notional_usd:.2f}), "
+                    f"expected profit ~${decision.expected_profit_usd:.2f}",
+                )
             return
 
-        await self._execute_arbitrage_legs(opportunity, decision.contracts)
+        order_a_id, order_b_id, leg_risk, reason = await self._execute_arbitrage_legs(opportunity, decision.contracts)
+        await log_decision(
+            self.config.decisions_log_path,
+            arbitrage_record(
+                **self._arb_record_kwargs(opportunity), approved=True, reason=reason,
+                contracts=decision.contracts, notional_usd=decision.notional_usd,
+                expected_profit_usd=decision.expected_profit_usd, order_a_id=order_a_id, order_b_id=order_b_id,
+                leg_risk=leg_risk,
+            ),
+        )
+        if leg_risk:
+            await self._send_alert(
+                "VyRobot: ARBITRAGE LEG RISK",
+                f"{opportunity.pair_id}: one leg failed after the other filled. {reason} "
+                "Check vyrobot.log immediately for unwind status.",
+                priority="urgent",
+            )
+        else:
+            await self._send_alert(
+                "VyRobot: arbitrage executed",
+                f"{opportunity.pair_id}: both legs filled, expected profit ~${decision.expected_profit_usd:.2f}",
+            )
 
-    async def _execute_arbitrage_legs(self, opportunity: ArbitrageOpportunity, contracts: float) -> None:
+    async def _execute_arbitrage_legs(
+        self, opportunity: ArbitrageOpportunity, contracts: float
+    ) -> "tuple[str, str, bool, str]":
         """Submits both legs concurrently to minimize leg risk (the window
         in which one side fills and the other does not, leaving a naked
         directional position instead of the intended locked payout). If one
         leg fails after the other has already filled, this attempts a
-        best-effort unwind of the filled leg rather than leaving it open."""
+        best-effort unwind of the filled leg rather than leaving it open.
+
+        Returns ``(order_a_id, order_b_id, leg_risk, reason)`` for the
+        caller to log and alert on."""
         leg_a, leg_b = opportunity.leg_a, opportunity.leg_b
         client_a = self.clients.get(leg_a.venue)
         client_b = self.clients.get(leg_b.venue)
         if client_a is None or client_b is None:
             logger.error("Cannot execute arbitrage %s: missing client for one leg", opportunity.pair_id)
-            return
+            return "", "", False, "missing client for one leg"
 
         async def _submit(client: BaseMarketClient, leg) -> Order:
             fresh_book = self.state.get_orderbook(leg.market_id)
@@ -420,27 +557,36 @@ class VyRobotEngine:
                 "best-effort unwind of leg B",
                 leg_b.venue, leg_a.venue, opportunity.pair_id,
             )
-            await self._unwind_leg(client_b, leg_b, order_b)
+            unwound = await self._unwind_leg(client_b, leg_b, order_b)
+            reason = f"leg A failed ({order_a}); leg B {'unwound' if unwound else 'UNWIND FAILED'}"
+            return "", order_b.order_id, True, reason
         elif b_failed and not a_failed:
             logger.critical(
                 "LEG RISK: leg A filled on %s but leg B failed on %s for arbitrage %s; attempting "
                 "best-effort unwind of leg A",
                 leg_a.venue, leg_b.venue, opportunity.pair_id,
             )
-            await self._unwind_leg(client_a, leg_a, order_a)
-        elif not a_failed and not b_failed:
+            unwound = await self._unwind_leg(client_a, leg_a, order_a)
+            reason = f"leg B failed ({order_b}); leg A {'unwound' if unwound else 'UNWIND FAILED'}"
+            return order_a.order_id, "", True, reason
+        elif a_failed and b_failed:
+            logger.error("Both arbitrage legs failed for %s; no exposure taken", opportunity.pair_id)
+            return "", "", False, f"both legs failed (A: {order_a}, B: {order_b})"
+        else:
             logger.info(
                 "Arbitrage %s executed cleanly: order_a=%s order_b=%s",
                 opportunity.pair_id, order_a.order_id, order_b.order_id,
             )
+            return order_a.order_id, order_b.order_id, False, "executed cleanly"
 
-    async def _unwind_leg(self, client: BaseMarketClient, leg, filled_order: Order) -> None:
+    async def _unwind_leg(self, client: BaseMarketClient, leg, filled_order: Order) -> bool:
         """Best-effort flatten of a single filled arbitrage leg when its
         counterpart failed to execute, to avoid being left with a naked
         directional position. This deliberately crosses the spread
         (accepting slippage) because eliminating leg risk takes priority
         over price once the arbitrage's guaranteed-payout structure is
-        already broken."""
+        already broken. Returns True only if the unwind order was
+        successfully submitted."""
         try:
             opposite_side = "sell" if leg.side == "buy" else "buy"
             book = self.state.get_orderbook(leg.market_id)
@@ -449,7 +595,7 @@ class VyRobotEngine:
                     "Cannot auto-unwind leg %s:%s: no order book available. MANUAL INTERVENTION REQUIRED.",
                     leg.venue, leg.market_id,
                 )
-                return
+                return False
 
             aggressive_price = book.best_bid.price if opposite_side == "sell" else (
                 book.best_ask.price if book.best_ask else None
@@ -461,7 +607,7 @@ class VyRobotEngine:
                     "Cannot auto-unwind leg %s:%s: no liquidity on the unwind side. MANUAL INTERVENTION REQUIRED.",
                     leg.venue, leg.market_id,
                 )
-                return
+                return False
 
             unwind_size = filled_order.filled_size or filled_order.size
             await client.place_limit_order(
@@ -469,11 +615,13 @@ class VyRobotEngine:
                 size=unwind_size, time_in_force="IOC",
             )
             logger.warning("Unwind order submitted for %s:%s (%.4f contracts)", leg.venue, leg.market_id, unwind_size)
+            return True
         except MarketClientError:
             logger.exception(
                 "Failed to auto-unwind leg %s:%s; MANUAL INTERVENTION REQUIRED to close residual exposure.",
                 leg.venue, leg.market_id,
             )
+            return False
 
     # ------------------------------------------------------------------ #
     # Periodic maintenance tasks
@@ -512,6 +660,7 @@ class VyRobotEngine:
                     logger.info("Resetting daily PnL circuit breaker")
                     self.state.reset_daily_pnl()
                     self._day_start = time.time()
+                    self._circuit_breaker_alerted_today = False
 
 
 def _install_signal_handlers(loop: asyncio.AbstractEventLoop, engine: VyRobotEngine) -> None:

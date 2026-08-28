@@ -210,10 +210,13 @@ class AppConfig:
     arbitrage_scan_interval_seconds: float
     dry_run: bool
     state_snapshot_path: str
+    decisions_log_path: str
     decision_loop_interval_seconds: float
     balance_refresh_interval_seconds: float
     log_level: str
     log_file: str
+    alert_webhook_url: Optional[str]
+    alert_on_dry_run: bool
 
 
 DEFAULT_RSS_FEEDS: Tuple[str, ...] = (
@@ -410,8 +413,11 @@ def load_config() -> AppConfig:
         arbitrage_scan_interval_seconds=_env_float("VYROBOT_ARBITRAGE_SCAN_INTERVAL_SECONDS", 10.0),
         dry_run=_env_bool("VYROBOT_DRY_RUN", True),
         state_snapshot_path=_env("VYROBOT_STATE_SNAPSHOT_PATH", str(BASE_DIR / "state_snapshot.json")),
+        decisions_log_path=_env("VYROBOT_DECISIONS_LOG_PATH", str(BASE_DIR / "decisions.jsonl")),
         decision_loop_interval_seconds=_env_float("VYROBOT_DECISION_LOOP_INTERVAL_SECONDS", 5.0),
         balance_refresh_interval_seconds=_env_float("VYROBOT_BALANCE_REFRESH_INTERVAL_SECONDS", 30.0),
         log_level=_env("VYROBOT_LOG_LEVEL", "INFO") or "INFO",
         log_file=_env("VYROBOT_LOG_FILE", "vyrobot.log") or "vyrobot.log",
+        alert_webhook_url=_env("VYROBOT_ALERT_WEBHOOK_URL"),
+        alert_on_dry_run=_env_bool("VYROBOT_ALERT_ON_DRY_RUN", False),
     )

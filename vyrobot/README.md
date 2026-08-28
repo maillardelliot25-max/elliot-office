@@ -13,7 +13,11 @@ scanner, and real-time order-book-depth-aware slippage protection.
 | `config.py` | Env-driven configuration, risk constants, logging setup |
 | `market_client.py` | `BaseMarketClient`, `StateManager`, `PolymarketClient`, `KalshiClient` |
 | `analytics.py` | News ingestion, LLM scoring, Kelly sizing, `ArbitrageScanner`, `RiskManager` |
-| `main.py` | Async event loop tying data streams, arbitrage, and depth-aware execution together |
+| `main.py` | Async event loop tying data streams, arbitrage, alerting, and depth-aware execution together |
+| `decision_log.py` | Shared JSONL schema for every risk-evaluated decision (read by `calibration.py`) |
+| `calibration.py` | Offline report: LLM calibration (Brier score), simulated P&L, arbitrage summary |
+| `run_forever.sh` | Crash-resilient supervisor: restarts `main.py` with backoff if it dies |
+| `termux_boot/start-vyrobot.sh` | Termux:Boot entry point so the bot survives a phone reboot |
 | `.env.example` | Template for all environment variables / secrets |
 | `markets.json.example` | Template for the news-keyword -> market watch-list |
 | `arbitrage_pairs.json.example` | Template linking equivalent Polymarket/Kalshi markets |
@@ -126,12 +130,93 @@ priority over price at that point. Watch the log for `LEG RISK` and
 `MANUAL INTERVENTION REQUIRED` markers; automated unwinds are best-effort,
 not guaranteed.
 
-## 7. Stopping
+## 7. Calibration & backtesting — do this before `--live`
+
+Every risk-evaluated decision (approved or rejected, directional or
+arbitrage) is appended as one JSON line to `decisions.jsonl` — venue,
+market, the LLM's raw probability/confidence, the sizing, and the outcome
+of execution. Nothing is held only in memory or lost between dry-run
+sessions.
+
+Run dry-run for a while (days, ideally until some watched markets have
+actually settled), then:
+
+```bash
+python calibration.py
+python calibration.py --csv detail.csv   # also dump every decision for spreadsheet review
+```
+
+This prints:
+
+- **LLM calibration** — buckets every resolved decision's predicted
+  probability into deciles and compares it against the realized outcome
+  frequency in that bucket, plus an overall Brier score (0.0 = perfect,
+  0.25 = a coin-flip baseline, 1.0 = worst). This tells you whether the
+  LLM's `p` is trustworthy *before* you let Kelly size real money against
+  it — a model that says "80%" and is right 50% of the time will lose
+  money systematically no matter how good the sizing math is.
+- **Simulated P&L** — what every approved directional decision would have
+  earned or lost had it executed at its recorded limit price and size.
+- **Arbitrage summary** — count/notional/expected profit of arbitrage
+  opportunities (these don't need outcome resolution since the edge is
+  locked in at execution, not dependent on who wins).
+
+Resolution lookups against Polymarket/Kalshi are best-effort (see the
+docstring in `calibration.py`) — unresolved or undeterminable decisions are
+reported as such, never silently dropped or scored as losses.
+
+## 8. Alerting (so you don't have to watch the log)
+
+Set `VYROBOT_ALERT_WEBHOOK_URL` to any HTTP endpoint that accepts a POST
+and the engine will push a notification on: a live trade executing, an
+arbitrage executing, arbitrage **leg risk** (one leg filled and the other
+didn't), and the daily loss circuit breaker tripping. The simplest
+zero-signup option for a phone: install the free **ntfy** Android app,
+subscribe to a topic name only you know, and set
+`VYROBOT_ALERT_WEBHOOK_URL=https://ntfy.sh/<your-topic-name>`. Set
+`VYROBOT_ALERT_ON_DRY_RUN=true` first to confirm the alert pipeline works
+before going live. A failed or unreachable webhook never blocks or crashes
+the engine — it's logged as a warning and trading continues.
+
+## 9. Running unattended (crash recovery + surviving a reboot)
+
+`main.py` handles reconnects internally, but if the Python process itself
+dies (OOM kill, Android reclaiming resources), something needs to restart
+it. Use the supervisor instead of calling `python main.py` directly for
+any unattended run:
+
+```bash
+chmod +x run_forever.sh
+./run_forever.sh --live       # or no args for dry-run
+```
+
+It restarts `main.py` with an exponential backoff on crash-looping,
+resets the backoff once a run has been stable for 60s, and logs restarts
+to `vyrobot_supervisor.log`.
+
+To survive a phone reboot without manually reopening Termux: install the
+**Termux:Boot** companion app (same source as Termux itself — F-Droid or
+GitHub, not the Play Store build, which can't run boot scripts), open it
+once to grant the permission, then:
+
+```bash
+mkdir -p ~/.termux/boot
+cp termux_boot/start-vyrobot.sh ~/.termux/boot/start-vyrobot.sh
+chmod +x ~/.termux/boot/start-vyrobot.sh
+```
+
+Edit the `VYROBOT_DIR` path at the top of that script to match where you
+cloned this repo. After a reboot, Termux:Boot launches it automatically,
+which starts `run_forever.sh` in the background.
+
+## 10. Stopping
 
 `Ctrl+C` (SIGINT) or `SIGTERM` triggers a graceful shutdown: background
 tasks are cancelled, websockets and HTTP sessions are closed, and the final
 in-memory state (orders/positions/balances) is flushed to
-`state_snapshot.json` so the next run can resume context.
+`state_snapshot.json` so the next run can resume context. If you're running
+under `run_forever.sh`, stop it (not just `main.py`) with `Ctrl+C` or
+`pkill -f run_forever.sh`, otherwise the supervisor will restart it.
 
 ## Notes on scope
 

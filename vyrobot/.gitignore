@@ -3,8 +3,12 @@ venv/
 __pycache__/
 *.pyc
 vyrobot.log
+vyrobot_supervisor.log
+vyrobot_boot.log
+decisions.jsonl
 state_snapshot.json
 markets.json
 arbitrage_pairs.json
 kalshi_private_key.pem
 *.pem
+*.csv
