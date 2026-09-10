@@ -1,0 +1,25 @@
+name: projection_mapper
+description: >
+  Zero-jargon automated projection mapping operator app — Zone Deck UI,
+  Scan Room calibration flow, and projector output routing for Windows and
+  Android.
+publish_to: "none"
+version: 0.1.0
+
+environment:
+  sdk: ">=3.3.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  web_socket_channel: ^2.4.0 # control-plane link to cv_engine (Module 2)
+  provider: ^6.1.2           # Zone Deck state management
+  file_picker: ^8.1.2        # "Load Wall Photo" file selection (Windows + Android)
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^4.0.0
+
+flutter:
+  uses-material-design: true
