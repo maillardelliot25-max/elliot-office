@@ -22,18 +22,26 @@ projection-mapping-engine/
 
 ## Status
 
-Module 1 (display daemon, both platforms) is implemented end-to-end against
-the real Win32 and Android APIs. Modules 2–4 have real, stable interfaces
-and data contracts (see `ARCHITECTURE.md` §4) with the CV-heavy inference
-paths (Gray code decode, TPS mesh fit, SAM/YOLOv8-Seg inference) left as
-explicit `TODO`s pointing at what's needed to fill them in — camera/model
-integration, which this execution environment can't exercise.
+See `ARCHITECTURE.md` §6 for the full breakdown. Short version:
 
-**Not yet done here:** compiling/running the Flutter app (no Flutter SDK in
-this environment), MSVC build of the Windows native plugin, an Android
-Gradle build, or installing/running the Python dependencies in
-`cv_engine/requirements.txt`. `cv_engine`'s pure-Python module structure has
-been syntax-checked with `python3 -m py_compile`.
+- **Module 1** (display daemon, both platforms): implemented end-to-end against
+  the real Win32 and Android APIs.
+- **Module 2** (`cv_engine`): Scan Room's Gray code decode + thin-plate-spline
+  mesh fit, and Highlight Target's GrabCut-based segmentation, are real,
+  working, and covered by tests — run them yourself:
+
+  ```bash
+  cd cv_engine && pip install -r requirements-dev.txt
+  python -m pytest tests/ -v   # 12 passed
+  ```
+
+  Still open: live camera capture and a bundled ONNX model for the optional
+  higher-quality SAM/YOLOv8-Seg segmentation path — both need hardware/model
+  assets this environment doesn't have.
+- **Modules 3–4**: real, stable interfaces and data contracts (shaders,
+  Flutter UI shell), pending host integration (GL context, video decode) and
+  a Flutter/Android/MSVC toolchain to build against, none of which are
+  available here.
 
 ## Getting started (once you have the SDKs)
 

@@ -96,15 +96,43 @@ projector output.
   (no Python interpreter needed on Android — the Python tree is the desktop/dev
   reference implementation the mobile ONNX path is validated against).
 
-## 6. What's implemented in this pass vs. scaffolded
+## 6. What's implemented vs. scaffolded
 
-This first pass delivers **Module 1 end-to-end** (the "display daemon" the spec
-explicitly asks for first) plus buildable skeletons for Modules 2–4 with real
-signatures and data contracts, so each module can be filled in independently without
-changing the interfaces above. Sections not yet implemented are marked `TODO` at the
-point in the code where they attach — see each folder's own README for status.
+**Working and tested** (run `python -m pytest cv_engine/tests/` from `cv_engine/`'s
+parent — 12 tests, all passing):
 
-No Flutter/Dart SDK, MSVC, or Android SDK is available in this execution
-environment, so native/Dart code here is hand-written to the target SDKs' real APIs
-but has **not** been compiled here. `cv_engine` is pure Python and its module
-structure has been import-checked with the local `python3`.
+- **Module 1, both platforms, end-to-end**: real `EnumDisplayMonitors` +
+  borderless-popup output window on Windows; real `android.app.Presentation`
+  routing on Android; one shared Dart method channel behind "Send to Projector".
+- **Scan Room decode + fit** (`cv_engine/calibration/structured_light.py`): Gray
+  code bit-plane decode (with per-pixel white/black shadow thresholding) and a
+  thin-plate-spline mesh fit (`scipy.interpolate.RBFInterpolator`) from sparse
+  correspondence samples to the 33×33 calibration mesh. Validated against a
+  simulated non-affine warped surface in `cv_engine/tests/test_structured_light.py`
+  — the fit recovers the known warp to sub-pixel accuracy and reduces to the
+  identity mesh on a flat/unwarped surface.
+- **Highlight Target** (`cv_engine/segmentation/mask_engine.py`): a
+  `ClassicalSegmentationEngine` using OpenCV GrabCut seeded at the operator's tap
+  point, filtered to the connected foreground component under that point. This is
+  the *default* segmentation path — it needs no bundled model, so "zero
+  cloud/internet required" holds today, not just once a model ships. Validated
+  against a synthetic high-contrast scene (IoU > 0.6 against ground truth).
+- **Focus/Cutout/Mute mask logic, Save/Load Venue, canvas ingestion, and the
+  control-plane WebSocket dispatch** wiring all of the above together in
+  `cv_engine/main.py`.
+
+**Still scaffolded / explicitly blocked** on something this environment can't
+provide:
+
+- `SegmentationEngine` (the ONNX SAM/YOLoV8-Seg path) — needs a bundled quantized
+  model file; `ClassicalSegmentationEngine` is the working default until then, not
+  a placeholder blocking it.
+- Live camera capture (`LiveCameraSource`) and driving Scan Room's pattern display
+  through a real render loop — needs actual camera/projector hardware; the decode
+  and fit math those frames feed into is implemented and tested above.
+- Compiling/running the Flutter app (no Flutter SDK here), an MSVC build of the
+  Windows native plugin, or an Android Gradle build. Native/Dart code is
+  hand-written to the target SDKs' real APIs but unbuilt; `cv_engine`'s Python has
+  been executed, not just syntax-checked.
+- Render engine host integration (mpv/ExoPlayer embedding, GL context creation,
+  audio FFT loop) — see `render_engine/README.md` for what's needed next.

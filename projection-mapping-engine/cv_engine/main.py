@@ -18,10 +18,12 @@ import logging
 from pathlib import Path
 from typing import Any
 
+import numpy as np
 import websockets
 from websockets.server import WebSocketServerProtocol
 
-from cv_engine.segmentation.mask_engine import compute_output_mask
+from cv_engine.canvas.canvas_ingest import load_uploaded_photo
+from cv_engine.segmentation.mask_engine import ClassicalSegmentationEngine, compute_output_mask
 from cv_engine.venue.venue_profile import VenueProfile, venues_directory
 
 logging.basicConfig(level=logging.INFO)
@@ -37,6 +39,15 @@ class ControlServer:
     def __init__(self, app_data_dir: Path = APP_DATA_DIR):
         self.app_data_dir = app_data_dir
         self.venues_dir = venues_directory(app_data_dir)
+        self.segmentation_engine = ClassicalSegmentationEngine()
+
+        # Session state: the most recently loaded canvas photo (§3B "Load
+        # Wall Photo") and each zone's segmented mask, keyed by zone id.
+        # Kept in-process rather than round-tripped through the socket on
+        # every call — masks are only recomputed when the operator actually
+        # taps Highlight Target again.
+        self._canvas_frame: np.ndarray | None = None
+        self._zone_masks: dict[str, np.ndarray] = {}
 
     async def handle_connection(self, websocket: WebSocketServerProtocol) -> None:
         logger.info("UI shell connected")
@@ -52,13 +63,37 @@ class ControlServer:
     async def dispatch(self, request: dict[str, Any]) -> dict[str, Any]:
         command = request.get("command")
 
-        if command == "set_zone_mode":
-            mask_shape = tuple(request["maskShape"])
-            import numpy as np
+        if command == "load_wall_photo":
+            frame = load_uploaded_photo(Path(request["path"]))
+            self._canvas_frame = frame
+            self._zone_masks.clear()  # masks were segmented against the old canvas
+            height, width = frame.shape[:2]
+            return {"ok": True, "width": width, "height": height}
 
-            # Placeholder mask until segmentation lands; proves the
-            # focus/cutout/mute contract end-to-end over the wire.
-            mask = np.zeros(mask_shape, dtype="float32")
+        if command == "highlight_target":
+            if self._canvas_frame is None:
+                return {"ok": False, "error": "Load Wall Photo before using Highlight Target"}
+            zone_id = request["zoneId"]
+            point_xy = (int(request["point"][0]), int(request["point"][1]))
+            result = self.segmentation_engine.segment_at_point(self._canvas_frame, point_xy)
+            self._zone_masks[zone_id] = result.mask
+            return {
+                "ok": True,
+                "maskShape": list(result.mask.shape),
+                "confidence": result.confidence,
+            }
+
+        if command == "set_zone_mode":
+            zone_id = request["zoneId"]
+            mask = self._zone_masks.get(zone_id)
+            if mask is None:
+                # No Highlight Target run for this zone yet — an all-zero
+                # mask keeps Focus/Cutout well-defined (Focus shows
+                # nothing, Cutout shows everywhere) rather than erroring.
+                fallback_shape = (
+                    self._canvas_frame.shape[:2] if self._canvas_frame is not None else (0, 0)
+                )
+                mask = np.zeros(fallback_shape, dtype=np.float32)
             output = compute_output_mask(mask, request["mode"])
             return {"ok": True, "maskShape": list(output.shape)}
 
