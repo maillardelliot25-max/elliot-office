@@ -13,7 +13,7 @@ projection-mapping-engine/
 ├── ARCHITECTURE.md        Full architecture breakdown (start here)
 ├── docs/TERMINOLOGY.md    Zero-jargon UI copy <-> engine term table
 ├── app/                   Flutter UI shell (Windows + Android) — Module 4
-│   ├── lib/                Dart: Zone Deck UI, Nudge Corners overlay, display/control service bridges
+│   ├── lib/                Dart: Zone Deck UI, Nudge Corners overlay, Highlight Target + Venue screens, display/control service bridges
 │   ├── windows/native/     C++: display daemon (EnumDisplayMonitors, borderless output window) — Module 1
 │   └── android/.../projectionmapper/  Kotlin: android.app.Presentation projector — Module 1
 ├── cv_engine/              Python: calibration, segmentation, canvas ingest, venue profiles — Module 2
@@ -39,26 +39,31 @@ See `ARCHITECTURE.md` §6 for the full breakdown. Short version:
   Still open: live camera capture and a bundled ONNX model for the optional
   higher-quality SAM/YOLOv8-Seg segmentation path — both need hardware/model
   assets this environment doesn't have.
-- **Module 4** (`app/lib`): the Nudge Corners screen is real and wired end to
-  end — its `ControlClient` talks the same JSON protocol `cv_engine/main.py`
-  implements, driving `apply_manual_nudge` live. The rest of the Zone Deck UI
-  (Scan Room, Highlight Target) still has its `cv_engine` calls stubbed as
-  `TODO`s — same `ControlClient`, just not wired to those buttons yet.
+- **Module 4** (`app/lib`): every Zone Deck action with a working `cv_engine`
+  counterpart is wired end to end through `ControlClient` — Load Wall Photo,
+  Highlight Target (a real tap-to-pixel-coordinate screen), zone
+  Focus/Cutout/Mute changes, Nudge Corners, and Save/Load Venue. Only Scan
+  Room stays a stub button, since it's the one action genuinely blocked on
+  camera hardware.
 - **Module 3** (`render_engine`): the host renderer actually compiles and
   runs the committed shaders against a real GL pipeline (Mesa's llvmpipe
   software rasterizer — no GPU required) and checks output pixels,
   including that the calibration-mesh warp genuinely displaces content, not
-  just that it compiles:
+  just that it compiles. Also real: FFT-based audio band analysis
+  (`audio/audio_engine.py`) and software video decode with seamless looping
+  (`host/video_source.py`), plus integration tests tying Module 2's
+  calibration/mask output directly into Module 3's compositor:
 
   ```bash
   cd render_engine && pip install -r requirements-dev.txt
   Xvfb :99 -screen 0 1280x1024x24 &
-  DISPLAY=:99 python -m pytest tests/ -v   # 8 passed
+  DISPLAY=:99 python -m pytest tests/ -v   # 28 passed
   ```
 
   Still open: attaching to the real projector output surface instead of an
-  off-screen framebuffer, hardware video decode, and live audio FFT — see
-  `render_engine/README.md`.
+  off-screen framebuffer, *hardware-accelerated* video decode (vs. the
+  working software path above), and live microphone capture (vs. the
+  working FFT math above) — see `render_engine/README.md`.
 - Building any of it needs a Flutter/Android/MSVC toolchain none of which are
   available here — see `ARCHITECTURE.md` §6 for the precise split of
   tested-and-working vs. still-blocked.

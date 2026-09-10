@@ -98,7 +98,7 @@ projector output.
 
 ## 6. What's implemented vs. scaffolded
 
-**Working and tested** (from `cv_engine/`'s parent — 32 tests, all passing:
+**Working and tested** (from `cv_engine/`'s parent — 52 tests, all passing:
 `python -m pytest cv_engine/tests/ render_engine/tests/`; the render engine
 tests need a GL-capable environment — see below — and skip cleanly without
 one):
@@ -132,9 +132,13 @@ one):
 - **Focus/Cutout/Mute mask logic, Save/Load Venue, canvas ingestion, Nudge
   Corners, and the control-plane WebSocket dispatch** wiring all of the above
   together in `cv_engine/main.py`, with `app/lib/core/control/control_client.dart`
-  as the Dart-side request/response bridge to it (used by
-  `NudgeCornersScreen` today; `ZoneDeckScreen`'s Scan Room / Highlight Target
-  actions are the next things to wire onto the same client).
+  as the Dart-side request/response bridge to it — now used by every
+  `ZoneDeckScreen` action that has a working `cv_engine` counterpart: Load
+  Wall Photo, Highlight Target (a real tap-to-pixel-coordinate screen,
+  `highlight_target_screen.dart`), zone Focus/Cutout/Mute changes, Nudge
+  Corners, and Save/Load Venue (`venue_screen.dart`). Only Scan Room stays a
+  stub button, since it's the one action that's genuinely blocked on camera
+  hardware.
 - **Render engine host integration** (`render_engine/host/renderer.py`): a
   real ModernGL renderer that compiles and runs the exact committed
   `mesh_warp.vert`/`.frag`, `fullscreen_quad.vert`, and `edge_blend.frag`
@@ -149,9 +153,28 @@ one):
   process caught and fixed a real bug — `mesh_warp.vert` had a declared-
   but-unused `u_outputResolution` uniform that GLSL silently stripped,
   which only surfaced once the shader was actually compiled and the host
-  tried to set it. See `render_engine/README.md` for what's still
-  environment-blocked (attaching to the real projector surface instead of
-  an off-screen framebuffer, video decode, live audio FFT).
+  tried to set it.
+- **Audio-reactive engine** (`render_engine/audio/audio_engine.py`):
+  `compute_band_energies` does a windowed FFT and picks peak-per-band
+  magnitude for Bass/Mids/Treble, validated against synthetic tones at
+  known frequencies (each tone activates only its own band, and — after
+  fixing an RMS-vs-peak scaling bug the tests caught — a full-scale tone
+  saturates all three bands comparably despite their very different
+  widths). `AudioReactiveEngine` adds attack/release smoothing on top.
+- **Software video decode** (`render_engine/host/video_source.py`):
+  `VideoTextureSource` decodes a video file via `cv2.VideoCapture` and
+  loops seamlessly at end-of-stream, feeding `ZoneCompositor` directly.
+  Tested by writing and reading back a synthetic clip; testing surfaced and
+  fixed a real off-by-one in how the loop-back path tracked frame index.
+- **Full-pipeline integration tests**
+  (`render_engine/tests/test_full_frame_integration.py`): a calibration
+  mesh round-tripped through `cv_engine`'s actual JSON
+  save/load functions feeds the compositor directly; two zones backed by
+  real video loops and `compute_output_mask`-produced focus/cutout masks
+  composite correctly side by side; `AudioReactiveEngine`'s smoothed levels
+  drive `u_bass` and match the shader's documented formula exactly — Module
+  2 and Module 3's data contracts checked together, not just each module in
+  isolation.
 
 **Still scaffolded / explicitly blocked** on something this environment can't
 provide:
@@ -167,7 +190,14 @@ provide:
   hand-written to the target SDKs' real APIs but unbuilt; `cv_engine`'s Python has
   been executed, not just syntax-checked.
 - Attaching the render engine's GL context to the real projector output
-  surface (vs. the off-screen framebuffer the tests above render to), mpv/
-  ExoPlayer video decode into `u_visualStyle`, and the live audio FFT loop
-  feeding `u_bass`/`u_mids`/`u_treble` — see `render_engine/README.md` §
-  "What's still open" for exactly what each needs.
+  surface (vs. the off-screen framebuffer the tests above render to),
+  *hardware-accelerated* video decode (mpv/ExoPlayer — `VideoTextureSource`
+  above is a real, tested, software-decoded stand-in, not a placeholder),
+  and live microphone capture (`PortAudioSource` — the FFT math it would
+  feed is implemented and tested above; only the device I/O is stubbed) —
+  see `render_engine/README.md` § "What's still open" for exactly what each
+  needs.
+- A real ONNX Runtime Mobile build/bundled model for Android's on-device
+  segmentation path (§5's build-target split) — `ClassicalSegmentationEngine`
+  is desktop/Python-only today; porting its GrabCut approach (or swapping in
+  the ONNX path once a model exists) to the Android build is unstarted.

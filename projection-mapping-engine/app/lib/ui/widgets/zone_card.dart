@@ -3,13 +3,23 @@ import 'package:flutter/material.dart';
 import '../../core/models/zone.dart';
 
 /// One animated card in the Card Stack UI (§1.2) — the operator's entire
-/// interface to a zone is three buttons: Focus, Cutout, Mute. No timeline,
-/// no layer list, no jargon.
+/// interface to a zone is three buttons (Focus, Cutout, Mute) plus a small
+/// Highlight Target action on the thumbnail. No timeline, no layer list,
+/// no jargon.
 class ZoneCard extends StatelessWidget {
-  const ZoneCard({super.key, required this.zone, required this.onModeChanged});
+  const ZoneCard({
+    super.key,
+    required this.zone,
+    required this.onModeChanged,
+    this.onHighlightTarget,
+  });
 
   final Zone zone;
   final ValueChanged<ZoneMode> onModeChanged;
+
+  /// Opens the "Highlight Target" tap-to-select flow for this zone. Null
+  /// when no wall photo is loaded yet — there's nothing to tap on.
+  final VoidCallback? onHighlightTarget;
 
   @override
   Widget build(BuildContext context) {
@@ -38,9 +48,20 @@ class ZoneCard extends StatelessWidget {
               aspectRatio: 16 / 9,
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(12),
-                child: zone.thumbnailPath != null
-                    ? Image.asset(zone.thumbnailPath!, fit: BoxFit.cover)
-                    : Container(color: Colors.grey.shade800),
+                child: Stack(
+                  children: [
+                    Positioned.fill(
+                      child: zone.thumbnailPath != null
+                          ? Image.asset(zone.thumbnailPath!, fit: BoxFit.cover)
+                          : Container(color: Colors.grey.shade800),
+                    ),
+                    Positioned(
+                      top: 6,
+                      right: 6,
+                      child: _HighlightButton(onTap: onHighlightTarget),
+                    ),
+                  ],
+                ),
               ),
             ),
             const SizedBox(height: 8),
@@ -80,6 +101,26 @@ class ZoneCard extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _HighlightButton extends StatelessWidget {
+  const _HighlightButton({required this.onTap});
+
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.black54,
+      shape: const CircleBorder(),
+      child: IconButton(
+        tooltip: onTap == null ? 'Load Wall Photo first' : 'Highlight Target',
+        icon: const Icon(Icons.touch_app, size: 20),
+        color: Colors.white,
+        onPressed: onTap,
       ),
     );
   }

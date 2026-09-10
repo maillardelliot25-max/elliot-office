@@ -14,6 +14,7 @@ dependencies:
     sdk: flutter
   web_socket_channel: ^2.4.0 # control-plane link to cv_engine (Module 2)
   provider: ^6.1.2           # Zone Deck state management
+  file_picker: ^8.1.2        # "Load Wall Photo" file selection (Windows + Android)
 
 dev_dependencies:
   flutter_test:
