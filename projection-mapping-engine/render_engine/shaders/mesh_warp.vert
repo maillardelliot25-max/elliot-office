@@ -11,7 +11,11 @@ layout(location = 0) in vec2 a_gridPosition;   // grid position in [0,1]^2, gene
 layout(location = 1) in vec2 a_gridUV;         // matches a_gridPosition; passed through for content sampling
 
 uniform sampler2D u_warpMesh;   // MESH_RESOLUTION x MESH_RESOLUTION, RG32F: displaced (x, y) in [0,1] UV space
-uniform vec2 u_outputResolution; // projector output size in pixels, for NDC conversion
+// No output-resolution uniform needed: `warped` is already a normalized
+// [0,1] UV covering the full output canvas, so the clip-space conversion
+// below doesn't need pixel dimensions — a non-square aspect ratio is
+// handled by the compositor sizing the target framebuffer/window, not by
+// this shader.
 
 out vec2 v_uv;
 

@@ -98,8 +98,10 @@ projector output.
 
 ## 6. What's implemented vs. scaffolded
 
-**Working and tested** (run `python -m pytest cv_engine/tests/` from `cv_engine/`'s
-parent — 24 tests, all passing):
+**Working and tested** (from `cv_engine/`'s parent — 32 tests, all passing:
+`python -m pytest cv_engine/tests/ render_engine/tests/`; the render engine
+tests need a GL-capable environment — see below — and skip cleanly without
+one):
 
 - **Module 1, both platforms, end-to-end**: real `EnumDisplayMonitors` +
   borderless-popup output window on Windows; real `android.app.Presentation`
@@ -133,6 +135,23 @@ parent — 24 tests, all passing):
   as the Dart-side request/response bridge to it (used by
   `NudgeCornersScreen` today; `ZoneDeckScreen`'s Scan Room / Highlight Target
   actions are the next things to wire onto the same client).
+- **Render engine host integration** (`render_engine/host/renderer.py`): a
+  real ModernGL renderer that compiles and runs the exact committed
+  `mesh_warp.vert`/`.frag`, `fullscreen_quad.vert`, and `edge_blend.frag`
+  shaders — not a mock. `render_engine/tests/test_renderer.py` renders
+  through them on Mesa's llvmpipe software rasterizer (no GPU needed,
+  `moderngl.create_context(standalone=True)` behind Xvfb) and checks actual
+  output pixels: identity-warp round-trip, Focus mask gating, opacity mute,
+  **a displaced calibration-mesh control point moving content to the
+  correct new screen position** (the warp is verifiably real, not a
+  no-op), exact color-correction gain, exact audio-bass pulse, and the
+  edge-blend cosine ramp's gain profile in both fade directions. This
+  process caught and fixed a real bug — `mesh_warp.vert` had a declared-
+  but-unused `u_outputResolution` uniform that GLSL silently stripped,
+  which only surfaced once the shader was actually compiled and the host
+  tried to set it. See `render_engine/README.md` for what's still
+  environment-blocked (attaching to the real projector surface instead of
+  an off-screen framebuffer, video decode, live audio FFT).
 
 **Still scaffolded / explicitly blocked** on something this environment can't
 provide:
@@ -147,5 +166,8 @@ provide:
   Windows native plugin, or an Android Gradle build. Native/Dart code is
   hand-written to the target SDKs' real APIs but unbuilt; `cv_engine`'s Python has
   been executed, not just syntax-checked.
-- Render engine host integration (mpv/ExoPlayer embedding, GL context creation,
-  audio FFT loop) — see `render_engine/README.md` for what's needed next.
+- Attaching the render engine's GL context to the real projector output
+  surface (vs. the off-screen framebuffer the tests above render to), mpv/
+  ExoPlayer video decode into `u_visualStyle`, and the live audio FFT loop
+  feeding `u_bass`/`u_mids`/`u_treble` — see `render_engine/README.md` §
+  "What's still open" for exactly what each needs.

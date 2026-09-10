@@ -17,7 +17,7 @@ projection-mapping-engine/
 │   ├── windows/native/     C++: display daemon (EnumDisplayMonitors, borderless output window) — Module 1
 │   └── android/.../projectionmapper/  Kotlin: android.app.Presentation projector — Module 1
 ├── cv_engine/              Python: calibration, segmentation, canvas ingest, venue profiles — Module 2
-└── render_engine/          GLSL shaders + host-integration notes — Module 3
+└── render_engine/          GLSL shaders + a real, tested ModernGL host renderer — Module 3
 ```
 
 ## Status
@@ -44,8 +44,21 @@ See `ARCHITECTURE.md` §6 for the full breakdown. Short version:
   implements, driving `apply_manual_nudge` live. The rest of the Zone Deck UI
   (Scan Room, Highlight Target) still has its `cv_engine` calls stubbed as
   `TODO`s — same `ControlClient`, just not wired to those buttons yet.
-- **Module 3**: real, stable shader contracts, pending host integration (GL
-  context, video decode) this environment can't exercise.
+- **Module 3** (`render_engine`): the host renderer actually compiles and
+  runs the committed shaders against a real GL pipeline (Mesa's llvmpipe
+  software rasterizer — no GPU required) and checks output pixels,
+  including that the calibration-mesh warp genuinely displaces content, not
+  just that it compiles:
+
+  ```bash
+  cd render_engine && pip install -r requirements-dev.txt
+  Xvfb :99 -screen 0 1280x1024x24 &
+  DISPLAY=:99 python -m pytest tests/ -v   # 8 passed
+  ```
+
+  Still open: attaching to the real projector output surface instead of an
+  off-screen framebuffer, hardware video decode, and live audio FFT — see
+  `render_engine/README.md`.
 - Building any of it needs a Flutter/Android/MSVC toolchain none of which are
   available here — see `ARCHITECTURE.md` §6 for the precise split of
   tested-and-working vs. still-blocked.
