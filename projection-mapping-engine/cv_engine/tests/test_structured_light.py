@@ -10,7 +10,9 @@ import numpy as np
 import pytest
 
 from cv_engine.calibration.structured_light import (
+    NUDGE_CANONICAL_POSITIONS,
     GrayCodePatternSet,
+    apply_manual_nudge,
     decode_correspondence,
     fit_deformation_mesh,
     identity_mesh,
@@ -115,3 +117,46 @@ def test_fit_deformation_mesh_requires_minimum_samples():
     all_nan = np.full((10, 10, 2), np.nan, dtype=np.float32)
     with pytest.raises(ValueError):
         fit_deformation_mesh(all_nan, projector_resolution=PROJECTOR_SIZE)
+
+
+@pytest.mark.parametrize("point_count", [4, 9])
+def test_apply_manual_nudge_is_a_no_op_when_untouched(point_count):
+    base = identity_mesh(17)
+    canonical = np.array(NUDGE_CANONICAL_POSITIONS[point_count])
+
+    nudged = apply_manual_nudge(base, canonical, point_count, mesh_resolution=17)
+
+    np.testing.assert_allclose(nudged, base, atol=1e-6)
+
+
+def test_apply_manual_nudge_moves_the_dragged_corner_exactly():
+    base = identity_mesh(17)
+    canonical = np.array(NUDGE_CANONICAL_POSITIONS[4])
+
+    # Drag the top-left handle (index 0, canonical (0,0)) inward.
+    dragged = canonical.copy()
+    dragged[0] = (0.1, 0.08)
+
+    nudged = apply_manual_nudge(base, dragged, point_count=4, mesh_resolution=17)
+
+    # The mesh's corner grid node sits exactly at the canonical handle
+    # position, so the RBF fit (which interpolates exactly at its sample
+    # points) should reproduce the drag exactly there.
+    np.testing.assert_allclose(nudged[0, 0], dragged[0], atol=1e-4)
+
+    # The opposite corner (bottom-right, untouched) should be essentially
+    # unaffected — the correction should fade out with distance from the
+    # dragged handle, not smear evenly across the whole mesh.
+    np.testing.assert_allclose(nudged[-1, -1], base[-1, -1], atol=0.02)
+
+
+def test_apply_manual_nudge_rejects_wrong_point_count():
+    base = identity_mesh(9)
+    with pytest.raises(ValueError):
+        apply_manual_nudge(base, np.zeros((4, 2)), point_count=5, mesh_resolution=9)
+
+
+def test_apply_manual_nudge_rejects_mismatched_target_shape():
+    base = identity_mesh(9)
+    with pytest.raises(ValueError):
+        apply_manual_nudge(base, np.zeros((3, 2)), point_count=4, mesh_resolution=9)

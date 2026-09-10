@@ -19,9 +19,13 @@ from pathlib import Path
 from typing import Any
 
 import numpy as np
-import websockets
-from websockets.server import WebSocketServerProtocol
+from websockets.asyncio.server import ServerConnection, serve
 
+from cv_engine.calibration.structured_light import (
+    apply_manual_nudge,
+    identity_mesh,
+    save_calibration,
+)
 from cv_engine.canvas.canvas_ingest import load_uploaded_photo
 from cv_engine.segmentation.mask_engine import ClassicalSegmentationEngine, compute_output_mask
 from cv_engine.venue.venue_profile import VenueProfile, venues_directory
@@ -49,7 +53,16 @@ class ControlServer:
         self._canvas_frame: np.ndarray | None = None
         self._zone_masks: dict[str, np.ndarray] = {}
 
-    async def handle_connection(self, websocket: WebSocketServerProtocol) -> None:
+        # Current calibration mesh: starts flat (no warp) until either a
+        # Scan Room pass or a manual Nudge Corners adjustment changes it.
+        # "Nudge Corners" (§3F) is explicitly a *manual override on top of*
+        # the auto-generated mesh, not a replacement for it — dragging a
+        # handle calls apply_manual_nudge() against whatever this currently
+        # holds, so a nudge after Scan Room refines the scan instead of
+        # discarding it.
+        self._calibration_mesh = identity_mesh()
+
+    async def handle_connection(self, websocket: ServerConnection) -> None:
         logger.info("UI shell connected")
         async for raw_message in websocket:
             try:
@@ -110,6 +123,22 @@ class ControlServer:
             profile = VenueProfile.load(target)
             return {"ok": True, "venue": profile.__dict__}
 
+        if command == "nudge_corners":
+            point_count = int(request["pointCount"])
+            target_points = np.array(request["points"], dtype=np.float64)
+            self._calibration_mesh = apply_manual_nudge(
+                self._calibration_mesh, target_points, point_count
+            )
+            max_displacement = float(
+                np.max(np.linalg.norm(self._calibration_mesh - identity_mesh(), axis=-1))
+            )
+            return {"ok": True, "maxDisplacement": max_displacement}
+
+        if command == "save_calibration":
+            target = Path(request["path"])
+            save_calibration(self._calibration_mesh, target)
+            return {"ok": True, "path": str(target)}
+
         if command == "scan_room":
             # TODO(Module 2/3): drive GrayCodePatternSet display via the
             # render engine, capture via LiveCameraSource, decode, fit, and
@@ -122,7 +151,7 @@ class ControlServer:
 
 async def main() -> None:
     server = ControlServer()
-    async with websockets.serve(server.handle_connection, HOST, PORT):
+    async with serve(server.handle_connection, HOST, PORT):
         logger.info("cv_engine control server listening on ws://%s:%d", HOST, PORT)
         await asyncio.Future()  # run forever
 

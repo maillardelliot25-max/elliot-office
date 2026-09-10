@@ -99,7 +99,7 @@ projector output.
 ## 6. What's implemented vs. scaffolded
 
 **Working and tested** (run `python -m pytest cv_engine/tests/` from `cv_engine/`'s
-parent — 12 tests, all passing):
+parent — 24 tests, all passing):
 
 - **Module 1, both platforms, end-to-end**: real `EnumDisplayMonitors` +
   borderless-popup output window on Windows; real `android.app.Presentation`
@@ -117,9 +117,22 @@ parent — 12 tests, all passing):
   the *default* segmentation path — it needs no bundled model, so "zero
   cloud/internet required" holds today, not just once a model ships. Validated
   against a synthetic high-contrast scene (IoU > 0.6 against ground truth).
-- **Focus/Cutout/Mute mask logic, Save/Load Venue, canvas ingestion, and the
-  control-plane WebSocket dispatch** wiring all of the above together in
-  `cv_engine/main.py`.
+- **Nudge Corners** (`apply_manual_nudge` in `structured_light.py` +
+  `app/lib/ui/widgets/nudge_corners_overlay.dart`): a 4-/9-point touch overlay
+  merges the operator's dragged handle positions on top of the current
+  calibration mesh (whatever Scan Room produced, or the identity mesh if it
+  hasn't run yet) via the same thin-plate-spline approach as the Scan Room fit
+  — a dragged handle reproduces exactly at that mesh node and fades out
+  smoothly with distance, never smearing evenly across the whole surface.
+  Covered by both a pure-mesh-math test suite and a `ControlServer.dispatch`
+  integration test exercising the exact request the Dart `ControlClient`
+  sends.
+- **Focus/Cutout/Mute mask logic, Save/Load Venue, canvas ingestion, Nudge
+  Corners, and the control-plane WebSocket dispatch** wiring all of the above
+  together in `cv_engine/main.py`, with `app/lib/core/control/control_client.dart`
+  as the Dart-side request/response bridge to it (used by
+  `NudgeCornersScreen` today; `ZoneDeckScreen`'s Scan Room / Highlight Target
+  actions are the next things to wire onto the same client).
 
 **Still scaffolded / explicitly blocked** on something this environment can't
 provide:

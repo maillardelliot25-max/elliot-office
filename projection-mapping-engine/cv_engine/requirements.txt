@@ -1,7 +1,7 @@
 opencv-python-headless>=4.9,<6
 onnxruntime>=1.17,<2
 numpy>=1.26,<3
-websockets>=12.0,<13
+websockets>=13.0,<18   # websockets.asyncio.server (main.py) needs >=13
 pillow>=10.2,<11
 pillow-heif>=0.16,<1   # HEIC decode support (§3B.2)
 scipy>=1.12,<2          # thin-plate-spline warp solve (§3C.4)

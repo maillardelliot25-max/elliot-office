@@ -1,16 +1,17 @@
 import 'package:flutter/material.dart';
 
+import '../../core/control/control_client.dart';
 import '../../core/display/display_service.dart';
 import '../../core/models/zone.dart';
 import '../widgets/zone_card.dart';
+import 'nudge_corners_screen.dart';
 
 /// Top-level operator screen: a scrollable stack of Zone Deck cards plus the
 /// "Send to Projector" and "Scan Room" actions from §1.2 / §3A / §3C.
 ///
 /// This screen only orchestrates UI state; calibration, segmentation, and
 /// rendering are owned by `cv_engine` and `render_engine` respectively and
-/// are reached here only through [DisplayService] / the (TODO) control
-/// WebSocket client.
+/// are reached here only through [DisplayService] and [ControlClient].
 class ZoneDeckScreen extends StatefulWidget {
   const ZoneDeckScreen({super.key});
 
@@ -53,6 +54,24 @@ class _ZoneDeckScreenState extends State<ZoneDeckScreen> {
     );
   }
 
+  Future<void> _openNudgeCorners() async {
+    if (!ControlClient.instance.isConnected) {
+      try {
+        await ControlClient.instance.connect();
+      } catch (error) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Could not reach cv_engine: $error')),
+        );
+        return;
+      }
+    }
+    if (!mounted) return;
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const NudgeCornersScreen()),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -63,6 +82,11 @@ class _ZoneDeckScreenState extends State<ZoneDeckScreen> {
             tooltip: 'Scan Room',
             icon: const Icon(Icons.center_focus_strong),
             onPressed: _scanRoom,
+          ),
+          IconButton(
+            tooltip: 'Nudge Corners',
+            icon: const Icon(Icons.crop_free),
+            onPressed: _openNudgeCorners,
           ),
           IconButton(
             tooltip: 'Send to Projector',
