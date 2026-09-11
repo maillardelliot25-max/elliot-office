@@ -34,8 +34,6 @@ yarn-error.log*
 /prisma/dev.db-journal
 *.db
 *.db-journal
-# pre-seeded read-only snapshot bundled for serverless deploys
-!/prisma/seed.db
 
 # vercel
 .vercel
