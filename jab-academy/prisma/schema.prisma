@@ -1,0 +1,75 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Enrollment {
+  id               String   @id @default(cuid())
+  fullName         String
+  email            String
+  phone            String
+  country          String
+  discipline       String
+  cohortMonth      String
+  experienceLevel  String
+  waiverSignedName String
+  waiverAccepted   Boolean  @default(false)
+  tuitionStatus    String   @default("pending")
+  amountUsd        Int      @default(1200)
+  notes            String?
+  createdAt        DateTime @default(now())
+}
+
+model Booking {
+  id              String    @id @default(cuid())
+  organization    String
+  contactName     String
+  email           String
+  phone           String?
+  eventType       String
+  eventDate       DateTime?
+  location        String
+  talentRequested String
+  performerCount  Int       @default(1)
+  budgetRange     String?
+  message         String
+  status          String    @default("new")
+  createdAt       DateTime  @default(now())
+}
+
+model Certification {
+  id              String   @id @default(cuid())
+  certId          String   @unique
+  fullName        String
+  discipline      String
+  fireSafetyLevel String
+  issueDate       DateTime
+  expiryDate      DateTime
+  status          String   @default("active")
+  issuedBy        String   @default("King Aaron")
+}
+
+model Product {
+  id          String  @id @default(cuid())
+  slug        String  @unique
+  name        String
+  description String
+  priceUsd    Int
+  category    String
+  emoji       String  @default("🔥")
+  inStock     Boolean @default(true)
+}
+
+model Order {
+  id         String   @id @default(cuid())
+  email      String
+  fullName   String
+  itemsJson  String
+  totalUsd   Int
+  status     String   @default("processing")
+  createdAt  DateTime @default(now())
+}
