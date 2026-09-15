@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Elliot's Bar Co. | Premium Bartending &amp; Full Bar Management</title>
+<meta name="description" content="Elliot's Bar Co. is a full-service bar management company — bartending staff, premium drinks, event staffing, and sanitation crews for weddings, parties, and corporate events.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+
+<div class="noise-overlay"></div>
+
+<!-- ============ NAV ============ -->
+<header class="site-header" id="siteHeader">
+  <nav class="nav container">
+    <a href="#home" class="brand">
+      <span class="brand-glyph">🥃</span>
+      <span class="brand-text">Elliot's <em>Bar Co.</em></span>
+    </a>
+    <button class="nav-toggle" id="navToggle" aria-label="Toggle menu" aria-expanded="false">
+      <span></span><span></span><span></span>
+    </button>
+    <ul class="nav-links" id="navLinks">
+      <li><a href="#services">Services</a></li>
+      <li><a href="#menu">Drink Menu</a></li>
+      <li><a href="#signature">Custom Drinks</a></li>
+      <li><a href="#gallery">Gallery</a></li>
+      <li><a href="#about">About</a></li>
+      <li><a href="#testimonials">Reviews</a></li>
+      <li><a href="#contact" class="nav-cta">Book Now</a></li>
+    </ul>
+  </nav>
+</header>
+
+<!-- ============ HERO ============ -->
+<section class="hero" id="home">
+  <div class="hero-bg" aria-hidden="true"></div>
+  <div class="container hero-inner">
+    <p class="eyebrow">Full-Service Bar Management &amp; Mobile Mixology</p>
+    <h1>You bring the party.<br>I bring <span class="accent">everything else.</span></h1>
+    <p class="hero-sub">
+      From hand-muddled mojitos to top-shelf tequila, family-friendly mocktails to a fully
+      staffed bar crew — I design, stock, staff, and run the entire bar experience for your
+      event, start to clean-up.
+    </p>
+    <div class="hero-actions">
+      <a href="#contact" class="btn btn-primary">Book Your Event</a>
+      <a href="#menu" class="btn btn-ghost">Explore the Menu</a>
+    </div>
+    <div class="hero-stats">
+      <div><strong>50+</strong><span>Drinks on the menu</span></div>
+      <div><strong>Kids → Top-Shelf</strong><span>Every guest covered</span></div>
+      <div><strong>All-in Crew</strong><span>Bar, staff &amp; clean-up</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ SERVICES ============ -->
+<section class="services" id="services">
+  <div class="container">
+    <p class="section-eyebrow">What I Handle</p>
+    <h2>One call books your entire bar.</h2>
+    <p class="section-lead">
+      I don't just pour drinks — I manage the whole bar operation for your event so you don't
+      have to think about it twice.
+    </p>
+
+    <div class="service-grid">
+      <article class="service-card">
+        <div class="service-icon">🍸</div>
+        <h3>Full Bar &amp; Drink Service</h3>
+        <p>Every drink you can imagine — cocktails, mocktails, wine, beer, punch, and premium
+          spirits — sourced, stocked, and served for your event of any size.</p>
+      </article>
+
+      <article class="service-card">
+        <div class="service-icon">🧑‍🍳</div>
+        <h3>Professional Bartending &amp; Mixology</h3>
+        <p>Hands-on mixing tailored to your event — I design signature drinks around your
+          theme, colors, and venue, not just a standard menu.</p>
+      </article>
+
+      <article class="service-card">
+        <div class="service-icon">🧾</div>
+        <h3>Event Staffing on Demand</h3>
+        <p>Need more hands behind the bar or on the floor? I bring in additional bartenders
+          and servers so every guest is taken care of.</p>
+      </article>
+
+      <article class="service-card">
+        <div class="service-icon">🧼</div>
+        <h3>Setup, Breakdown &amp; Sanitation Crew</h3>
+        <p>A dedicated clean-up crew handles bar setup, glassware, spills, and full breakdown
+          after the event — you walk away, we handle the rest.</p>
+      </article>
+
+      <article class="service-card">
+        <div class="service-icon">🥂</div>
+        <h3>Premium &amp; Top-Shelf Selection</h3>
+        <p>Don Julio, El Dorado, Casamigos, Clase Azul, Hennessy, Macallan — if it's top
+          shelf, I can source it and build a menu around it.</p>
+      </article>
+
+      <article class="service-card">
+        <div class="service-icon">🍹</div>
+        <h3>Every Guest, Every Age</h3>
+        <p>From homemade wine and sangria for the adults to alcohol-free mocktails for the
+          kids — one bar program, everyone included.</p>
+      </article>
+    </div>
+  </div>
+</section>
+
+<!-- ============ DRINK MENU ============ -->
+<section class="menu-section" id="menu">
+  <div class="container">
+    <p class="section-eyebrow">The Menu</p>
+    <h2>50+ drinks I can facilitate.</h2>
+    <p class="section-lead">
+      A working list, not a limit — you think it, I bring it. Filter by category or scroll
+      the full bar program below.
+    </p>
+
+    <div class="menu-filters" id="menuFilters">
+      <button class="filter-btn active" data-filter="all">All Drinks</button>
+      <button class="filter-btn" data-filter="classic">Classic Cocktails</button>
+      <button class="filter-btn" data-filter="mojito">Mojito Bar</button>
+      <button class="filter-btn" data-filter="margarita">Margarita &amp; Tequila</button>
+      <button class="filter-btn" data-filter="sangria">Sangria &amp; Wine</button>
+      <button class="filter-btn" data-filter="tropical">Tropical &amp; Tiki</button>
+      <button class="filter-btn" data-filter="punch">Punch &amp; Party Batch</button>
+      <button class="filter-btn" data-filter="premium">Top-Shelf &amp; Premium</button>
+      <button class="filter-btn" data-filter="mocktail">Mocktails &amp; Kids</button>
+    </div>
+
+    <div class="menu-grid" id="menuGrid"><!-- populated by js/script.js --></div>
+  </div>
+</section>
+
+<!-- ============ SIGNATURE / CUSTOM DRINKS ============ -->
+<section class="signature" id="signature">
+  <div class="container">
+    <p class="section-eyebrow">Made For Your Event</p>
+    <h2>Every party gets its own signature drink.</h2>
+    <p class="section-lead">
+      The 50-drink menu is the starting point — the real craft is designing something that
+      matches your event. A few examples of how a theme becomes a glass:
+    </p>
+
+    <div class="signature-grid">
+      <article class="signature-card">
+        <div class="signature-swatch swatch-sunrise"></div>
+        <h3>Sunrise Cooler Party</h3>
+        <p>Orange-forward, sunset-colored cocktails and mocktails built around the theme —
+          layered oranges, citrus, and a bright garnish for every glass.</p>
+      </article>
+      <article class="signature-card">
+        <div class="signature-swatch swatch-beach"></div>
+        <h3>Beach &amp; Pool Parties</h3>
+        <p>Blue curaçao mojitos and lagoon-blue cocktails that photograph as good as they
+          taste — built for sand, sun, and a cooler full of ice.</p>
+      </article>
+      <article class="signature-card">
+        <div class="signature-swatch swatch-gala"></div>
+        <h3>Weddings &amp; Galas</h3>
+        <p>A signature "his &amp; hers" cocktail, top-shelf sipping stations, and a
+          champagne toast service designed around your color palette.</p>
+      </article>
+      <article class="signature-card">
+        <div class="signature-swatch swatch-corporate"></div>
+        <h3>Corporate &amp; Brand Events</h3>
+        <p>Drinks built around your brand colors and logo garnish — plus a full mocktail
+          menu for daytime and family-friendly functions.</p>
+      </article>
+    </div>
+  </div>
+</section>
+
+<!-- ============ GALLERY ============ -->
+<section class="gallery" id="gallery">
+  <div class="container">
+    <p class="section-eyebrow">The Bar In Action</p>
+    <h2>Gallery</h2>
+    <p class="section-lead">Event photos coming soon — this section is ready for your best shots from the bar.</p>
+    <div class="gallery-grid">
+      <div class="gallery-tile g1"><span>🍹 Signature Cocktails</span></div>
+      <div class="gallery-tile g2"><span>🍾 Premium Bar Setup</span></div>
+      <div class="gallery-tile g3"><span>🍷 Wine &amp; Sangria Bar</span></div>
+      <div class="gallery-tile g4"><span>🎉 Full Event Service</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ ABOUT / OWNER ============ -->
+<section class="about" id="about">
+  <div class="container about-inner">
+    <div class="about-portrait">
+      <div class="portrait-frame">
+        <span>🥂</span>
+      </div>
+    </div>
+    <div class="about-copy">
+      <p class="section-eyebrow">Meet Your Bar Manager</p>
+      <h2>Elliot — Owner &amp; Bar Manager</h2>
+      <p>
+        I run the bar so you can run the party. As a hands-on bar manager, I handle every
+        piece of the drink experience for your event — sourcing, stocking, mixing, staffing,
+        and clean-up — built around what your guests actually want to drink.
+      </p>
+      <p>
+        Whether that's a bottle of homemade wine and a pitcher of sangria for a backyard
+        get-together, a fully stocked top-shelf bar with Don Julio and El Dorado for a
+        milestone celebration, or a kid-friendly mocktail bar for a family event — I bring
+        the bar, the crew, and the craft.
+      </p>
+      <ul class="about-points">
+        <li>Custom drink design tailored to your event's theme and guest list</li>
+        <li>Full-service staffing: bartenders, servers, and clean-up crew</li>
+        <li>Comfortable sourcing premium and top-shelf spirits on request</li>
+        <li>Family-inclusive menus — mocktails and kids' drinks always available</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ============ TESTIMONIALS ============ -->
+<section class="testimonials" id="testimonials">
+  <div class="container">
+    <p class="section-eyebrow">Reviews</p>
+    <h2>What guests are saying</h2>
+    <p class="section-lead placeholder-note">
+      Placeholder reviews below — swap these for real client quotes once you start collecting them.
+    </p>
+    <div class="testimonial-grid">
+      <blockquote class="testimonial-card">
+        <p>"The bar was the highlight of the whole event. Every drink was dialed in, and the
+          clean-up crew left the space spotless."</p>
+        <cite>— Add your client's name</cite>
+      </blockquote>
+      <blockquote class="testimonial-card">
+        <p>"We had guests from age 8 to 80 and every single one had a drink they loved.
+          Genuinely stress-free to book."</p>
+        <cite>— Add your client's name</cite>
+      </blockquote>
+      <blockquote class="testimonial-card">
+        <p>"Asked for a custom drink to match our wedding colors and it stole the show.
+          Highly recommend."</p>
+        <cite>— Add your client's name</cite>
+      </blockquote>
+    </div>
+  </div>
+</section>
+
+<!-- ============ CONTACT ============ -->
+<section class="contact" id="contact">
+  <div class="container contact-inner">
+    <div class="contact-copy">
+      <p class="section-eyebrow">Let's Book Your Event</p>
+      <h2>Tell me about your party.</h2>
+      <p>
+        Share a few details about your event and I'll follow up with a custom bar package —
+        drinks, staffing, and clean-up included.
+      </p>
+      <ul class="contact-details">
+        <li><strong>Phone:</strong> (555) 123-4567 <span class="placeholder-note">(update with your number)</span></li>
+        <li><strong>Email:</strong> hello@elliotsbarco.com <span class="placeholder-note">(update with your email)</span></li>
+        <li><strong>Service Area:</strong> Add your city / travel radius</li>
+      </ul>
+    </div>
+
+    <form class="contact-form" id="bookingForm">
+      <div class="form-row">
+        <label>
+          Name
+          <input type="text" name="name" required placeholder="Full name">
+        </label>
+        <label>
+          Email
+          <input type="email" name="email" required placeholder="you@email.com">
+        </label>
+      </div>
+      <div class="form-row">
+        <label>
+          Phone
+          <input type="tel" name="phone" placeholder="(555) 555-5555">
+        </label>
+        <label>
+          Event Date
+          <input type="date" name="eventDate">
+        </label>
+      </div>
+      <div class="form-row">
+        <label>
+          Event Type
+          <select name="eventType">
+            <option>Wedding</option>
+            <option>Corporate Event</option>
+            <option>Birthday / Private Party</option>
+            <option>Beach / Pool Party</option>
+            <option>Family Gathering</option>
+            <option>Other</option>
+          </select>
+        </label>
+        <label>
+          Estimated Guests
+          <input type="number" name="guests" min="1" placeholder="e.g. 80">
+        </label>
+      </div>
+      <label>
+        Tell me about your event
+        <textarea name="message" rows="4" placeholder="Theme, must-have drinks, budget, anything else..."></textarea>
+      </label>
+      <button type="submit" class="btn btn-primary btn-full">Request Booking</button>
+      <p class="form-note" id="formNote"></p>
+    </form>
+  </div>
+</section>
+
+<footer class="site-footer">
+  <div class="container footer-inner">
+    <div class="brand footer-brand">
+      <span class="brand-glyph">🥃</span>
+      <span class="brand-text">Elliot's <em>Bar Co.</em></span>
+    </div>
+    <p>Full-service bartending &amp; bar management for every kind of event.</p>
+    <p class="footer-copy">&copy; <span id="year"></span> Elliot's Bar Co. All rights reserved.</p>
+  </div>
+</footer>
+
+<script src="js/script.js"></script>
+</body>
+</html>
