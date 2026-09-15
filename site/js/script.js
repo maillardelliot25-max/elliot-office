@@ -27,7 +27,7 @@ const DRINKS = [
   // ---- Mojito Bar ----
   { name: 'Classic Mojito', cat: 'mojito', icon: '🌿', desc: 'White rum, fresh mint, lime, soda — muddled to order.' },
   { name: 'Strawberry Mojito', cat: 'mojito', icon: '🍓', desc: 'Classic mojito muddled fresh with strawberry.' },
-  { name: 'Blue Lagoon Mojito', cat: 'mojito', icon: '🏝️', desc: 'Blue curaçao twist — the go-to for beach and pool parties.' },
+  { name: 'Blue Lagoon Mojito', cat: 'mojito', icon: '🏝️', desc: 'Blue curaçao twist — the go-to for beach and pool events.' },
   { name: 'Passion Fruit Mojito', cat: 'mojito', icon: '🌺', desc: 'Tropical passion fruit puree layered into the classic build.' },
   { name: 'Espresso Mojito', cat: 'mojito', icon: '☕', desc: 'Mint, lime, and a shot of espresso for a late-night twist.' },
   { name: 'Virgin Mojito', cat: 'mojito', icon: '🍃', desc: 'All the mint and lime, none of the alcohol.' },
@@ -58,10 +58,10 @@ const DRINKS = [
   { name: 'Dark & Stormy', cat: 'tropical', icon: '⛈️', desc: 'Dark rum and spicy ginger beer over ice.' },
   { name: 'El Dorado 12yr Old Fashioned', cat: 'tropical', icon: '⭐', desc: 'Aged Guyanese rum in place of whiskey — rich and layered.', premium: true },
 
-  // ---- Punch & Party Batch ----
+  // ---- Punch & Event Batch ----
   { name: 'Rum Punch', cat: 'punch', icon: '🍹', desc: 'Multi-rum blend with tropical juices, batch-ready.' },
-  { name: 'Party Punch Bowl', cat: 'punch', icon: '🥣', desc: 'Large-format batch cocktail, self-serve or bartended.' },
-  { name: 'Sunrise Cooler', cat: 'punch', icon: '🧡', desc: 'Signature orange-and-sunset build, designed for sunrise-themed parties.' },
+  { name: 'Event Punch Bowl', cat: 'punch', icon: '🥣', desc: 'Large-format batch cocktail, self-serve or bartended.' },
+  { name: 'Sunrise Cooler', cat: 'punch', icon: '🧡', desc: 'Signature orange-and-sunset build, designed for sunrise-themed events.' },
   { name: 'Signature Event Color Cocktail', cat: 'punch', icon: '🎨', desc: 'Custom-built to match your event\'s color palette.' },
   { name: 'Fruit Punch (Family Base)', cat: 'punch', icon: '🍉', desc: 'Alcohol-optional punch base — spiked or family-friendly.' },
 
@@ -74,7 +74,7 @@ const DRINKS = [
   { name: 'Espresso Martini', cat: 'premium', icon: '☕', desc: 'Vodka, coffee liqueur, fresh espresso — the dessert-course favorite.' },
 
   // ---- Mocktails & Kids ----
-  { name: 'Shirley Temple', cat: 'mocktail', icon: '🍒', desc: 'Ginger ale, grenadine, a cherry on top — a kids\' party staple.' },
+  { name: 'Shirley Temple', cat: 'mocktail', icon: '🍒', desc: 'Ginger ale, grenadine, a cherry on top — a kids\' event staple.' },
   { name: 'Sparkling Fruit Punch', cat: 'mocktail', icon: '🧃', desc: 'Fizzy, fruity, and alcohol-free for the youngest guests.' },
   { name: 'Strawberry Lemonade Fizz', cat: 'mocktail', icon: '🍓', desc: 'Fresh strawberry, lemonade, soda water.' },
   { name: 'Tropical Sunrise Mocktail', cat: 'mocktail', icon: '🌴', desc: 'All the color of a Tequila Sunrise, none of the alcohol.' },
