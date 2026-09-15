@@ -1,5 +1,5 @@
 /* ==========================================================
-   Elliot's Bar Co. — stylesheet
+   Barback Inc. — stylesheet
    ========================================================== */
 
 :root {
@@ -137,7 +137,20 @@ a { color: inherit; text-decoration: none; }
   font-weight: 700;
   color: #fff;
 }
-.brand-glyph { font-size: 1.4rem; }
+.brand-mark {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: 1px solid var(--gold);
+  border-radius: 8px;
+  font-family: 'Playfair Display', serif;
+  font-weight: 700;
+  font-size: 1rem;
+  color: var(--gold-light);
+  flex-shrink: 0;
+}
 .brand-text em { color: var(--gold-light); font-style: italic; }
 
 .nav-links {
@@ -248,7 +261,7 @@ section h2 { font-size: clamp(1.8rem, 3.5vw, 2.6rem); }
   border-color: var(--gold);
   transform: translateY(-4px);
 }
-.service-icon { font-size: 1.8rem; margin-bottom: .75rem; }
+.service-rule { width: 32px; height: 2px; background: var(--gold); margin-bottom: 1.1rem; }
 .service-card h3 { font-size: 1.1rem; margin-bottom: .5rem; color: #fff; }
 .service-card p { font-size: .92rem; margin: 0; }
 
@@ -285,13 +298,10 @@ section h2 { font-size: clamp(1.8rem, 3.5vw, 2.6rem); }
 .menu-item {
   background: var(--card);
   border: 1px solid var(--card-border);
+  border-left: 3px solid var(--cat-color, var(--card-border));
   border-radius: var(--radius);
   padding: 1.1rem 1.3rem;
-  display: flex;
-  gap: .9rem;
-  align-items: flex-start;
 }
-.menu-item .m-icon { font-size: 1.4rem; line-height: 1; }
 .menu-item h4 {
   margin: 0 0 .25rem;
   font-size: 1rem;
@@ -299,16 +309,39 @@ section h2 { font-size: clamp(1.8rem, 3.5vw, 2.6rem); }
   font-family: 'Playfair Display', serif;
 }
 .menu-item p { margin: 0; font-size: .85rem; color: var(--text-faint); }
+.menu-item .m-meta {
+  display: flex;
+  align-items: center;
+  gap: .6rem;
+  margin-top: .5rem;
+}
 .menu-item .m-tag {
-  display: inline-block;
-  margin-top: .4rem;
   font-size: .68rem;
   text-transform: uppercase;
   letter-spacing: .06em;
-  color: var(--gold);
+  color: var(--cat-color, var(--gold));
+}
+.menu-item .m-badge {
+  font-size: .64rem;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  color: #201705;
+  background: var(--gold-light);
+  padding: .15rem .5rem;
+  border-radius: 999px;
+  font-weight: 700;
 }
 .menu-item.hidden { display: none; }
-.menu-item.premium-item { border-color: rgba(201,162,75,.5); }
+.menu-item.premium-item { border-color: rgba(201,162,75,.5); border-left-color: var(--gold-light); }
+
+.cat-classic  { --cat-color: #c9a24b; }
+.cat-mojito   { --cat-color: #7fae82; }
+.cat-margarita{ --cat-color: #d98a4f; }
+.cat-sangria  { --cat-color: #a13c4a; }
+.cat-tropical { --cat-color: #3fa7a0; }
+.cat-punch    { --cat-color: #d9636f; }
+.cat-premium  { --cat-color: #e6c97a; }
+.cat-mocktail { --cat-color: #5fa8d3; }
 
 /* ---------- signature ---------- */
 .signature { background: var(--bg-alt); }
@@ -374,8 +407,13 @@ section h2 { font-size: clamp(1.8rem, 3.5vw, 2.6rem); }
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 4rem;
   box-shadow: var(--shadow);
+}
+.portrait-frame span {
+  font-family: 'Playfair Display', serif;
+  font-weight: 800;
+  font-size: 5rem;
+  color: var(--gold-light);
 }
 .about-points {
   margin: 1.5rem 0 0;
