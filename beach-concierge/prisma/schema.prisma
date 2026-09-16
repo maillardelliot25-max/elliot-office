@@ -1,0 +1,208 @@
+// Beach-day concierge booking platform schema.
+// Every beach-specific concept (zones, packages, add-ons) is a row, not code,
+// so a new beach ships by inserting data, not shipping a deploy.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+// ---------------------------------------------------------------------------
+// Beach & Zones
+// ---------------------------------------------------------------------------
+
+model Beach {
+  id          String   @id @default(cuid())
+  slug        String   @unique
+  name        String
+  region      String
+  description String?
+  parkingInfo String?
+  vendorInfo  String?
+  mapImageUrl String? // background image the zone grid is overlaid on
+  mapWidth    Int      @default(1000) // intrinsic coordinate space for zone polygons
+  mapHeight   Int      @default(1000)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  zones    Zone[]
+  packages Package[]
+  addOns   AddOn[]
+  vendors  Vendor[]
+  bookings Booking[]
+}
+
+enum ZoneSection {
+  FAR_LEFT
+  MID_LEFT
+  CENTER
+  MID_RIGHT
+  FAR_RIGHT
+}
+
+enum AmenityTag {
+  SHADED
+  NEAR_VENDOR_ROW
+  NEAR_WATER
+  NEAR_PARKING
+  NEAR_BATHROOM
+}
+
+model Zone {
+  id         String      @id @default(cuid())
+  beach      Beach       @relation(fields: [beachId], references: [id], onDelete: Cascade)
+  beachId    String
+  label      String // e.g. "Z-014"
+  section    ZoneSection
+  amenities  String // JSON-encoded AmenityTag[] (SQLite has no native array/enum-array type)
+  polygon    String // JSON-encoded [[x,y], ...] points in the beach's map coordinate space
+  centroidX  Float // convenience point for labels/pins
+  centroidY  Float
+  capacity   Int         @default(6)
+  isBookable Boolean     @default(true)
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+
+  bookings Booking[]
+
+  @@unique([beachId, label])
+  @@index([beachId, section])
+}
+
+// ---------------------------------------------------------------------------
+// Packages & Add-ons
+// ---------------------------------------------------------------------------
+
+enum PricingModel {
+  FLAT
+  PER_PERSON
+}
+
+model Package {
+  id           String       @id @default(cuid())
+  beach        Beach        @relation(fields: [beachId], references: [id], onDelete: Cascade)
+  beachId      String
+  name         String
+  description  String?
+  pricingModel PricingModel @default(PER_PERSON)
+  price        Float // TTD
+  includes     String // JSON-encoded string[] of bullet points
+  isActive     Boolean      @default(true)
+  sortOrder    Int          @default(0)
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  bookings Booking[]
+}
+
+enum AddOnCategory {
+  FOOD
+  DRINK_RELAY
+  EXTRAS
+}
+
+model AddOn {
+  id          String        @id @default(cuid())
+  beach       Beach         @relation(fields: [beachId], references: [id], onDelete: Cascade)
+  beachId     String
+  category    AddOnCategory
+  name        String
+  description String?
+  price       Float // TTD
+  unit        String        @default("item") // "item", "person", "order"
+  isActive    Boolean       @default(true)
+  sortOrder   Int           @default(0)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  bookingAddOns BookingAddOn[]
+}
+
+// The partner bar (or any third-party supplier) a beach coordinates with.
+// The business never stocks or sells what these vendors supply directly.
+model Vendor {
+  id        String   @id @default(cuid())
+  beach     Beach    @relation(fields: [beachId], references: [id], onDelete: Cascade)
+  beachId   String
+  name      String
+  role      String // e.g. "Partner bar", "Local food vendor"
+  supplies  String // free text: what they provide
+  contact   String?
+  createdAt DateTime @default(now())
+}
+
+// ---------------------------------------------------------------------------
+// Bookings
+// ---------------------------------------------------------------------------
+
+enum BookingStatus {
+  PENDING
+  CONFIRMED
+  CANCELLED
+  COMPLETED
+}
+
+enum PaymentStatus {
+  UNPAID
+  DEPOSIT_PAID
+  PAID
+  REFUNDED
+}
+
+model Booking {
+  id         String  @id @default(cuid())
+  beach      Beach   @relation(fields: [beachId], references: [id])
+  beachId    String
+  zone       Zone    @relation(fields: [zoneId], references: [id])
+  zoneId     String
+  package    Package @relation(fields: [packageId], references: [id])
+  packageId  String
+  date       String // ISO date (yyyy-mm-dd); a zone is bookable once per date
+  timeWindow String  @default("Full day (8am - 6pm)")
+
+  clientName  String
+  clientPhone String
+  clientEmail String?
+  partySize   Int
+
+  status        BookingStatus @default(PENDING)
+  paymentStatus PaymentStatus @default(UNPAID)
+  paymentMethod String? // "wipay" | "bank_transfer"
+  paymentRef    String? // bank transfer reference client is asked to quote
+  totalPrice    Float
+  depositAmount Float
+  amountPaid    Float         @default(0)
+
+  setupComplete Boolean @default(false)
+  foodDelivered Boolean @default(false)
+  notes         String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  addOns BookingAddOn[]
+
+  // A zone can only be claimed once per calendar date, for any non-cancelled booking.
+  // Enforced at the application layer (see lib/booking.ts) since Prisma can't
+  // scope a unique constraint to "status != CANCELLED"; this index makes the
+  // lookup that guards it fast.
+  @@index([zoneId, date])
+  @@index([beachId, date])
+}
+
+model BookingAddOn {
+  id        String  @id @default(cuid())
+  booking   Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  bookingId String
+  addOn     AddOn   @relation(fields: [addOnId], references: [id])
+  addOnId   String
+  quantity  Int     @default(1)
+  unitPrice Float // snapshot of AddOn.price at time of booking
+
+  @@index([bookingId])
+}
