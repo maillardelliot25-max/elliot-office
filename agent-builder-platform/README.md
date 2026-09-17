@@ -1,8 +1,15 @@
-# Agent Builder Platform — Phase 1
+# Agent Builder Platform
 
-Phase 1 of the build spec: one archetype (trend brief), one pilot client,
-no dashboard, no intent classification. Goal is to prove the output is
-good enough to pay for before building anything heavier.
+Phase 1 lives here at the repo root: one archetype (trend brief), one
+pilot client, no dashboard, no intent classification — the CLI pipeline
+below. **The actual website (intake flow, operator dashboard, reseller
+mode) is in [`web/`](./web) — see `web/README.md`.**
+
+## Phase 1 (this directory)
+
+One archetype, one pilot client, no dashboard, no intent classification.
+Goal is to prove the output is good enough to pay for before building
+anything heavier.
 
 ## What this is
 
