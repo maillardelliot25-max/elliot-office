@@ -1,0 +1,5 @@
+node_modules/
+.env
+logs/*.jsonl
+output/*.md
+output/*.eml

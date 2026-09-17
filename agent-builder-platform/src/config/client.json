@@ -1,0 +1,13 @@
+{
+  "clientId": "mock-client-01",
+  "businessName": "Sample Business",
+  "vertical": "generic",
+  "brandVoice": "friendly, concise, no jargon",
+  "watchTopics": [
+    "competitor promotions",
+    "industry pricing changes",
+    "relevant local events"
+  ],
+  "deliveryEmail": "owner@example.com",
+  "frequency": "weekly"
+}
