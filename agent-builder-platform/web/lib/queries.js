@@ -1,72 +1,128 @@
-import { getDb } from "./db.js";
+import { getSupabase, TABLES } from "./supabase.js";
 import { getArchetype } from "./archetypes.js";
 
-export function getDashboardData(tenantSlug) {
-  const db = getDb();
-  const tenants = tenantSlug
-    ? db.prepare("SELECT * FROM tenants WHERE slug = ?").all(tenantSlug)
-    : db.prepare("SELECT * FROM tenants ORDER BY created_at ASC").all();
+export async function getDashboardData(tenantSlug) {
+  const supabase = getSupabase();
+
+  const tenantsQuery = supabase.from(TABLES.tenants).select("*").order("created_at", { ascending: true });
+  const { data: tenants, error: tenantsError } = tenantSlug
+    ? await supabase.from(TABLES.tenants).select("*").eq("slug", tenantSlug)
+    : await tenantsQuery;
+  if (tenantsError) throw tenantsError;
 
   const monthStart = new Date();
   monthStart.setDate(1);
   monthStart.setHours(0, 0, 0, 0);
   const monthStartIso = monthStart.toISOString();
 
-  return tenants.map((tenant) => {
-    const clients = db
-      .prepare("SELECT * FROM clients WHERE tenant_id = ? ORDER BY created_at ASC")
-      .all(tenant.id);
+  const result = [];
+  for (const tenant of tenants) {
+    const { data: clients, error: clientsError } = await supabase
+      .from(TABLES.clients)
+      .select("*")
+      .eq("tenant_id", tenant.id)
+      .order("created_at", { ascending: true });
+    if (clientsError) throw clientsError;
 
-    const clientRows = clients.map((client) => {
-      const agents = db
-        .prepare("SELECT * FROM agent_instances WHERE client_id = ? ORDER BY created_at ASC")
-        .all(client.id);
+    const clientRows = [];
+    for (const client of clients) {
+      const { data: agents, error: agentsError } = await supabase
+        .from(TABLES.agentInstances)
+        .select("*")
+        .eq("client_id", client.id)
+        .order("created_at", { ascending: true });
+      if (agentsError) throw agentsError;
 
-      const agentRows = agents.map((agent) => {
+      const agentRows = [];
+      for (const agent of agents) {
         const archetype = getArchetype(agent.archetype);
-        const monthCost = db
-          .prepare(
-            "SELECT COALESCE(SUM(cost_usd),0) as total FROM agent_runs WHERE agent_instance_id = ? AND created_at >= ?"
-          )
-          .get(agent.id, monthStartIso).total;
-        const lastRun = db
-          .prepare("SELECT * FROM agent_runs WHERE agent_instance_id = ? ORDER BY created_at DESC LIMIT 1")
-          .get(agent.id);
 
-        return {
+        const { data: monthRuns, error: monthRunsError } = await supabase
+          .from(TABLES.agentRuns)
+          .select("cost_usd")
+          .eq("agent_instance_id", agent.id)
+          .gte("created_at", monthStartIso);
+        if (monthRunsError) throw monthRunsError;
+        const monthCost = (monthRuns || []).reduce((sum, r) => sum + Number(r.cost_usd), 0);
+
+        const { data: lastRuns, error: lastRunError } = await supabase
+          .from(TABLES.agentRuns)
+          .select("*")
+          .eq("agent_instance_id", agent.id)
+          .order("created_at", { ascending: false })
+          .limit(1);
+        if (lastRunError) throw lastRunError;
+
+        agentRows.push({
           ...agent,
           archetypeName: archetype?.name ?? agent.archetype,
           implemented: archetype?.implemented ?? false,
           monthCost,
-          lastRun,
-        };
-      });
+          lastRun: lastRuns?.[0] ?? null,
+        });
+      }
 
-      return { ...client, agents: agentRows };
-    });
+      clientRows.push({ ...client, agents: agentRows });
+    }
 
-    return { ...tenant, clients: clientRows };
-  });
+    result.push({ ...tenant, clients: clientRows });
+  }
+
+  return result;
 }
 
-export function getAgentDetail(id) {
-  const db = getDb();
-  const agent = db.prepare("SELECT * FROM agent_instances WHERE id = ?").get(id);
+export async function getAgentDetail(id) {
+  const supabase = getSupabase();
+
+  const { data: agent, error: agentError } = await supabase
+    .from(TABLES.agentInstances)
+    .select("*")
+    .eq("id", id)
+    .maybeSingle();
+  if (agentError) throw agentError;
   if (!agent) return null;
-  const client = db.prepare("SELECT * FROM clients WHERE id = ?").get(agent.client_id);
-  const tenant = db.prepare("SELECT * FROM tenants WHERE id = ?").get(client.tenant_id);
-  const runs = db
-    .prepare("SELECT * FROM agent_runs WHERE agent_instance_id = ? ORDER BY created_at DESC")
-    .all(agent.id);
-  return { agent, client, tenant, runs };
+
+  const { data: client, error: clientError } = await supabase
+    .from(TABLES.clients)
+    .select("*")
+    .eq("id", agent.client_id)
+    .single();
+  if (clientError) throw clientError;
+
+  const { data: tenant, error: tenantError } = await supabase
+    .from(TABLES.tenants)
+    .select("*")
+    .eq("id", client.tenant_id)
+    .single();
+  if (tenantError) throw tenantError;
+
+  const { data: runs, error: runsError } = await supabase
+    .from(TABLES.agentRuns)
+    .select("*")
+    .eq("agent_instance_id", agent.id)
+    .order("created_at", { ascending: false });
+  if (runsError) throw runsError;
+
+  return { agent, client, tenant, runs: runs || [] };
 }
 
-export function getUnresolvedQueue() {
-  const db = getDb();
-  return db.prepare("SELECT * FROM intake_queue WHERE resolved = 0 ORDER BY created_at DESC").all();
+export async function getUnresolvedQueue() {
+  const supabase = getSupabase();
+  const { data, error } = await supabase
+    .from(TABLES.intakeQueue)
+    .select("*")
+    .eq("resolved", false)
+    .order("created_at", { ascending: false });
+  if (error) throw error;
+  return data || [];
 }
 
-export function getUnresolvedQueueCount() {
-  const db = getDb();
-  return db.prepare("SELECT COUNT(*) as c FROM intake_queue WHERE resolved = 0").get().c;
+export async function getUnresolvedQueueCount() {
+  const supabase = getSupabase();
+  const { count, error } = await supabase
+    .from(TABLES.intakeQueue)
+    .select("*", { count: "exact", head: true })
+    .eq("resolved", false);
+  if (error) throw error;
+  return count || 0;
 }

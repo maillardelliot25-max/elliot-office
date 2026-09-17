@@ -11,7 +11,7 @@ export async function previewTrendBrief({ businessName, brandVoice, config }) {
 }
 
 export async function runTrendBrief({ client, agentInstance }) {
-  const config = JSON.parse(agentInstance.config);
+  const config = agentInstance.config;
   const watchTopics = parseWatchTopics(config.watchTopics);
   const findings = await fetchTrendData(watchTopics);
 
@@ -21,14 +21,13 @@ export async function runTrendBrief({ client, agentInstance }) {
     findings,
   });
 
-  assertWithinCeiling(costUsd, agentInstance.cost_ceiling_usd);
+  assertWithinCeiling(costUsd, Number(agentInstance.cost_ceiling_usd));
 
   const subject = `Trend brief for ${client.business_name} — ${new Date().toLocaleDateString()}`;
   const delivery = await deliverBrief({
     toEmail: config.deliveryEmail,
     subject,
     body: text,
-    clientId: client.id,
   });
 
   return { text, engine, usage, costUsd, delivery };

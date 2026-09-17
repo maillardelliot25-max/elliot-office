@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getDb } from "../../../../../lib/db.js";
+import { getSupabase, TABLES } from "../../../../../lib/supabase.js";
 
 export const runtime = "nodejs";
 
@@ -11,9 +11,14 @@ export async function POST(req, { params }) {
     return NextResponse.json({ error: "status must be 'live' or 'paused'" }, { status: 400 });
   }
 
-  const db = getDb();
-  const result = db.prepare("UPDATE agent_instances SET status = ? WHERE id = ?").run(status, id);
-  if (result.changes === 0) {
+  const supabase = getSupabase();
+  const { data, error } = await supabase
+    .from(TABLES.agentInstances)
+    .update({ status })
+    .eq("id", id)
+    .select();
+  if (error) throw error;
+  if (!data || data.length === 0) {
     return NextResponse.json({ error: "Agent not found" }, { status: 404 });
   }
 

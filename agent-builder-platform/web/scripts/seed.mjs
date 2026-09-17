@@ -1,30 +1,50 @@
-import { getDb, nowIso } from "../lib/db.js";
+import "dotenv/config";
+import { getSupabase, TABLES } from "../lib/supabase.js";
 import { getArchetype } from "../lib/archetypes.js";
 
-const db = getDb();
+const supabase = getSupabase();
 
-function upsertTenant(slug, name, brandName, isOperator) {
-  let tenant = db.prepare("SELECT * FROM tenants WHERE slug = ?").get(slug);
-  if (tenant) return tenant;
-  db.prepare(
-    "INSERT INTO tenants (slug, name, brand_name, is_operator, created_at) VALUES (?, ?, ?, ?, ?)"
-  ).run(slug, name, brandName, isOperator ? 1 : 0, nowIso());
-  return db.prepare("SELECT * FROM tenants WHERE slug = ?").get(slug);
+async function upsertTenant(slug, name, brandName, isOperator) {
+  const { data: existing, error: lookupError } = await supabase
+    .from(TABLES.tenants)
+    .select("*")
+    .eq("slug", slug)
+    .maybeSingle();
+  if (lookupError) throw lookupError;
+  if (existing) return existing;
+
+  const { data, error } = await supabase
+    .from(TABLES.tenants)
+    .insert({ slug, name, brand_name: brandName, is_operator: isOperator })
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
 }
 
-const operator = upsertTenant("operator", "Operator", "Agent Builder Platform", true);
-upsertTenant("demo-reseller", "Demo Reseller", "Island Ops Agency", false);
+const operator = await upsertTenant("operator", "Operator", "Agent Builder Platform", true);
+await upsertTenant("demo-reseller", "Demo Reseller", "Island Ops Agency", false);
 
-const existingClient = db
-  .prepare("SELECT * FROM clients WHERE tenant_id = ? AND business_name = ?")
-  .get(operator.id, "Sample Business");
+const { data: existingClient, error: clientLookupError } = await supabase
+  .from(TABLES.clients)
+  .select("*")
+  .eq("tenant_id", operator.id)
+  .eq("business_name", "Sample Business")
+  .maybeSingle();
+if (clientLookupError) throw clientLookupError;
 
 if (!existingClient) {
-  const client = db
-    .prepare(
-      "INSERT INTO clients (tenant_id, business_name, vertical, brand_voice, created_at) VALUES (?, ?, ?, ?, ?)"
-    )
-    .run(operator.id, "Sample Business", "generic", "friendly, concise, no jargon", nowIso());
+  const { data: client, error: clientError } = await supabase
+    .from(TABLES.clients)
+    .insert({
+      tenant_id: operator.id,
+      business_name: "Sample Business",
+      vertical: "generic",
+      brand_voice: "friendly, concise, no jargon",
+    })
+    .select()
+    .single();
+  if (clientError) throw clientError;
 
   const archetype = getArchetype("trend-brief");
   const config = {
@@ -33,13 +53,20 @@ if (!existingClient) {
     frequency: "weekly",
   };
 
-  db.prepare(
-    "INSERT INTO agent_instances (client_id, archetype, config, status, price_usd_month, cost_ceiling_usd, created_at) VALUES (?, 'trend-brief', ?, 'live', ?, ?, ?)"
-  ).run(client.lastInsertRowid, JSON.stringify(config), archetype.priceUsdMonth, 0.5, nowIso());
+  const { error: agentError } = await supabase.from(TABLES.agentInstances).insert({
+    client_id: client.id,
+    archetype: "trend-brief",
+    config,
+    status: "live",
+    price_usd_month: archetype.priceUsdMonth,
+    cost_ceiling_usd: 0.5,
+  });
+  if (agentError) throw agentError;
 
   console.log("Seeded operator tenant with a demo trend-brief client.");
 } else {
   console.log("Demo client already exists — nothing to seed.");
 }
 
-console.log("Tenants:", db.prepare("SELECT slug, brand_name FROM tenants").all());
+const { data: tenants } = await supabase.from(TABLES.tenants).select("slug, brand_name");
+console.log("Tenants:", tenants);

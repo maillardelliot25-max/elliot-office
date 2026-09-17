@@ -1,7 +1,9 @@
 import { getUnresolvedQueue } from "../../lib/queries.js";
 
+export const dynamic = "force-dynamic";
+
 export default async function QueuePage() {
-  const rows = getUnresolvedQueue();
+  const rows = await getUnresolvedQueue();
 
   return (
     <>
@@ -14,7 +16,7 @@ export default async function QueuePage() {
       {rows.length === 0 && <p className="muted">Nothing pending.</p>}
 
       {rows.map((row) => {
-        const candidates = JSON.parse(row.top_candidates || "[]");
+        const candidates = row.top_candidates || [];
         return (
           <div key={row.id} className="card">
             <p><strong>Business:</strong> {row.business_description}</p>

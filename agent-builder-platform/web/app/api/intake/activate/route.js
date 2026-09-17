@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getArchetype } from "../../../../lib/archetypes.js";
-import { getDb, nowIso } from "../../../../lib/db.js";
+import { getSupabase, TABLES } from "../../../../lib/supabase.js";
 
 export const runtime = "nodejs";
 
@@ -24,35 +24,56 @@ export async function POST(req) {
     return NextResponse.json({ error: "businessName is required" }, { status: 400 });
   }
 
-  const db = getDb();
+  const supabase = getSupabase();
   const slug = (tenantSlug || "operator").trim() || "operator";
 
-  let tenant = db.prepare("SELECT * FROM tenants WHERE slug = ?").get(slug);
+  let { data: tenant, error: tenantLookupError } = await supabase
+    .from(TABLES.tenants)
+    .select("*")
+    .eq("slug", slug)
+    .maybeSingle();
+  if (tenantLookupError) throw tenantLookupError;
+
   if (!tenant) {
-    db.prepare(
-      "INSERT INTO tenants (slug, name, brand_name, is_operator, created_at) VALUES (?, ?, ?, ?, ?)"
-    ).run(slug, tenantName || slug, tenantName || slug, slug === "operator" ? 1 : 0, nowIso());
-    tenant = db.prepare("SELECT * FROM tenants WHERE slug = ?").get(slug);
+    const { data: inserted, error: tenantInsertError } = await supabase
+      .from(TABLES.tenants)
+      .insert({
+        slug,
+        name: tenantName || slug,
+        brand_name: tenantName || slug,
+        is_operator: slug === "operator",
+      })
+      .select()
+      .single();
+    if (tenantInsertError) throw tenantInsertError;
+    tenant = inserted;
   }
 
-  const clientInsert = db
-    .prepare(
-      "INSERT INTO clients (tenant_id, business_name, vertical, brand_voice, created_at) VALUES (?, ?, ?, ?, ?)"
-    )
-    .run(tenant.id, businessName, vertical || null, brandVoice || null, nowIso());
+  const { data: client, error: clientError } = await supabase
+    .from(TABLES.clients)
+    .insert({
+      tenant_id: tenant.id,
+      business_name: businessName,
+      vertical: vertical || null,
+      brand_voice: brandVoice || null,
+    })
+    .select()
+    .single();
+  if (clientError) throw clientError;
 
-  const agentInsert = db
-    .prepare(
-      "INSERT INTO agent_instances (client_id, archetype, config, status, price_usd_month, cost_ceiling_usd, created_at) VALUES (?, ?, ?, 'live', ?, ?, ?)"
-    )
-    .run(
-      clientInsert.lastInsertRowid,
+  const { data: agent, error: agentError } = await supabase
+    .from(TABLES.agentInstances)
+    .insert({
+      client_id: client.id,
       archetype,
-      JSON.stringify(config || {}),
-      archetypeDef.priceUsdMonth,
-      Number(costCeilingUsd) || 0.5,
-      nowIso()
-    );
+      config: config || {},
+      status: "live",
+      price_usd_month: archetypeDef.priceUsdMonth,
+      cost_ceiling_usd: Number(costCeilingUsd) || 0.5,
+    })
+    .select()
+    .single();
+  if (agentError) throw agentError;
 
-  return NextResponse.json({ agentId: agentInsert.lastInsertRowid });
+  return NextResponse.json({ agentId: agent.id });
 }

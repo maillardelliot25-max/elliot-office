@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { classifyIntake } from "../../../../lib/classifier.js";
 import { getArchetype } from "../../../../lib/archetypes.js";
-import { getDb, nowIso } from "../../../../lib/db.js";
+import { getSupabase, TABLES } from "../../../../lib/supabase.js";
 
 export const runtime = "nodejs";
 
@@ -18,10 +18,13 @@ export async function POST(req) {
   const result = await classifyIntake({ businessDescription, request });
 
   if (!result.archetype) {
-    const db = getDb();
-    db.prepare(
-      "INSERT INTO intake_queue (business_description, request, top_candidates, created_at) VALUES (?, ?, ?, ?)"
-    ).run(businessDescription, request, JSON.stringify(result.candidates), nowIso());
+    const supabase = getSupabase();
+    const { error } = await supabase.from(TABLES.intakeQueue).insert({
+      business_description: businessDescription,
+      request,
+      top_candidates: result.candidates,
+    });
+    if (error) throw error;
   }
 
   const archetype = result.archetype ? getArchetype(result.archetype) : null;

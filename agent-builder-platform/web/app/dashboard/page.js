@@ -1,10 +1,12 @@
 import Link from "next/link";
 import { getDashboardData, getUnresolvedQueueCount } from "../../lib/queries.js";
 
+export const dynamic = "force-dynamic";
+
 export default async function DashboardPage({ searchParams }) {
   const params = await searchParams;
   const tenantSlug = params?.tenant;
-  const tenants = getDashboardData(tenantSlug);
+  const tenants = await getDashboardData(tenantSlug);
 
   if (tenantSlug && tenants.length === 0) {
     return (
@@ -15,7 +17,7 @@ export default async function DashboardPage({ searchParams }) {
     );
   }
 
-  const queueCount = tenantSlug ? 0 : getUnresolvedQueueCount();
+  const queueCount = tenantSlug ? 0 : await getUnresolvedQueueCount();
 
   return (
     <>
@@ -74,8 +76,8 @@ export default async function DashboardPage({ searchParams }) {
                       <td>
                         <span className={`badge ${agent.status}`}>{agent.status}</span>
                       </td>
-                      <td>${agent.price_usd_month.toFixed(2)}</td>
-                      <td>${agent.monthCost.toFixed(4)}</td>
+                      <td>${Number(agent.price_usd_month).toFixed(2)}</td>
+                      <td>${Number(agent.monthCost).toFixed(4)}</td>
                       <td className="muted">
                         {agent.lastRun ? new Date(agent.lastRun.created_at).toLocaleString() : "never"}
                       </td>
