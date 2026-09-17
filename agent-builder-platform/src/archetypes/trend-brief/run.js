@@ -2,7 +2,7 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { fetchTrendData } from "../../lib/dataSource.js";
-import { generateBrief } from "../../lib/claudeClient.js";
+import { generateBrief } from "../../lib/briefGenerator.js";
 import { deliverBrief } from "../../lib/emailDelivery.js";
 import { assertWithinCeiling } from "../../lib/costCeiling.js";
 import { logRun } from "../../lib/runLog.js";
@@ -17,13 +17,11 @@ export async function runTrendBriefAgent() {
   const ceilingUsd = Number(process.env.TREND_BRIEF_COST_CEILING_USD) || 0.5;
 
   const findings = await fetchTrendData(client);
-  const userPrompt = findings
-    .map((f) => `- [${f.topic}] ${f.summary} (${f.url})`)
-    .join("\n");
 
-  const { text, usage, costUsd, mocked } = await generateBrief({
+  const { text, usage, costUsd, engine } = await generateBrief({
+    client,
+    findings,
     systemPrompt: buildSystemPrompt(client),
-    userPrompt,
   });
 
   assertWithinCeiling(costUsd, ceilingUsd);
@@ -34,7 +32,7 @@ export async function runTrendBriefAgent() {
   const run = await logRun({
     archetype: "trend-brief",
     clientId: client.clientId,
-    mocked,
+    engine,
     usage,
     costUsd,
     delivery,
