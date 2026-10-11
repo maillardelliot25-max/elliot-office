@@ -60,7 +60,7 @@ function fire(){
   if(player.car){const c=player.car;ox=c.x;oy=c.y+1.4;oz=c.z}
   else{const fx=Math.sin(player.a),fz=Math.cos(player.a);ox=player.x+fx*.6-fz*.3;oy=player.y+1.48;oz=player.z+fz*.6+fx*.3}
   let ax,ay,az;
-  if(tgt){ax=tgt.x;ay=tgt.y;az=tgt.z}else{const v=new THREE.Vector3();camera.getWorldDirection(v);ax=camera.position.x+v.x*w.range;ay=camera.position.y+v.y*w.range;az=camera.position.z+v.z*w.range}
+  if(tgt){ax=tgt.x;ay=tgt.y;az=tgt.z}else{const v=new THREE.Vector3();camera.getWorldDirection(v);const cp=camera.position,hh=rayHit(cp.x,cp.y,cp.z,v.x,v.y,v.z,w.range+12,player.car),t=Math.max(3,hh.t);ax=cp.x+v.x*t;ay=cp.y+v.y*t;az=cp.z+v.z*t}
   let dx=ax-ox,dy=ay-oy,dz=az-oz;const l=Math.hypot(dx,dy,dz);dx/=l;dy/=l;dz/=l;
   if(!player.car)player.a=Math.atan2(dx,dz);
   fxA.spawn(ox+dx*.6,oy+dy*.6,oz+dz*.6,0,0,0,COL.muzzle,1,w.rocket?1.6:wid==='shotgun'||wid==='sniper'?1.2:.8,.05);
@@ -71,7 +71,7 @@ function fire(){
   camPitch=Math.max(-.15,camPitch-w.recoil*(player.zoom?.6:1.4));camYaw+=rand(-1,1)*w.recoil*.4;player.bloom=Math.min(.09,player.bloom+w.recoil*1.6);shake=Math.min(1,shake+w.recoil*2);
   if(w.rocket){fireRocket(ox+dx,oy+dy,oz+dz,dx,dy,dz,false);shake=Math.min(1,shake+.2)}
   else for(let k=0;k<(w.pellets||1);k++){
-    const sp=(w.spread+player.bloom*(player.zoom?.15:1))*(player.car?1.6:1)*(player.onGround?1:2);let ex=dx+rand(-sp,sp),ey=dy+rand(-sp,sp),ez=dz+rand(-sp,sp);const el=Math.hypot(ex,ey,ez);ex/=el;ey/=el;ez/=el;
+    const sp=(w.spread+player.bloom*(player.zoom?.15:1))*(player.car?1.6:1)*(player.onGround?1:2)*(player.crouch&&!player.car?.62:1);let ex=dx+rand(-sp,sp),ey=dy+rand(-sp,sp),ez=dz+rand(-sp,sp);const el=Math.hypot(ex,ey,ez);ex/=el;ey/=el;ez/=el;
     const h=rayHit(ox,oy,oz,ex,ey,ez,w.range,player.car);
     const hx=ox+ex*h.t,hy=oy+ey*h.t,hz=oz+ez*h.t;tracer(ox,oy,oz,hx,hy,hz);
     const fall=h.t>w.eff?clamp(1-(h.t-w.eff)/(w.range-w.eff)*.55,.45,1):1,dmg=w.dmg*fall;
@@ -95,11 +95,14 @@ function buildPlayer(){
   for(const w of WORDER)if(w!=='fist'){const gm=makeGun(w);m.hold.add(gm);m.guns[w]=gm}
   showGun();m.g.visible=!player.car;
 }
+function duck(){if(state!=='play'||player.car)return;
+  if(player.sprinting&&player.onGround&&player.slideT<=0){player.slideT=.85;player.sdx=Math.sin(player.a);player.sdz=Math.cos(player.a);player.crouch=true;sfx.slide();return}
+  player.crouch=!player.crouch;sfx.click()}
 function enterExit(){
   if(state!=='play')return;
   const sh=nearShop();if(sh){openShop(sh);return}
   if(player.car){if(Math.abs(player.car.v)>9){toast('Slow down to get out');return}exitCar();return}
-  let best=null,bd=4.8;for(const c of vehicles){if(c.burnt||c.wreck)continue;const d=Math.hypot(c.x-player.x,c.z-player.z);if(d<bd){bd=d;best=c}}
+  let best=null,bd=4.8;for(const c of vehicles){if(c.burnt||c.wreck||c.tn==='tank')continue;const d=Math.hypot(c.x-player.x,c.z-player.z);if(d<bd){bd=d;best=c}}
   if(!best)return;
   if(best.driver&&best.ctrl!=='none'){bail(best);if(best.kind==='police'){minWanted(2);toast('You jacked a squad car','bad')}else{toast('Carjacked');crime(policeNear(55)?1.2:.3)}}
   else if(best.kind==='police'&&!best.mine){minWanted(1)}
@@ -132,12 +135,13 @@ function updatePlayer(dt){
   const ml=Math.hypot(mx,my);if(ml>1){mx/=ml;my/=ml}
   const fx=Math.sin(camYaw),fz=Math.cos(camYaw),rx=-fz,rz=fx;
   const wx=fx*my+rx*mx,wz=fz*my+rz*mx,mag=Math.min(1,Math.hypot(wx,wz));
-  const sprint=K('shift')||inp.run,spd=mag<.05?0:(sprint?9.2:(coarse&&mag>.92?7:4.4))*mag;
+  const sprint=(K('shift')||inp.run)&&!player.crouch;let spd=mag<.05?0:(sprint?9.2:(coarse&&mag>.92?7:4.4))*mag;if(player.crouch)spd=Math.min(spd,2.4*mag);player.sprinting=sprint&&mag>.5;
   const aiming=player.aimT>0&&player.weapon!=='fist';
   if(mag>.05&&!aiming)player.a+=wrapA(Math.atan2(wx,wz)-player.a)*Math.min(1,dt*12);
   if(aiming&&player.target)player.a=Math.atan2(player.target.x-player.x,player.target.z-player.z);
   else if(aiming)player.a+=wrapA(camYaw-player.a)*Math.min(1,dt*12);
   const p={x:player.x+(mag>.05?wx/mag:0)*spd*dt,z:player.z+(mag>.05?wz/mag:0)*spd*dt};
+  if(player.slideT>0){player.slideT-=dt;const v=11.5*Math.max(0,player.slideT/.85);p.x=player.x+player.sdx*v*dt;p.z=player.z+player.sdz*v*dt;if(Math.random()<.6)fxN.spawn(player.x,player.y+.1,player.z,rand(-.5,.5),.6,rand(-.5,.5),COL.dust,.4,.6,.8,1.5)}
   collideCircle(p,.45);
   for(const c of vehicles){const cfx=Math.sin(c.a),cfz=Math.cos(c.a),off=c.t.L/2-c.t.W/2,rr=c.t.W/2+.55;
     for(const s of[off,-off]){const cx=c.x+cfx*s,cz=c.z+cfz*s,dx=p.x-cx,dz=p.z-cz,d=Math.hypot(dx,dz);
@@ -145,12 +149,12 @@ function updatePlayer(dt){
         if(vs>6&&player.hurtCD<=0){hurtPlayer(vs*1.6);player.hurtCD=.8;p.x+=c.vel.x*.15;p.z+=c.vel.z*.15;sfx.crash(vs)}}}}
   if(walkable(p.x,p.z)){player.x=p.x;player.z=p.z}
   const gy=groundY(player.x,player.z);
-  if((K(' ')||inp.jump)&&player.onGround){player.vy=6.5;player.onGround=false}
+  if((K(' ')||inp.jump)&&player.onGround&&player.slideT<=0){player.vy=6.5;player.onGround=false;player.crouch=false}
   player.vy-=20*dt;player.y+=player.vy*dt;if(player.y<=gy){player.y=gy;player.vy=0;player.onGround=true}
   player.ph+=spd*dt*2.6;
   const W=WEAP[player.weapon];
   const mode=!player.onGround?'jump':aiming?(W.hands===3?'rpg':W.hands===2?'aim2':'aim1'):(player.aimT>1.1&&player.weapon==='fist'?'punch':'walk');
-  animPerson(player.model,player.ph,mode,spd>.1?(spd>6?1.25:.8):0);
+  animPerson(player.model,player.ph,mode,spd>.1?(spd>6?1.25:.8):0,spd,player.slideT>0?'slide':player.crouch?'crouch':null);
   const g=player.model.g;g.position.set(player.x,player.y,player.z);g.rotation.y=player.a;
 }
 const camPos=new THREE.Vector3(),camLook=new THREE.Vector3();
@@ -164,7 +168,7 @@ function updateCamera(dt){
   const c=player.car;
   if(c){const sp=Math.abs(c.v);if(gameT-lookT>1.4)camYaw+=wrapA(c.vis-camYaw+(c.v<-2?PI:0))*Math.min(1,dt*2.6);dist=c.t.L*2.1+sp*.06;h=1.2;lookUp=1.2;ty=c.y;if(gameT-lookT>1.4)camPitch+=(.2-camPitch)*Math.min(1,dt*2)}
   else if(player.zoom){dist=.05;h=1.68;lookUp=1.68}
-  else{dist=player.aimT>0&&player.weapon!=='fist'?3.6:4.8;h=1.55;lookUp=1.5}
+  else{dist=player.aimT>0&&player.weapon!=='fist'?3.6:4.8;h=player.crouch?1.05:1.55;lookUp=player.crouch?1:1.5}
   if(camFar)dist*=1.6;
   const fx=Math.sin(camYaw),fz=Math.cos(camYaw),cp=Math.cos(camPitch),spH=Math.sin(camPitch);
   const side=!c&&!player.zoom&&player.aimT>0&&player.weapon!=='fist'?.75:0;
@@ -179,13 +183,24 @@ function updateCamera(dt){
 }
 
 // ===================== Wanted, spawning, jobs =====================
-let spawnT=0;const lastWave={};
+let spawnT=0,rbT=8,fleeT=0,lastTier=0;
+const TIER_MSG=['','Police are responding','Officers cleared to use force','SWAT and air support dispatched','SWAT surge · roadblocks going up','The army has been deployed'];
+function spawnRoadblock(){
+  const v=player.car.vel,sp=Math.hypot(v.x,v.z);if(sp<8)return;const ux=v.x/sp,uz=v.z/sp;let x=player.x+ux*115,z=player.z+uz*115;
+  const kx=Math.round(x/P),kz=Math.round(z/P),onAve=Math.abs(x-kx*P)<Math.abs(z-kz*P);if(onAve)x=kx*P;else z=kz*P;
+  if(Math.abs(x)>HALF-5||Math.abs(z)>HALF-5)return;
+  const role=wanted>=5?'army':wanted>=4?'swat':'police',tn=role==='swat'?'van':role==='army'?'suv':'sedan';
+  for(const s of[-1,1]){const ox=onAve?s*3.3:0,oz=onAve?0:s*3.3,a=(onAve?PI/2:0)+s*.3;const c=addVehicle(tn,x+ox,z+oz,a,role,'none');c.driver=false;c.lights=true;c.deployed=true;
+    for(let k=0;k<2;k++)spawnCop(c.x-ux*3+(onAve?(k?1.2:-1.2):0),c.z-uz*3+(onAve?0:(k?1.2:-1.2)),role,c)}
+  toast('Roadblock ahead!','bad',1.8);
+}
 function updateWorldSim(dt){
   crimeCD-=dt;
   for(const c of vehicles){
     if(c.ctrl==='player')continue;
     if(c.ctrl==='lane')updateLane(c,dt);
     else if(c.ctrl==='police')updatePolice(c,dt);
+    else if(c.ctrl==='tank')updateTank(c,dt);
     else if(Math.abs(c.vel.x)+Math.abs(c.vel.z)>.05)drive(c,0,0,true,dt,false);
   }
   // car vs car
@@ -196,9 +211,10 @@ function updateWorldSim(dt){
     const afx=Math.sin(a.a),afz=Math.cos(a.a),bfx=Math.sin(b.a),bfz=Math.cos(b.a),ao=a.t.L/2-a.t.W/2,bo=b.t.L/2-b.t.W/2,rs=a.t.W/2+b.t.W/2+.1;let best=null;
     for(const sa of[ao,-ao])for(const sb of[bo,-bo]){const dx=(b.x+bfx*sb)-(a.x+afx*sa),dz=(b.z+bfz*sb)-(a.z+afz*sa),d=Math.hypot(dx,dz);if(d<rs&&(!best||d<best.d))best={d,dx,dz}}
     if(!best||best.d<1e-4)continue;
-    const nx=best.dx/best.d,nz=best.dz/best.d,ov=rs-best.d;a.x-=nx*ov/2;a.z-=nz*ov/2;b.x+=nx*ov/2;b.z+=nz*ov/2;
+    const nx=best.dx/best.d,nz=best.dz/best.d,ov=rs-best.d,ma=a.tn==='tank'?12:1,mb=b.tn==='tank'?12:1,wa=mb/(ma+mb),wb=ma/(ma+mb);a.x-=nx*ov*wa;a.z-=nz*ov*wa;b.x+=nx*ov*wb;b.z+=nz*ov*wb;
     const rv=(b.vel.x-a.vel.x)*nx+(b.vel.z-a.vel.z)*nz;
-    if(rv<0){const k=1.3*rv/2;a.vel.x+=nx*k;a.vel.z+=nz*k;b.vel.x-=nx*k;b.vel.z-=nz*k;const imp=-rv;
+    if(rv<0){const J=1.3*rv/(1/ma+1/mb);a.vel.x+=nx*J/ma;a.vel.z+=nz*J/ma;b.vel.x-=nx*J/mb;b.vel.z-=nz*J/mb;const imp=-rv;
+      if(ma>1||mb>1){const v=ma>1?b:a;if(imp>1)damageCar(v,imp*7,imp,false,true)}
       for(const c of[a,b]){if(c.ctrl==='lane'&&imp>2.5)c.ctrl='none';c.v=c.vel.x*Math.sin(c.a)+c.vel.z*Math.cos(c.a)}
       const pc=a===player.car?b:b===player.car?a:null;
       if(imp>5){damageCar(a,(imp-5)*2.2,imp,!!pc);damageCar(b,(imp-5)*2.2,imp,!!pc)}
@@ -236,18 +252,22 @@ function updateWorldSim(dt){
   // spawning & despawning
   spawnT-=dt;
   if(spawnT<=0){spawnT=.35;const far=drawDist*.8;
-    for(const c of vehicles.slice()){if(c===player.car||c.mine)continue;const d=Math.hypot(c.x-player.x,c.z-player.z);if(d>far||(c.kind==='police'&&wanted===0&&d>110&&!c.driver))removeVehicle(c)}
+    for(const c of vehicles.slice()){if(c===player.car||c.mine)continue;const d=Math.hypot(c.x-player.x,c.z-player.z);if(d>far||(c.kind==='police'&&wanted===0&&d>110&&(!c.driver||c.tn==='tank')))removeVehicle(c)}
     const lane=vehicles.filter(c=>c.ctrl==='lane').length;if(lane<Q.traffic)spawnTraffic(80,far*.9);
     if(vehicles.length<Q.traffic+12&&Math.random()<.2)spawnParked(80,far*.9);
     while(peds.filter(p=>!p.extra).length<Q.peds)spawnPed(false);
     const pc=vehicles.filter(c=>c.kind==='police'&&c.driver).length;
-    if(pc<Math.min(POLICE_CARS[wanted],Q.cops)){const s=roadSpawn(70,150);if(s){const role=wanted>=5?(Math.random()<.65?'army':'swat'):wanted>=3?(Math.random()<.55?'swat':'police'):'police';const tn=role==='swat'?'van':role==='army'?'suv':(wanted>=2&&Math.random()<.35?'suv':'sedan');
-      const c=addVehicle(tn,s.x,s.z,Math.atan2(player.x-s.x,player.z-s.z),role,'police');c.vel={x:Math.sin(c.a)*12,z:Math.cos(c.a)*12};c.v=12;if(role!=='police'&&!lastWave[role]){lastWave[role]=1;toast(role==='swat'?'SWAT is rolling in':'The army has been deployed','bad',2.4)}}}
-    if(wanted<3)lastWave.swat=0;if(wanted<5)lastWave.army=0;
-    if(wanted>=4&&!helis.some(h=>h.type==='police'))spawnHeli('police');
+    if(pc<Math.min(POLICE_CARS[wanted],Q.cops)){const s=roadSpawn(70,150);if(s){const role=wanted>=5?(Math.random()<.6?'army':'swat'):wanted>=4?(Math.random()<.7?'swat':'police'):wanted>=3?(Math.random()<.5?'swat':'police'):'police';const tn=role==='swat'?'van':role==='army'?'suv':(wanted>=2&&Math.random()<.35?'suv':'sedan');
+      const c=addVehicle(tn,s.x,s.z,Math.atan2(player.x-s.x,player.z-s.z),role,'police');c.vel={x:Math.sin(c.a)*12,z:Math.cos(c.a)*12};c.v=12}}
+    if(wanted>=5&&!vehicles.some(c=>c.tn==='tank'&&!c.burnt)){const s=roadSpawn(90,170);if(s)addVehicle('tank',s.x,s.z,Math.atan2(player.x-s.x,player.z-s.z),'army','tank')}
+    if(wanted>=4&&player.car){rbT-=.35;if(rbT<=0){rbT=24;spawnRoadblock()}}
+    if(wanted>=3&&!helis.some(h=>h.type==='police'))spawnHeli('police');
     if(wanted>=5&&!helis.some(h=>h.type==='army'))spawnHeli('army');
   }
   // wanted decay & arrest
+  shoutCD-=dt;
+  if(wanted>lastTier){toast('★'.repeat(wanted)+'  '+TIER_MSG[wanted],'bad',2.4)}lastTier=wanted;
+  if(wanted===1){if(player.car&&Math.abs(player.car.v)>12&&policeNear(70)){fleeT+=dt;if(fleeT>7){minWanted(2);copShout('Suspect is fleeing — all units!')}}else fleeT=Math.max(0,fleeT-dt)}
   if(wanted>0){
     if(policeNear(wanted>=3?90:70))evade=0;else{evade+=dt;if(evade>7+wanted*4){wanted=0;heat=0;toast('You lost the cops','cash',2);for(const p of cops)p.hostile=false}}
     if(player.car&&Math.abs(player.car.v)<1&&wanted<=1){for(const c of cops)if(c.state!=='dead'&&Math.hypot(c.x-player.x,c.z-player.z)<3){bustT+=dt;break}}

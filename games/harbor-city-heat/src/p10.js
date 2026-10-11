@@ -9,7 +9,8 @@ addEventListener('keydown',e=>{
   if(k==='e'||k==='f')enterExit();
   if(k==='q')cycleWeapon(1);
   if(k==='h')sfx.horn();
-  if(k==='c')camFar=!camFar;
+  if(k==='c'||k==='control')duck();
+  if(k==='v')camFar=!camFar;
   if(k==='m')openMap();
   if(k==='r'){if(player.car)radioNext();else startReload(player.weapon)}
   if(k==='z'&&WEAP[player.weapon].scope&&!player.car)player.zoom=!player.zoom;
@@ -53,6 +54,7 @@ addEventListener('wheel',e=>{if(state==='play')cycleWeapon(e.deltaY>0?1:-1)},{pa
   hold('tW',()=>{if(player.car)sfx.horn();else cycleWeapon(1)});
   hold('tH',()=>{if(player.car)radioNext();else openMap()});
   hold('tZ',()=>{player.zoom=!player.zoom});
+  hold('tC',()=>duck());
   $('wpn').addEventListener('pointerdown',e=>{e.stopPropagation();if(!player.car)startReload(player.weapon)});
   $('radio').addEventListener('click',radioNext);
   document.documentElement.style.setProperty('--bs',64*save.settings.btn+'px');
@@ -129,12 +131,13 @@ function frame(now){
   const rdt=Math.min(.05,(now-last)/1000);last=now;
   fpsAcc+=rdt;fpsN++;if(fpsAcc>=1){fpsShow=Math.round(fpsN/fpsAcc);fpsAcc=0;fpsN=0;
     if(state==='play'&&save.settings.quality==='auto'){if(fpsShow<26)lowFor++;else lowFor=0;if(lowFor>=4&&qName!=='low'){qName=qName==='high'?'medium':'low';applyQuality();lowFor=0;toast('Graphics lowered for smoother play','',2)}}}
-  let dt=rdt;
+  let dt=rdt;frameDt=state==='down'?rdt*.3:rdt;
+  if(state==='shop'&&player.model&&player.model.skinned&&!(shopCtx&&shopCtx.car)){player.model.g.rotation.y=player.a;animPerson(player.model,0,'walk',0,0,null)}
   if(state==='down'){dt*=.3;downT-=rdt;if(downT<=0)respawn()}
   if(state==='play'||state==='down'){gameT+=dt;dayT+=dt/960;if(state==='play')updatePlayer(dt);else if(player.car){player.x=player.car.x;player.z=player.car.z}updateWorldSim(dt)}
   else if(state==='title')dayT+=rdt/240;
   fxN.update(dt);fxA.update(dt);updTracers(dt);updDecals(dt);
-  updateSky(rdt);updateCamera(rdt);sky.position.copy(camera.position);
+  updateSky(rdt);updateCamera(rdt);updateBirds(performance.now()/1000);sky.position.copy(camera.position);
   for(const m of pMats)m.uniforms.scale.value=pScale;
   carGlows();
   if(state!=='title'){$('hud').style.visibility=state==='shop'?'hidden':'';updateHud(rdt);drawMinimap()}
@@ -153,16 +156,18 @@ function startGame(){
   toast(save.car?'Your car is parked nearby':'Grab the red muscle car at the curb','job',3);
   if(coarse&&innerHeight>innerWidth)setTimeout(()=>toast('Turn your phone sideways for the best view','',3),3200);
 }
-$('mPlay').textContent=save.char?'Continue':'Play';
 $('mNote').textContent=save.char?`Saved: ${fmt(save.money)} · ${owned().length-1} weapon${owned().length===2?'':'s'}${save.car?' · personal '+CT[save.car.tn].name.toLowerCase():''}`:'Progress saves automatically on this device.';
 $('mPlay').addEventListener('click',()=>{initAudio();if(!save.char){$('title').hidden=true;state='shop';openCreator(true,startGame);return}startGame()});
 $('mSet').addEventListener('click',()=>{$('title').hidden=true;openSettings(()=>{$('title').hidden=false})});
 $('mHelp').addEventListener('click',()=>{$('title').hidden=true;openHelp(()=>{$('title').hidden=false})});
 if(save.char)save.char=Object.assign({},DEF_CHAR,save.char);
+$('mPlay').disabled=true;$('mPlay').textContent='Loading people…';
+loadChars(f=>{$('mPlay').textContent='Loading people… '+Math.round(f*100)+'%'}).then(()=>{
 buildPlayer();player.y=groundY(player.x,player.z);player.model.g.position.set(player.x,player.y,player.z);
 for(let i=0;i<Q.peds;i++)spawnPed(false);
 for(let i=0;i<Q.traffic;i++)spawnTraffic(20,drawDist*.7);
 for(let i=0;i<10;i++)spawnParked(30,drawDist*.7);
+$('mPlay').disabled=false;$('mPlay').textContent=save.char?'Continue':'Play';});
 updateEnv();
 window.__hch={player,save,vehicles,peds,cops,get state(){return state},set state(v){state=v},openGarage,openGuns,openCreator,openMap,closeMap,minWanted,spawnHeli,spawnCop,helis,addVehicle,get gameT(){return gameT},get wanted(){return wanted},startGame,teleport:(x,z)=>{player.x=x;player.z=z}};
 requestAnimationFrame(frame);

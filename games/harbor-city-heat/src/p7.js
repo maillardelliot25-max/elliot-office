@@ -26,6 +26,8 @@ const sfx={
   hit(){burst(.25,.08,700)},thud(){tone(90,.12,'sine',.25,0,null,50)},punch(){burst(.3,.07,500);tone(160,.06,'sine',.25,0,null,70)},
   pickup(){tone(880,.12,'triangle',.18);tone(1320,.18,'triangle',.15,actx&&actx.currentTime+.08)},click(){tone(1200,.04,'square',.06)},door(){burst(.25,.12,600);tone(200,.08,'square',.06)},
   reload(){if(!actx)return;const t=actx.currentTime;burst(.2,.05,3000,'highpass');tone(900,.04,'square',.05,t+.25);burst(.25,.06,2500,'highpass',t+.5)},
+  radio(){if(!actx)return;const t=actx.currentTime;burst(.12,.18,2200,'bandpass');tone(1400,.06,'square',.04,t+.05)},
+  slide(){burst(.3,.5,700)},
   horn(){if(!actx)return;tone(330,.45,'square',.07);tone(415,.45,'square',.06)},
 };
 // Radio: two procedural stations

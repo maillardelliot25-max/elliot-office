@@ -37,5 +37,20 @@ Notes so future sessions (and future games) can pick up where we left off.
   - Each has a magazine and reload time, recoil and bloom, damage falloff, and semi or full auto.
 - Sports cars: new GT coupe and Supercar types, more common in rich areas. Paloma Motorsport dealers sell them.
 
+## Update 4 (latest): real characters
+- Characters are now rigged glTF models in `assets/`, loaded with GLTFLoader and SkeletonUtils from jsDelivr (three@0.128.0):
+  - male: Ready Player Me
+  - female: Michelle
+  - SWAT/army: Vanguard soldier
+- Animations: the soldier's Idle, Walk and Run clips are retargeted onto the other skeletons at load time through world-space rest poses (`retargetClip`, src/p4c.js).
+- Aiming, crouching and sliding are procedural bone overrides (`aimBone`).
+- Male outfit colours, skin tint, hair, hats, glasses and chain are applied per instance. Accessories are attached to the head and spine bones.
+- If the models fail to load, the game falls back to the old procedural figures (`makeFigure`).
+- Build order: p1 p2 p3 p4 p4c p5 p6 p7 p8 p9 p10. The artifact needs `assets/*.glb` published alongside the page as supporting files.
+- Police realism: warnings and arrest at 1★, cover behind their cars with peeking, magazines and reloads, and escalation when the suspect flees.
+- Tiers: 3★ adds SWAT and a helicopter, 4★ roadblocks, 5★ army, a tank (`updateTank`) and a gunship.
+- Player can crouch or slide (C/Ctrl, DUCK button). Shots go to the point under the crosshair.
+- Environment: bark-textured trunks, alpha-cut palm fronds and leaf-card trees (with shadow depth materials), textured terrain and concrete, seagull flocks.
+
 ## Ideas not done yet
-Tanks, gangs and turf, more mission types, a freeway, swimming, an aircraft, rigged or skinned human models.
+Tanks, gangs and turf, more mission types, a freeway, swimming, an aircraft, more character models for variety, more animations (death, crouch-walk, driving).

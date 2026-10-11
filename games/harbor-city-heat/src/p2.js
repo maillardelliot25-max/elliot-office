@@ -45,9 +45,9 @@ sun.shadow.bias=-.0005;sun.shadow.normalBias=.05;
 scene.add(sun,sun.target);
 const flash=new THREE.PointLight(0xffa040,0,40,2);scene.add(flash);
 
-const QUAL={low:{pr:Math.min(devicePixelRatio,1)*.75,traffic:12,peds:20,cops:4,shadow:false,part:1},
-  medium:{pr:Math.min(devicePixelRatio,1.25),traffic:20,peds:30,cops:6,shadow:false,part:1},
-  high:{pr:Math.min(devicePixelRatio,2),traffic:28,peds:42,cops:9,shadow:true,part:1}};
+const QUAL={low:{pr:Math.min(devicePixelRatio,1)*.85,traffic:12,peds:14,cops:4,shadow:false,part:1},
+  medium:{pr:Math.min(devicePixelRatio,1.5),traffic:18,peds:22,cops:6,shadow:false,part:1},
+  high:{pr:Math.min(devicePixelRatio,2),traffic:26,peds:32,cops:9,shadow:true,part:1}};
 const DRAW={near:240,medium:350,far:540};
 let qName=null,Q=QUAL.medium,drawDist=350;
 
@@ -146,7 +146,8 @@ const matOffice=new THREE.MeshStandardMaterial({map:officeTex,emissive:C('#ffe6b
 const matHouse=new THREE.MeshLambertMaterial({map:houseTex,emissive:C('#ffd08a'),emissiveMap:houseLit,emissiveIntensity:0,vertexColors:true});
 const matShop=new THREE.MeshLambertMaterial({map:shopTex,emissive:C('#ffe0a8'),emissiveMap:shopLit,emissiveIntensity:0,vertexColors:true});
 const matCorr=new THREE.MeshLambertMaterial({map:corrTex,vertexColors:true});
-const matPlain=new THREE.MeshLambertMaterial({vertexColors:true});
+const plainTex=tex(cnv(128,128,g=>{g.fillStyle='#ececec';g.fillRect(0,0,128,128);grain(g,128,128,2500,.12);for(let k=0;k<6;k++){g.fillStyle='rgba(0,0,0,.05)';g.fillRect(0,rand(0,128),128,1)}}));
+const matPlain=new THREE.MeshLambertMaterial({vertexColors:true,map:plainTex});
 const matSide=new THREE.MeshLambertMaterial({map:sideTex,vertexColors:true});
 const matGrass=new THREE.MeshLambertMaterial({map:grassTex,vertexColors:true});
 const matWater=new THREE.MeshStandardMaterial({color:C('#3fb6d9'),roughness:.04,metalness:.3,normalMap:waterNorm});
@@ -182,7 +183,9 @@ function groundY(x,z){
     cols[i*3]=tmp.r;cols[i*3+1]=tmp.g;cols[i*3+2]=tmp.b;
   }
   geo.setAttribute('color',new THREE.BufferAttribute(cols,3));geo.computeVertexNormals();
-  const terr=new THREE.Mesh(geo,new THREE.MeshPhongMaterial({vertexColors:true,flatShading:true,shininess:0,specular:0}));terr.receiveShadow=true;scene.add(terr);
+  const terrTex=tex(cnv(256,256,g=>{g.fillStyle='#d9d4c4';g.fillRect(0,0,256,256);for(let k=0;k<9000;k++){const v=rand(.62,1.05)*255|0;g.fillStyle=`rgba(${v},${v*.97|0},${v*.88|0},.55)`;g.fillRect(rand(0,256),rand(0,256),rand(1,3),rand(1,3))}}));
+  {const uv=geo.attributes.uv;for(let i=0;i<uv.count;i++)uv.setXY(i,uv.getX(i)*260,uv.getY(i)*260)}
+  const terr=new THREE.Mesh(geo,new THREE.MeshPhongMaterial({vertexColors:true,map:terrTex,shininess:0,specular:0}));terr.receiveShadow=true;scene.add(terr);
 }
 waterNorm.repeat.set(220,220);
 const ocean=new THREE.Mesh(new THREE.PlaneGeometry(6000,6000).rotateX(-PI/2),new THREE.MeshStandardMaterial({color:C('#1e6f86'),roughness:.12,metalness:.15,normalMap:waterNorm,normalScale:new THREE.Vector2(.35,.35)}));

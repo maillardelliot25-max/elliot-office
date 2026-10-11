@@ -30,6 +30,13 @@ function openCreator(free,after){
   const bodyOf=k=>{const B=$('pBody');B.innerHTML='';
     const S=(lab,key)=>B.append(stepRow(lab,OPTS[key],()=>cfg[key],v=>{cfg[key]=v;rebuild()}));
     const W=(lab,key,list)=>B.append(swRow(lab,list,()=>cfg[key],v=>{cfg[key]=v;rebuild()}));
+    if(CHARS.ready){const f=cfg.frame===1,fixed=t=>B.append(el('p','fine',t));
+      if(k==='Body'){S('Body type','frame');if(!f)W('Skin tone','skin',SKIN);else fixed('This body has a fixed skin tone and outfit.')}
+      if(k==='Hair'){if(!f){S('Style','hair');W('Color','hairColor',HAIRC);S('Facial hair','beard')}else fixed('This body has a fixed hairstyle.')}
+      if(k==='Head'){S('Hat','hat');W('Hat color','hatColor',CLOTH);S('Eyewear','glasses')}
+      if(k==='Top'){if(!f){S('Outfit','orig');W('Top color','topColor',CLOTH)}S('Chain','chain')}
+      if(k==='Legs'){if(!f){W('Pants color','legsColor',CLOTH);W('Shoes color','shoesColor',CLOTH)}else fixed('This body has a fixed outfit.')}
+      return}
     if(k==='Body'){S('Body type','frame');W('Skin tone','skin',SKIN);S('Build','build')}
     if(k==='Hair'){S('Style','hair');W('Color','hairColor',HAIRC)}
     if(k==='Head'){S('Hat','hat');W('Hat color','hatColor',CLOTH);S('Eyewear','glasses')}
@@ -121,10 +128,10 @@ function openSettings(back){
 }
 function openHelp(back){
   const render=()=>{const B=$('pBody');B.innerHTML='';const k=el('div','keys');
-    const rows=coarse?[['STICK','move / steer and throttle'],['DRAG','look around (right side)'],['FIRE','shoot · auto-aims'],['ENTER','car / shop'],['WEAPON','switch weapon'],['JUMP · BRAKE','on foot · in car'],['RUN · NITRO','on foot · in car'],['SCOPE','sniper zoom'],['TAP AMMO','reload'],['MAP · RADIO','on foot · in car']]
-      :[['W A S D','move / drive'],['MOUSE','look (click to capture)'],['LEFT CLICK','shoot · auto-aims'],['E','car / shop'],['Q · WHEEL','switch weapon'],['SPACE','jump · handbrake'],['SHIFT','sprint · nitro'],['R','reload · radio in car'],['Z · RIGHT CLICK','sniper scope'],['H','horn'],['M','map'],['C','camera distance'],['P · ESC','pause']];
+    const rows=coarse?[['STICK','move / steer and throttle'],['DRAG','look around (right side)'],['FIRE','shoot · auto-aims'],['ENTER','car / shop'],['WEAPON','switch weapon'],['JUMP · BRAKE','on foot · in car'],['RUN · NITRO','on foot · in car'],['SCOPE','sniper zoom'],['DUCK','crouch · slide while running'],['TAP AMMO','reload'],['MAP · RADIO','on foot · in car']]
+      :[['W A S D','move / drive'],['MOUSE','look (click to capture)'],['LEFT CLICK','shoot · auto-aims'],['E','car / shop'],['Q · WHEEL','switch weapon'],['SPACE','jump · handbrake'],['SHIFT','sprint · nitro'],['R','reload · radio in car'],['Z · RIGHT CLICK','sniper scope'],['H','horn'],['M','map'],['C · CTRL','duck · slide while sprinting'],['V','camera distance'],['P · ESC','pause']];
     for(const[a,b]of rows){const d=el('div');d.append(el('kbd','',a),el('span','',b));k.append(d)}B.append(k);
-    B.append(el('p','fine','Crimes raise your wanted level. 1–2★ police, 3★ SWAT, 4★ police helicopter, 5★ the army and a gunship. Break line of sight long enough and they give up. Mod garages, clothing and gun shops are marked on the map.'))};
+    B.append(el('p','fine','Crimes raise your wanted level. 1★ police try to arrest you, 2★ they shoot, 3★ SWAT and a helicopter, 4★ roadblocks, 5★ the army with a tank and gunship. Ducking makes you harder to hit. Break line of sight long enough and they give up. Mod garages, clothing and gun shops are marked on the map.'))};
   panel('Controls','',null,render,true);$('pOk').textContent='Back';$('pOk').disabled=false;$('pNo').hidden=true;$('pCost').textContent='';$('pOk').onclick=()=>{closePanel();back()};
 }
 function openPause(){

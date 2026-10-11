@@ -147,23 +147,43 @@ buildBuckets();
 // Instanced vegetation, streetlights
 function inst(geo,mat,list,place){const m=new THREE.InstancedMesh(geo,mat,list.length),o=new THREE.Object3D();list.forEach((it,i)=>{place(o,it,i);o.updateMatrix();m.setMatrixAt(i,o.matrix)});m.castShadow=true;scene.add(m);return m}
 for(let k=-N;k<=N;k+=4)for(let z=-HALF;z<HALF;z+=14){const zz=z+7;if(Math.abs(((zz%P)+P)%P-0)<12||Math.abs(((zz%P)+P)%P-P)<12)continue;for(const s of[-1,1]){const x=k*P+s*9.4;if(Math.abs(x)>HALF+2)continue;palms.push([x,.3,zz,Rr(.95,1.25)]);addCol(x,zz,.7,.7,8)}}
+for(const b of blockList){if(b.d!=='mid'&&b.d!=='suburb')continue;for(let k=0;k<3;k++){if(R()<.4)continue;const q=perim(b.x0,b.z0,Rr(0,208)),ox=q.dz*-1.4,oz=q.dx*1.4;trees.push([q.x-ox*.0+(q.dz?(q.x<b.x0+28?-1.2:1.2):0),.3,q.z+(q.dx?(q.z<b.z0+28?-1.2:1.2):0),Rr(.75,.95)])}}
 for(let z=-CE-40;z<CE+30;z+=13){palms.push([-CE-Rr(4,24),0,z+Rr(-4,4),Rr(1,1.4)])}
 for(const p of palms)if(Math.abs(p[0])<HALF&&Math.abs(p[2])<HALF)addCol(p[0],p[2],.7,.7,8);
 {
-  const trunkG=new THREE.CylinderGeometry(.22,.38,8,6);trunkG.translate(0,4,0);
-  const frondG=new THREE.BoxGeometry(1,.08,4.2);frondG.translate(0,0,2.1);
-  inst(trunkG,lam('#8a6a48'),palms,(o,[x,y,z,s])=>{o.position.set(x,y,z);o.rotation.set(0,0,(hash2(x,z)-.5)*.25);o.scale.set(1,s,1)});
-  const fr=[];for(const p of palms)for(let k=0;k<7;k++)fr.push([p,k]);
-  inst(frondG,lam('#3e8a46'),fr,(o,[[x,y,z,s],k])=>{const lean=(hash2(x,z)-.5)*.25;o.position.set(x-Math.sin(lean)*8*s,y+Math.cos(lean)*8*s,z);o.rotation.order='YXZ';o.rotation.set(.35+hash2(k,x)*.35,k*TAU/7+hash2(z,k),0);o.scale.set(1,1,s)});
-  const tt=new THREE.CylinderGeometry(.25,.35,3,6);tt.translate(0,1.5,0);const tc=new THREE.IcosahedronGeometry(2.4,0);tc.translate(0,4.2,0);
-  inst(tt,lam('#6b4f36'),trees,(o,[x,y,z,s])=>{o.position.set(x,y,z);o.rotation.set(0,0,0);o.scale.set(s,s,s)});
-  inst(tc,lam('#4f7d3b'),trees,(o,[x,y,z,s])=>{o.position.set(x,y,z);o.rotation.set(0,hash2(x,z)*6,0);o.scale.set(s,s*1.1,s)});
+  // Textured vegetation: bark trunks, alpha-cut palm fronds, crossed-card leafy canopies
+  const barkTex=tex(cnv(64,256,g=>{g.fillStyle='#7d5d3e';g.fillRect(0,0,64,256);for(let y=0;y<256;y+=11){g.fillStyle=`rgba(45,28,12,${rand(.35,.6)})`;g.fillRect(0,y,64,3);g.fillStyle='rgba(255,232,196,.14)';g.fillRect(0,y+5,64,2)}grain(g,64,256,900,.22)}));
+  barkTex.repeat.set(1,3);
+  const frondTex=tex(cnv(128,512,g=>{g.lineCap='round';g.strokeStyle='#596a2c';g.lineWidth=6;g.beginPath();g.moveTo(64,512);g.lineTo(64,6);g.stroke();
+    for(let y=24;y<500;y+=8){const len=Math.sin((1-y/512)*PI)*56+8;for(const sd of[-1,1]){g.strokeStyle=`hsl(${rand(84,108)},${rand(38,56)}%,${rand(22,36)}%)`;g.lineWidth=5;g.beginPath();g.moveTo(64,y);g.quadraticCurveTo(64+sd*len*.5,y-4,64+sd*len,y+18);g.stroke()}}}));
+  const leafTex=tex(cnv(256,256,g=>{for(let k=0;k<900;k++){const a=rand(0,TAU),r=Math.sqrt(Math.random())*112*(1-.15*Math.abs(Math.sin(a*3))),x=128+Math.cos(a)*r,y=128+Math.sin(a)*r*.9;
+      const l=rand(18,38)+(y<128?8:-4);g.fillStyle=`hsl(${rand(78,112)},${rand(30,52)}%,${l}%)`;g.beginPath();g.ellipse(x,y,rand(4,9),rand(2.5,5),rand(0,PI),0,TAU);g.fill()}}));
+  const trunkMat=new THREE.MeshLambertMaterial({map:barkTex});
+  const frondMat=new THREE.MeshLambertMaterial({map:frondTex,alphaTest:.5,side:THREE.DoubleSide});
+  const leafMat=new THREE.MeshLambertMaterial({map:leafTex,alphaTest:.45,side:THREE.DoubleSide});
+  const depthMat=t=>new THREE.MeshDepthMaterial({depthPacking:THREE.RGBADepthPacking,map:t,alphaTest:.5});
+  const trunkG=new THREE.CylinderGeometry(.2,.36,8,8,6);trunkG.translate(0,4,0);
+  {const p=trunkG.attributes.position;for(let k=0;k<p.count;k++){const y=p.getY(k);p.setX(k,p.getX(k)*(1+.08*Math.sin(y*6)));p.setZ(k,p.getZ(k)*(1+.08*Math.sin(y*6)))}trunkG.computeVertexNormals()}
+  const frondG=new THREE.PlaneGeometry(1.7,4.6,1,10);frondG.rotateX(PI/2);frondG.translate(0,0,2.3);
+  {const p=frondG.attributes.position;for(let k=0;k<p.count;k++){const z=p.getZ(k);p.setY(k,p.getY(k)-.11*z*z+.25*z*.4)}frondG.computeVertexNormals()}
+  inst(trunkG,trunkMat,palms,(o,[x,y,z,s])=>{o.position.set(x,y,z);o.rotation.set(0,hash2(z,x)*6,(hash2(x,z)-.5)*.25);o.scale.set(1,s,1)});
+  const fr=[];for(const p of palms)for(let k=0;k<9;k++)fr.push([p,k]);
+  const fm=inst(frondG,frondMat,fr,(o,[[x,y,z,s],k])=>{const lean=(hash2(x,z)-.5)*.25;o.position.set(x-Math.sin(lean)*8*s,y+Math.cos(lean)*8*s,z);o.rotation.order='YXZ';o.rotation.set(-.35+hash2(k,x)*.45,k*TAU/9+hash2(z,k),0);const sc=.85+hash2(x+k,z)*.35;o.scale.set(sc,sc,sc)});
+  fm.customDepthMaterial=depthMat(frondTex);
+  const cardG=(()=>{const parts=[];for(let k=0;k<3;k++){const p=new THREE.PlaneGeometry(6,5.6).toNonIndexed();p.rotateY(k*PI/3);parts.push(p)}const h=new THREE.PlaneGeometry(5.4,5.4).toNonIndexed();h.rotateX(-PI/2);h.translate(0,.6,0);parts.push(h);
+    const pos=[],uv=[],nor=[];for(const p of parts){const a=p.attributes.position,u=p.attributes.uv;for(let i=0;i<a.count;i++){pos.push(a.getX(i),a.getY(i),a.getZ(i));uv.push(u.getX(i),u.getY(i));nor.push(a.getX(i)*.3,1,a.getZ(i)*.3)}}
+    const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(pos,3));g.setAttribute('uv',new THREE.Float32BufferAttribute(uv,2));g.setAttribute('normal',new THREE.Float32BufferAttribute(nor,3));g.normalizeNormals&&0;return g})();
+  {const n=cardG.attributes.normal;for(let i=0;i<n.count;i++){const v=new THREE.Vector3(n.getX(i),n.getY(i),n.getZ(i)).normalize();n.setXYZ(i,v.x,v.y,v.z)}}
+  const tt=new THREE.CylinderGeometry(.22,.38,3.6,8);tt.translate(0,1.8,0);
+  inst(tt,trunkMat,trees,(o,[x,y,z,s])=>{o.position.set(x,y,z);o.rotation.set(0,0,0);o.scale.set(s,s,s)});
+  for(const L of[0,1]){const cm=inst(cardG,leafMat,trees,(o,[x,y,z,s])=>{o.position.set(x+(L?hash2(x,z)-.5:0),y+(L?5.6:4.4)*s,z+(L?hash2(z,x)-.5:0));o.rotation.set(0,hash2(x,z)*6+L,0);const k=L?.7:1;o.scale.set(s*k,s*k*1.05,s*k)});cm.customDepthMaterial=depthMat(leafTex)}
+
   for(const t of trees)addCol(t[0],t[2],.8,.8,4);
   // Hillside homes and scrub
   const hh=[],hb=[];for(let k=0;k<900&&hh.length<160;k++){const x=rand(-CE-100,CE+260),z=rand(-CE-260,CE+100);const hill=Math.max(x-CE,-z-CE);if(hill<25||hill>230)continue;const y=terrainH(x,z);if(y<4)continue;(Math.random()<.4?hh:hb).push([x,y,z])}
   for(let k=0;k<1400;k++){const x=rand(-CE-200,CE+400),z=rand(-CE-400,CE+200);const hill=Math.max(x-CE,-z-CE);if(hill<12)continue;const y=terrainH(x,z);if(y<1.5)continue;hb.push([x,y,z])}
   const hm=inst(new THREE.BoxGeometry(14,6,10),new THREE.MeshLambertMaterial({color:C('#f2eee6')}),hh,(o,[x,y,z])=>{o.position.set(x,y+2,z);o.rotation.set(0,hash2(x,z)*3,0);o.scale.set(1,1,1)});hm.castShadow=false;
-  const bm=inst(new THREE.ConeGeometry(2.4,6,6),lam('#4a6a3a'),hb,(o,[x,y,z])=>{o.position.set(x,y+2.4,z);o.rotation.set(0,0,0);const s=.8+hash2(x,z);o.scale.set(s,s,s)});bm.castShadow=false;
+  const bm=inst(cardG,leafMat,hb,(o,[x,y,z])=>{const s=.55+hash2(x,z)*.6;o.position.set(x,y+2.4*s,z);o.rotation.set(0,hash2(z,x)*6,0);o.scale.set(s,s*.9,s)});bm.castShadow=false;
 }
 const lampPos=[];
 {
@@ -238,3 +258,11 @@ for(const sh of shops){
   if(sh.type!=='hospital'&&sh.type!=='police'){const cyl=new THREE.Mesh(new THREE.CylinderGeometry(2.5,2.5,2.4,24,1,true),new THREE.MeshBasicMaterial({color:C(sh.col),transparent:true,opacity:.22,side:THREE.DoubleSide,depthWrite:false}));cyl.position.set(sh.x,ring.position.y+1.2,sh.z);scene.add(cyl)}
   const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:tex(cnv(128,128,(g)=>iconDraw(g,sh.type,64,64,52))),depthWrite:false}));sp.scale.set(2.2,2.2,1);sp.position.set(sh.x,ring.position.y+4.2,sh.z);scene.add(sp);sh.sprite=sp;
 }
+
+// Seagull flocks circling the beach, downtown and the port
+const birds=(()=>{const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute([0,0,.25,-.9,.15,-.1,0,0,-.25, 0,0,.25,.9,.15,-.1,0,0,-.25],3));g.computeVertexNormals();
+  const m=new THREE.InstancedMesh(g,new THREE.MeshBasicMaterial({color:C('#e9e6df'),side:THREE.DoubleSide}),48);m.frustumCulled=false;scene.add(m);
+  const fl=[[-CE-20,0],[120,-140],[HALF-80,CE-20],[-250,250]].map(([x,z])=>({x,z,r:rand(25,45),h:rand(28,45)}));return{m,fl,o:new THREE.Object3D()}})();
+function updateBirds(t){const{m,fl,o}=birds;let i=0;for(const f of fl)for(let k=0;k<12;k++){const a=t*.25*(k%2?1:-1)+k*.52+f.r,r=f.r+Math.sin(t*.3+k)*6;
+  o.position.set(f.x+Math.cos(a)*r,f.h+Math.sin(t+k*1.7)*2,f.z+Math.sin(a)*r);o.rotation.set(0,-a+(k%2?0:PI),Math.sin(t*9+k)*.35);o.scale.set(1,1+Math.sin(t*10+k)*.6,1);o.updateMatrix();m.setMatrixAt(i++,o.matrix)}
+  m.instanceMatrix.needsUpdate=true}

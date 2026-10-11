@@ -88,6 +88,7 @@ button:focus-visible{outline:3px solid var(--job);outline-offset:2px}
 .mb:hover,.mb:focus-visible{color:var(--job)}
 .mb.primary{color:var(--ink);background:var(--job);padding:11px 24px;box-shadow:5px 5px 0 #000}
 .mb.primary:hover{background:#ffd978;color:var(--ink)}
+.mb.primary:disabled{background:#3a3d44;color:#a9a9a9;cursor:wait}
 .fine{font-size:15px!important;color:var(--muted)}
 .keys{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:7px 18px;font-size:17px;color:var(--muted)}
 .keys div{display:flex;gap:8px;align-items:baseline;min-width:0}
@@ -144,7 +145,7 @@ input[type=range]{width:100%;accent-color:var(--job)}
 .tb.on{background:rgba(255,204,77,.55)}
 #tF{grid-column:3;grid-row:2/4;height:calc(var(--bs)*2 + 10px);border-radius:calc(var(--bs)/2);background:rgba(200,48,42,.5);font-size:15px}
 #tE{grid-column:3;grid-row:1;background:rgba(255,204,77,.35)}
-#tA{grid-column:2;grid-row:3}#tZ{grid-column:2;grid-row:1}
+#tA{grid-column:2;grid-row:3}#tZ{grid-column:2;grid-row:1}#tC{grid-column:1;grid-row:1}
 #scope{position:absolute;inset:0;pointer-events:none;background:radial-gradient(circle at center,transparent 0 31vmin,rgba(0,0,0,.92) 31.4vmin);}
 #scope::before,#scope::after{content:"";position:absolute;left:50%;top:50%;background:rgba(0,0,0,.85)}#scope::before{width:62vmin;height:1px;transform:translate(-50%,0)}#scope::after{height:62vmin;width:1px;transform:translate(0,-50%)}#tB{grid-column:1;grid-row:3}#tW{grid-column:2;grid-row:2}#tH{grid-column:1;grid-row:2}
 
@@ -187,6 +188,7 @@ body.coarse #ret{display:none}body.coarse #ret.lock{display:block}
       <div id="stick"><div id="knob"></div></div>
       <div id="tbtns">
         <button class="tb" id="tE" type="button">ENTER</button>
+        <button class="tb" id="tC" type="button">DUCK</button>
         <button class="tb" id="tH" type="button">HORN</button>
         <button class="tb" id="tW" type="button">WEAPON</button>
         <button class="tb" id="tF" type="button">FIRE</button>
@@ -228,6 +230,8 @@ body.coarse #ret{display:none}body.coarse #ret.lock{display:block}
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/utils/SkeletonUtils.js"></script>
 <script>
 (function(){
 'use strict';

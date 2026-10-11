@@ -1,10 +1,10 @@
 
 // ===================== Game entities =====================
-const player={clip:{},reloadT:0,reloadId:null,bloom:0,trigger:false,zoom:false,x:P+9,z:36,y:.3,vy:0,a:PI*.85,health:100,armor:save.armor||0,car:null,ph:0,hurtCD:0,weapon:'pistol',fireCD:0,aimT:0,lastShot:-9,onGround:true,model:null,target:null};
+const player={crouch:false,slideT:0,sdx:0,sdz:0,sprinting:false,clip:{},reloadT:0,reloadId:null,bloom:0,trigger:false,zoom:false,x:P+9,z:36,y:.3,vy:0,a:PI*.85,health:100,armor:save.armor||0,car:null,ph:0,hurtCD:0,weapon:'pistol',fireCD:0,aimT:0,lastShot:-9,onGround:true,model:null,target:null};
 if(!save.weapons[player.weapon])player.weapon='fist';
 const vehicles=[],peds=[],cops=[],rockets=[],pickups=[];
 const helis=[];let wanted=0,heat=0,evade=0,bustT=0,shake=0,gameT=0,crimeCD=0;
-const THR=[0,1,4,9,16,26],POLICE_CARS=[0,2,3,4,5,6];
+const THR=[0,1,4,9,16,26],POLICE_CARS=[0,1,3,4,5,6];
 function crime(pts){heat+=pts;let w=0;for(let k=0;k<6;k++)if(heat>=THR[k])w=k;if(w>wanted){wanted=w;starPulse=1}evade=0}
 function minWanted(w){if(wanted<w){wanted=w;heat=Math.max(heat,THR[w]);starPulse=1}evade=0}
 let starPulse=0;
@@ -68,8 +68,8 @@ function drive(c,thr,steer,hb,dt,boost){
     if(hit){c.x+=p.x-px;c.z+=p.z-pz;const vn=c.vel.x*hit.nx+c.vel.z*hit.nz;if(vn<0){c.vel.x-=hit.nx*vn*1.3;c.vel.z-=hit.nz*vn*1.3;if(-vn>6)damageCar(c,(-vn-6)*2.3,-vn,false)}}}
   c.v=c.vel.x*fx+c.vel.z*fz;c.dist+=c.v*dt;
 }
-function damageCar(c,amt,imp,byPlayer){
-  if(c.burnt||amt<=0)return;
+function damageCar(c,amt,imp,byPlayer,boom){
+  if(c.burnt||amt<=0)return;if(c.tn==='tank'&&!boom)amt*=.06;
   if(c.spec)amt*=1-.17*(c.spec.armor||0);
   c.health-=amt;if(byPlayer)c.byPlayer=true;
   if(c===player.car&&imp){sfx.crash(imp);shake=Math.min(1,shake+imp/28)}
@@ -79,7 +79,7 @@ function damageCar(c,amt,imp,byPlayer){
     if(c===player.car)toast('Your car is on fire — get out!','bad',2.5)}
 }
 function bail(c){c.driver=false;if(c.ctrl==='lane'||c.ctrl==='police')c.ctrl='none';const r=[-Math.cos(c.a),Math.sin(c.a)];
-  if(c.kind==='police'){spawnCop(c.x-r[0]*2.4,c.z-r[1]*2.4,c.unit||'police')}else{const p=spawnPed(true);p.x=c.x-r[0]*2.4;p.z=c.z-r[1]*2.4;react(p,'danger',player.x,player.z,true)}}
+  if(c.kind==='police'){spawnCop(c.x-r[0]*2.4,c.z-r[1]*2.4,c.unit||'police',c)}else{const p=spawnPed(true);p.x=c.x-r[0]*2.4;p.z=c.z-r[1]*2.4;react(p,'danger',player.x,player.z,true)}}
 
 function explode(x,y,z,radius,byPlayer){
   for(let k=0;k<26;k++)fxA.spawn(x+rand(-1,1),y+rand(0,1.5),z+rand(-1,1),rand(-6,6),rand(2,9),rand(-6,6),k%2?COL.fire:COL.fire2,1,rand(1.6,3),rand(.4,.9),1.6,2,2);
@@ -89,7 +89,7 @@ function explode(x,y,z,radius,byPlayer){
   sfx.boom(Math.hypot(x-player.x,z-player.z));
   const pd=Math.hypot(player.x-x,player.z-z);shake=Math.max(shake,clamp(1-pd/60,0,1));
   if(pd<radius&&!(player.car&&player.car.burnt===false&&player.car.wreck===0))hurtPlayer((1-pd/radius)*90);
-  for(const c of vehicles){const d=Math.hypot(c.x-x,c.z-z);if(d<radius+1&&!c.burnt&&d>.01){damageCar(c,140*(1-d/(radius+1)),0,byPlayer);c.vel.x+=(c.x-x)/d*6;c.vel.z+=(c.z-z)/d*6}}
+  for(const c of vehicles){const d=Math.hypot(c.x-x,c.z-z);if(d<radius+1&&!c.burnt&&d>.01){damageCar(c,140*(1-d/(radius+1)),0,byPlayer,true);c.vel.x+=(c.x-x)/d*6;c.vel.z+=(c.z-z)/d*6}}
   for(const p of peds.concat(cops)){if(p.state==='dead')continue;const d=Math.hypot(p.x-x,p.z-z);if(d<radius){const k=(1-d/radius);killPed(p,{x:(p.x-x)/(d||1)*14*k,y:8*k+3,z:(p.z-z)/(d||1)*14*k},byPlayer)}}
   for(const h of helis)if(!h.dead&&Math.hypot(h.x-x,h.z-z,h.y-y)<radius+3)damageHeli(h,220,byPlayer);
   if(byPlayer)crime(1.2);
@@ -98,7 +98,7 @@ function explode(x,y,z,radius,byPlayer){
 function hurtPlayer(d){if(state!=='play')return;const a=Math.min(player.armor,d*.7);player.armor-=a;player.health=Math.max(0,player.health-(d-a));vigT=.5;shake=Math.min(1,shake+.25)}
 
 // --- Peds ---
-function nearBlock(minD,maxD){for(let t=0;t<25;t++){const b=pick(blockList),d=Math.hypot(b.x0+28-player.x,b.z0+28-player.z);if(d>minD&&d<maxD)return b}return pick(blockList)}
+function nearBlock(minD,maxD){maxD=Math.min(maxD,170);for(let t=0;t<25;t++){const b=pick(blockList),d=Math.hypot(b.x0+28-player.x,b.z0+28-player.z);if(d>minD&&d<maxD)return b}return pick(blockList)}
 const ARCH={local:{w:[1.1,1.6],run:[5.4,6.4],react:[.4,1],brave:0,hp:45,wt:.33},jogger:{w:[2.6,3.2],run:[7,7.8],react:[.25,.5],brave:0,hp:50,wt:.1},
   elder:{w:[.55,.85],run:[2.4,3.2],react:[1.1,1.9],brave:0,hp:28,wt:.1},business:{w:[1.4,1.8],run:[5.4,6.2],react:[.5,.9],brave:0,hp:45,wt:.15},
   tourist:{w:[.9,1.3],run:[5,5.8],react:[.8,1.4],brave:0,hp:45,wt:.12},thug:{w:[1,1.4],run:[6.6,7.4],react:[.15,.35],brave:2,hp:80,wt:.1},brawler:{w:[1.1,1.5],run:[6.4,7],react:[.2,.4],brave:1,hp:75,wt:.1}};
@@ -107,13 +107,13 @@ function newPedObj(cfg,cop,arch){const m=makePerson(cfg,false);const A=ARCH[arch
   return{m,cfg,cop:!!cop,arch:arch||'local',A,x:0,z:0,y:0,a:0,state:'walk',health:A.hp,ph:rand(0,6),bl:null,s:0,dir:1,speed:rand(...A.w),run:rand(...A.run),react:rand(...A.react),reactT:0,pend:null,
     deadT:0,fl:null,fleeT:0,tx:0,tz:0,shootCD:rand(.5,1.5),hitCD:0,hostile:false,bounty:false,clear:true,losT:0,spin:0,seeT:0}}
 function placePed(p,bl){p.bl=bl;p.s=rand(0,208);p.dir=Math.random()<.5?1:-1;p.state='walk';p.health=p.A.hp;p.fl=null;p.pend=null;p.bounty=false;p.hostile=false;p.m.g.rotation.set(0,0,0);p.m.g.visible=true;
-  if(p.gun)p.gun.visible=false;const q=perim(bl.x0,bl.z0,p.s);p.x=q.x;p.z=q.z;p.y=.3}
+  if(p.gun)p.gun.visible=false;const q=perim(bl.x0,bl.z0,p.s);p.x=q.x;p.z=q.z;p.y=.3;if(Math.random()<.22){p.state='idle';p.idleT=rand(6,18);p.a=rand(0,TAU)}}
 function spawnPed(extra){const a=pickArch(),p=newPedObj(archChar(a),false,a);p.extra=!!extra;
   if(a==='thug'){p.gun=makeGun(Math.random()<.3?'smg':'pistol');p.m.hold.add(p.gun)}
   placePed(p,nearBlock(30,drawDist*.55));peds.push(p);return p}
-function spawnCop(x,z,unit){unit=unit||'police';if(cops.length>=Q.cops+(unit==='police'?2:5))return null;const U=UNITS[unit];
+function spawnCop(x,z,unit,car){unit=unit||'police';if(cops.length>=Q.cops+(unit==='police'?2:5))return null;const U=UNITS[unit];
   const p=newPedObj(U.cfg(),true);p.unit=unit;p.U=U;p.health=U.hp;p.react=rand(...U.react);p.burstN=U.burst;p.side=Math.random()<.5?1:-1;p.sideT=rand(1,3);
-  p.x=x;p.z=z;p.y=groundY(x,z);p.state='cop';const gun=makeGun(unit==='police'&&wanted>=3?'smg':U.gun);gun.visible=true;p.m.hold.add(gun);cops.push(p);return p}
+  p.x=x;p.z=z;p.y=groundY(x,z);p.state='cop';p.ammo=U.mag;p.reloadT=0;p.coverCar=car||null;p.coverOff=rand(-1.6,1.6);p.coverT=0;if(car)updateCover(p);const gun=makeGun(unit==='police'&&wanted>=3?'smg':U.gun);gun.visible=true;p.m.hold.add(gun);cops.push(p);return p}
 function removePed(p){disposePerson(p.m);const a=p.cop?cops:peds,i=a.indexOf(p);if(i>=0)a.splice(i,1)}
 
 function flee(p,fx,fz,t){if(p.state==='dead'||p.cop)return;p.state='flee';p.fleeT=t||rand(6,10);p.tx=fx;p.tz=fz;if(p.gun)p.gun.visible=false}
@@ -166,7 +166,8 @@ function updatePed(p,dt){
   if(dpl>drawDist*.65&&!p.bounty){if(p.extra){removePed(p);return}placePed(p,nearBlock(60,drawDist*.55));return}
   if(p.pend){p.reactT-=dt;if(p.reactT<=0)resolveReact(p)}
   let dx,dz,sp,mode='walk';
-  if(p.state==='walk'){p.s+=p.dir*p.speed*dt;const q=perim(p.bl.x0,p.bl.z0,p.s);p.x=q.x;p.z=q.z;dx=q.dx*p.dir;dz=q.dz*p.dir;sp=p.speed;
+  if(p.state==='idle'){p.idleT-=dt;dx=Math.sin(p.a);dz=Math.cos(p.a);sp=0;if(p.idleT<=0)p.state='walk';if(player.aimT>0&&dpl<16&&player.weapon!=='fist'&&!p.pend)react(p,'aim',player.x,player.z)}
+  else if(p.state==='walk'){p.s+=p.dir*p.speed*dt;const q=perim(p.bl.x0,p.bl.z0,p.s);p.x=q.x;p.z=q.z;dx=q.dx*p.dir;dz=q.dz*p.dir;sp=p.speed;
     if(player.aimT>0&&dpl<16&&player.weapon!=='fist'&&!p.pend)react(p,'aim',player.x,player.z)}
   else{
     let ax,az;
@@ -181,37 +182,73 @@ function updatePed(p,dt){
     const q={x:p.x+dx*sp*dt,z:p.z+dz*sp*dt};if(collideCircle(q,.4)||!walkable(q.x,q.z)){const a=Math.atan2(dx,dz)+rand(-1.5,1.5);if(!walkable(q.x,q.z)){q.x=p.x;q.z=p.z}if(p.state==='flee'){p.tx=p.x-Math.sin(a)*5;p.tz=p.z-Math.cos(a)*5}}
     p.x=q.x;p.z=q.z;
   }
-  p.a=Math.atan2(dx,dz);p.ph+=sp*dt*3;animPerson(p.m,p.ph,mode,sp>0?(sp>3?1.2:.7):0);
+  p.a=Math.atan2(dx,dz);p.ph+=sp*dt*3;animPerson(p.m,p.ph,mode,sp>0?(sp>3?1.2:.7):0,sp);
   p.y=groundY(p.x,p.z);g.position.set(p.x,p.y,p.z);g.rotation.y=p.a;
   hitByCars(p);
 }
 
+let shoutCD=0;
+function copShout(m){if(shoutCD>0)return;shoutCD=5;toast(m,'bad',1.6);sfx.radio()}
+function updateCover(p){const c=p.coverCar;if(!c||c.burnt){p.cover=null;p.coverCar=null;return}
+  const dx=player.x-c.x,dz=player.z-c.z,d=Math.hypot(dx,dz)||1,ux=dx/d,uz=dz/d,back=c.t.W/2+1.1;
+  p.cover={x:c.x-ux*back-uz*p.coverOff,z:c.z-uz*back+ux*p.coverOff};p.inCover=false}
 function updateCop(p,dt){
   const g=p.m.g,U=p.U;
   if(p.state==='dead'){pedPhysicsDead(p,dt);p.deadT-=dt;if(p.deadT<=0)removePed(p);return}
-  const dx=player.x-p.x,dz=player.z-p.z,d=Math.hypot(dx,dz);
-  let mv=0,side=0,mode='walk',ang=Math.atan2(dx,dz);
-  if(wanted===0&&!p.hostile){p.calm=(p.calm||0)+dt;mv=.5;ang=p.a;if(p.calm>14||d>drawDist*.6){removePed(p);return}}
+  const dx=player.x-p.x,dz=player.z-p.z,d=Math.hypot(dx,dz),toP=Math.atan2(dx,dz);
+  let goal=null,back=0,side=0,mode='walk',stance=null,face=toP;
+  if(wanted===0&&!p.hostile){p.calm=(p.calm||0)+dt;goal={x:p.x+Math.sin(p.a)*5,z:p.z+Math.cos(p.a)*5};face=p.a;if(p.calm>14||d>drawDist*.6){removePed(p);return}}
   else{
     p.losT-=dt;if(p.losT<=0){p.clear=lineClear(p.x,1.5,p.z,player.x,1.5,player.z);p.losT=.4}
     if(p.clear&&d<U.range)p.seeT+=dt;else p.seeT=Math.max(0,p.seeT-dt*.5);
-    const shoot=wanted>=2||p.hostile||p.unit!=='police';
-    if(shoot){mode=U.two?'aim2':'aim1';
-      if(d>U.range*.55||!p.clear)mv=1;else if(d<6)mv=-.5;else{p.sideT-=dt;if(p.sideT<=0){p.side=-p.side;p.sideT=rand(1.2,3)}side=p.side*.45}
+    if(p.reloadT>0){p.reloadT-=dt;if(p.reloadT<=0)p.ammo=U.mag}
+    let shoot=wanted>=2||p.hostile||p.unit!=='police';
+    if(!shoot&&player.aimT>0&&player.target&&player.target.ref===p&&player.weapon!=='fist'){p.hostile=true;shoot=true;minWanted(2);copShout('Drop the weapon! Drop it now!')}
+    if(shoot){
+      mode=p.reloadT>0?'walk':U.two?'aim2':'aim1';
+      if(p.cover){p.coverT-=dt;if(p.coverT<=0){p.coverT=2.5;updateCover(p)}
+        if(p.cover){const cd=Math.hypot(p.cover.x-p.x,p.cover.z-p.z);
+          if(cd>.9&&!p.inCover)goal=p.cover;else{p.inCover=true;p.peekT=(p.peekT||0)-dt;if(p.peekT<=0){p.peek=!p.peek;p.peekT=p.peek?rand(1.4,2.8):rand(.7,1.5)}stance=p.peek&&p.reloadT<=0?null:'crouch'}
+          if(d>U.range*.95){p.cover=null;p.inCover=false}}}
+      if(!p.cover){if(d>U.range*.55||!p.clear)goal={x:player.x,z:player.z};else if(d<6)back=1;else{p.sideT-=dt;if(p.sideT<=0){p.side=-p.side;p.sideT=rand(1.2,3)}side=p.side*.45}}
+      const canShoot=p.reloadT<=0&&(!p.inCover||p.peek)&&p.seeT>p.react&&d<U.range&&p.clear;
       p.shootCD-=dt;
-      if(p.seeT>p.react&&p.shootCD<=0&&d<U.range){
+      if(canShoot&&p.shootCD<=0){
         const moving=player.car?Math.abs(player.car.v)>8:(K('w','a','s','d')||Math.hypot(inp.x,inp.y)>.2);
         enemyShoot(p,clamp(U.acc-d*.006,.1,U.acc)*(moving?.7:1)*(player.car?.85:1),U.dmg);
-        if(--p.burstN>0)p.shootCD=U.gap;else{p.burstN=U.burst;p.shootCD=rand(...U.rate)}}}
-    else{mv=d>1.3?1:0;if(d<1.9&&!player.car&&gameT-player.lastShot>1.5)bustT+=dt*1.2}
+        if(--p.ammo<=0){p.reloadT=U.reload;p.burstN=U.burst;p.shootCD=.3}else if(--p.burstN>0)p.shootCD=U.gap;else{p.burstN=U.burst;p.shootCD=rand(...U.rate)}}
+      if(!(goal&&!p.clear))face=toP;
+    }else{
+      mode='aim1';if(d>3.2)goal={x:player.x,z:player.z};
+      if(d<22&&!p.warned){p.warned=true;copShout(pick(['Police! Hands where I can see them!','Freeze! Get down on the ground!',"Don't move! Police!"]))}
+      if(d<4&&!player.car&&gameT-player.lastShot>2){const still=!K('w','a','s','d')&&Math.hypot(inp.x,inp.y)<.2;bustT+=dt*(still?1.3:.4)}
+    }
   }
-  p.a=ang;const sp=mv*(mv>0?U.speed:3);
-  const q={x:p.x+Math.sin(ang)*sp*dt+Math.cos(ang)*side*U.speed*dt,z:p.z+Math.cos(ang)*sp*dt-Math.sin(ang)*side*U.speed*dt};
-  if(collideCircle(q,.4)){q.x+=Math.cos(ang)*U.speed*dt*.8;q.z-=Math.sin(ang)*U.speed*dt*.8}
+  let vx=0,vz=0;
+  if(goal){const gx=goal.x-p.x,gz=goal.z-p.z,gl=Math.hypot(gx,gz)||1;vx=gx/gl*U.speed;vz=gz/gl*U.speed;if(mode==='walk'||!p.clear)face=Math.atan2(gx,gz)}
+  if(back){vx-=Math.sin(toP)*2.5;vz-=Math.cos(toP)*2.5}
+  if(side){vx+=Math.cos(toP)*side*U.speed;vz-=Math.sin(toP)*side*U.speed}
+  if(stance==='crouch'){vx=vz=0}
+  const q={x:p.x+vx*dt,z:p.z+vz*dt};
+  if(collideCircle(q,.4)){q.x+=Math.cos(toP)*U.speed*dt*.6;q.z-=Math.sin(toP)*U.speed*dt*.6}
   if(walkable(q.x,q.z)){p.x=q.x;p.z=q.z}
-  const mvAmt=Math.abs(sp)+Math.abs(side)*U.speed;p.ph+=mvAmt*dt*3;animPerson(p.m,p.ph,mode,mvAmt>.1?1:0);
+  p.a+=wrapA(face-p.a)*Math.min(1,dt*10);
+  const spd=Math.hypot(vx,vz);p.ph+=spd*dt*3;animPerson(p.m,p.ph,mode,spd>.1?1:0,spd,stance);
   p.y=groundY(p.x,p.z);g.position.set(p.x,p.y,p.z);g.rotation.y=p.a;
   hitByCars(p);
+}
+function updateTank(c,dt){
+  const dx=player.x-c.x,dz=player.z-c.z,d=Math.hypot(dx,dz),ang=Math.atan2(dx,dz);let thr=0,steer=0;
+  if(wanted>=5){const diff=wrapA(ang-c.a);steer=clamp(-diff*2,-1,1);thr=d>40?1:d<18?-.6:0;
+    if(c.rev>0){c.rev-=dt;thr=-1;steer=-steer}else if(Math.abs(c.v)<.8&&thr>0){c.stuck+=dt;if(c.stuck>1.6){c.rev=1.4;c.stuck=0}}else c.stuck=0}
+  drive(c,thr,steer,false,dt,false);
+  const tq=c.m.turret,rel=wrapA(ang-c.vis);tq.rotation.y+=clamp(wrapA(rel-tq.rotation.y),-dt*.9,dt*.9);
+  c.shellCD=(c.shellCD===undefined?3:c.shellCD)-dt;
+  if(wanted>=5&&d<150&&c.shellCD<=0&&Math.abs(wrapA(rel-tq.rotation.y))<.1&&lineClear(c.x,2.2,c.z,player.x,1,player.z)){
+    c.shellCD=rand(4.5,6.5);const yaw=c.vis+tq.rotation.y,fx=Math.sin(yaw),fz=Math.cos(yaw),mx=c.x+fx*6.2,my=c.y+2,mz=c.z+fz*6.2;
+    const ex=player.x+rand(-2.5,2.5)-mx,ey=player.y+.4-my,ez=player.z+rand(-2.5,2.5)-mz,el=Math.hypot(ex,ey,ez);
+    fireRocket(mx,my,mz,ex/el,ey/el,ez/el,true,95,9);for(let k=0;k<14;k++)fxN.spawn(mx,my,mz,fx*rand(2,8)+rand(-2,2),rand(0,2),fz*rand(2,8)+rand(-2,2),COL.smokeL,.7,1.4,1.5,2,0,1);
+    fxA.spawn(mx,my,mz,0,0,0,COL.fire2,1,3,.08);sfx.boom(d*.7);shake=Math.max(shake,clamp(1-d/80,0,.5))}
 }
 
 function enemyShoot(p,acc,dmg){
@@ -219,7 +256,8 @@ function enemyShoot(p,acc,dmg){
   fxA.spawn(sx,sy,sz,0,0,0,COL.muzzle,1,.7,.05);
 }
 function shootFrom(sx,sy,sz,acc,dmg){
-  const ty=player.car?player.car.y+1:player.y+1.3,hit=Math.random()<acc;
+  if(!player.car)acc*=player.slideT>0?.35:player.crouch?.6:1;
+  const ty=player.car?player.car.y+1:player.y+(player.crouch?.85:1.3),hit=Math.random()<acc;
   const ex=player.x+(hit?rand(-.2,.2):rand(-3,3)),ey=ty+(hit?rand(-.2,.2):rand(-1,2)),ez=player.z+(hit?rand(-.2,.2):rand(-3,3));
   tracer(sx,sy,sz,ex,ey,ez);sfx.gun('pistol',Math.hypot(sx-player.x,sz-player.z));
   if(hit){if(player.car){damageCar(player.car,dmg*.9,0,false);hurtPlayer(dmg*.12);sparks(ex,ey,ez,4)}else{hurtPlayer(dmg);blood(player.x,ty,player.z,0,0,5)}}
@@ -270,7 +308,7 @@ function updatePolice(c,dt){
   if(wanted>0){
     const diff=wrapA(Math.atan2(dx,dz)-c.a);steer=clamp(-diff*2.5,-1,1);thr=1;
     const pslow=!player.car||Math.abs(player.car.v)<5;
-    if(dist<22&&pslow&&!c.deployed){thr=c.v>1?-1:0;if(Math.abs(c.v)<1.5){c.deployed=true;c.driver=false;c.ctrl='none';c.lights=true;const r=[-Math.cos(c.a),Math.sin(c.a)],u=c.unit||'police',n=u==='police'?(wanted>=2?2:1):u==='swat'?4:3;for(let k=0;k<n;k++){const sd=k%2?1:-1,back=Math.floor(k/2)*2.2;spawnCop(c.x+r[0]*2.4*sd-Math.sin(c.a)*back,c.z+r[1]*2.4*sd-Math.cos(c.a)*back,u)}return}}
+    if(dist<22&&pslow&&!c.deployed){thr=c.v>1?-1:0;if(Math.abs(c.v)<1.5){c.deployed=true;c.driver=false;c.ctrl='none';c.lights=true;const r=[-Math.cos(c.a),Math.sin(c.a)],u=c.unit||'police',n=u==='police'?(wanted>=2?2:1):u==='swat'?4:3;for(let k=0;k<n;k++){const sd=k%2?1:-1,back=Math.floor(k/2)*2.2;spawnCop(c.x+r[0]*2.4*sd-Math.sin(c.a)*back,c.z+r[1]*2.4*sd-Math.cos(c.a)*back,u,c)}if(u!=='police')copShout(u==='swat'?'SWAT, move in!':'Squad, deploy!');return}}
     else if(dist<12)thr=Math.abs(diff)>1.2?.35:.6;
     if(c.rev>0){c.rev-=dt;thr=-1;steer=-steer}else if(Math.abs(c.v)<1.5&&dist>12){c.stuck+=dt;if(c.stuck>1.1){c.rev=1.1;c.stuck=0}}else c.stuck=0;
   }
@@ -278,14 +316,14 @@ function updatePolice(c,dt){
 }
 
 // --- Rockets ---
-function fireRocket(x,y,z,dx,dy,dz,enemy){rockets.push({x,y,z,vx:dx*55,vy:dy*55,vz:dz*55,t:0,enemy:!!enemy})}
+function fireRocket(x,y,z,dx,dy,dz,enemy,speed,radius){const v=speed||55;rockets.push({x,y,z,vx:dx*v,vy:dy*v,vz:dz*v,t:0,enemy:!!enemy,rad:radius})}
 
 function updRockets(dt){for(let i=rockets.length-1;i>=0;i--){const r=rockets[i];r.t+=dt;r.x+=r.vx*dt;r.y+=r.vy*dt;r.z+=r.vz*dt;
   fxN.spawn(r.x,r.y,r.z,rand(-.5,.5),rand(0,1),rand(-.5,.5),COL.smokeL,.6,.7,1.2,2);fxA.spawn(r.x,r.y,r.z,0,0,0,COL.fire2,1,.6,.06);
   let boom=r.t>3||r.y<=groundY(r.x,r.z)||solidAt(r.x,r.y,r.z)||(!r.enemy&&helis.some(h=>!h.dead&&Math.hypot(h.x-r.x,h.y-r.y,h.z-r.z)<3.5))||(r.enemy&&Math.hypot(player.x-r.x,player.z-r.z)<1.5&&r.y<player.y+2.5);
   if(!boom)for(const c of vehicles)if(Math.hypot(c.x-r.x,c.z-r.z)<2&&r.y<2.5){boom=true;break}
   if(!boom)for(const p of peds.concat(cops))if(p.state!=='dead'&&Math.hypot(p.x-r.x,p.z-r.z)<1&&r.y<p.y+2){boom=true;break}
-  if(boom){explode(r.x,Math.max(r.y,groundY(r.x,r.z)),r.z,r.enemy?6.5:8,!r.enemy);rockets.splice(i,1)}}}
+  if(boom){explode(r.x,Math.max(r.y,groundY(r.x,r.z)),r.z,r.rad||(r.enemy?6.5:8),!r.enemy);rockets.splice(i,1)}}}
 
 // --- Pickups ---
 const pkGeo={cash:new THREE.BoxGeometry(.9,.5,.2),health:new THREE.BoxGeometry(.7,.7,.7),armor:new THREE.BoxGeometry(.8,.9,.25),ammo:new THREE.BoxGeometry(.7,.45,.45)};

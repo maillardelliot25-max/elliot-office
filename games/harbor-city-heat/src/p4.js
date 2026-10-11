@@ -56,8 +56,8 @@ function updDecals(dt){for(const d of decals){d.t+=dt;if(d.grow)d.m.scale.setSca
 const SKIN=['#f3d2b8','#e6b48f','#c98f66','#a56b45','#7b4a2f','#5a3624'];
 const HAIRC=['#1b1512','#3b2a20','#6b4a2e','#a77b48','#d9b56d','#e9e2d0','#b23a2a','#3a5bd1','#d94fa0','#2fa86b'];
 const CLOTH=['#f2f2f2','#1d1f24','#c0392b','#e67e22','#f1c40f','#27ae60','#16a085','#2980b9','#8e44ad','#ff7aa8','#7f8c8d','#6b4f3a','#2c3e50','#d4c4a1','#9b2335','#4a6741'];
-const OPTS={frame:['Masculine','Feminine'],skin:SKIN,build:['Slim','Regular','Muscular'],hair:['Bald','Buzz','Short','Long','Mohawk','Afro','Ponytail'],hairColor:HAIRC,hat:['None','Cap','Beanie','Bucket hat','Helmet'],hatColor:CLOTH,glasses:['None','Shades','Aviators'],top:['Tee','Tank','Hoodie','Jacket','Suit','Polo'],topColor:CLOTH,legs:['Jeans','Shorts','Cargo','Slacks'],legsColor:CLOTH,shoesColor:CLOTH,chain:['None','Gold chain','Silver chain']};
-const DEF_CHAR={frame:0,skin:2,build:1,hair:2,hairColor:0,hat:0,hatColor:1,glasses:1,top:0,topColor:0,legs:0,legsColor:12,shoesColor:1,chain:0};
+const OPTS={orig:['Custom colors','Original suit'],beard:['None','Mustache'],frame:['Masculine','Feminine'],skin:SKIN,build:['Slim','Regular','Muscular'],hair:['Bald','Buzz','Short','Long','Mohawk','Afro','Ponytail'],hairColor:HAIRC,hat:['None','Cap','Beanie','Bucket hat','Helmet','Fedora','Police cap'],hatColor:CLOTH,glasses:['None','Shades','Aviators'],top:['Tee','Tank','Hoodie','Jacket','Suit','Polo'],topColor:CLOTH,legs:['Jeans','Shorts','Cargo','Slacks'],legsColor:CLOTH,shoesColor:CLOTH,chain:['None','Gold chain','Silver chain']};
+const DEF_CHAR={orig:0,beard:0,frame:0,skin:2,build:1,hair:2,hairColor:0,hat:0,hatColor:1,glasses:1,top:0,topColor:1,legs:0,legsColor:12,shoesColor:1,chain:0};
 const blobMat=new THREE.MeshBasicMaterial({color:0,transparent:true,opacity:.28,depthWrite:false});
 const blobGeo=new THREE.CircleGeometry(.55,14).rotateX(-PI/2);
 function bx(w,h,d,m,x,y,z,parent){const o=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),m);o.position.set(x,y,z);o.userData.own=true;parent.add(o);return o}
@@ -92,7 +92,7 @@ function mergePart(items){
     for(let i=0;i<a.count;i++){pos.push(a.getX(i),a.getY(i),a.getZ(i));nor.push(n.getX(i),n.getY(i),n.getZ(i));col.push(c.r,c.g,c.b)}g.dispose()}
   const o=new THREE.BufferGeometry();o.setAttribute('position',new THREE.Float32BufferAttribute(pos,3));o.setAttribute('normal',new THREE.Float32BufferAttribute(nor,3));o.setAttribute('color',new THREE.Float32BufferAttribute(col,3));o.computeBoundingSphere();return o;
 }
-function makePerson(cfg,hi){
+function makeFigure(cfg,hi){
   cfg=Object.assign({},DEF_CHAR,cfg);
   const mat=hi?heroMat:personMat,g=new THREE.Group();
   const skin=SKIN[cfg.skin],top=CLOTH[cfg.topColor],legs=CLOTH[cfg.legsColor],shoe=CLOTH[cfg.shoesColor],hair=HAIRC[cfg.hairColor],hat=CLOTH[cfg.hatColor];
@@ -114,6 +114,7 @@ function makePerson(cfg,hi){
   if(hs==='Ponytail')core.push([H.sph,hair,[0,1.65,-.15],[.04,.11,.04]]);
   if(hs==='Mohawk')core.push([H.box,hair,[0,1.86,-.01],[.03,.06,.24]]);
   if(hs==='Afro')core.push([H.sph,hair,[0,1.8,-.02],[.165,.15,.17]]);
+  if(ht==='Police cap'||ht==='Fedora')core.push([H.cap,hat,[0,1.765,0],[.122,.12,.13],[-.3,0,0]],[H.cyl,hat,[0,1.79,.12],[.1,.012,.09]]);
   if(ht==='Cap')core.push([H.cap,hat,[0,1.765,0],[.122,.12,.13],[-.3,0,0]],[H.cyl,hat,[0,1.79,.12],[.1,.012,.09]]);
   if(ht==='Beanie')core.push([H.cap,hat,[0,1.76,0],[.125,.17,.132],[-.4,0,0]]);
   if(ht==='Bucket hat')core.push([H.limb,hat,[0,1.85,0],[.1,.09,.1]],[H.cyl,hat,[0,1.8,0],[.165,.012,.165]]);
@@ -148,8 +149,8 @@ function makePerson(cfg,hi){
   scene.add(g);
   return{g,legL,legR,kneeL,kneeR,armL,armR,elbowL,elbowR,hold,guns:{}};
 }
-function disposePerson(m){scene.remove(m.g);m.g.traverse(o=>{if(o.isMesh&&o.userData.own)o.geometry.dispose()})}
-function animPerson(p,ph,mode,amt){
+function disposeFigure(m){scene.remove(m.g);m.g.traverse(o=>{if(o.isMesh&&o.userData.own)o.geometry.dispose()})}
+function animFigure(p,ph,mode,amt){
   const s=Math.sin(ph)*.7*amt;
   p.legL.rotation.set(s,0,0);p.legR.rotation.set(-s,0,0);
   p.kneeL.rotation.x=Math.max(0,s)*1.3+.08*amt;p.kneeR.rotation.x=Math.max(0,-s)*1.3+.08*amt;
@@ -161,10 +162,10 @@ function animPerson(p,ph,mode,amt){
   else if(mode==='punch'){p.armR.rotation.set(-PI/2,0,0);p.elbowR.rotation.set(0,0,0)}
   else if(mode==='jump'){p.legL.rotation.x=-.5;p.legR.rotation.x=.2;p.kneeL.rotation.x=.9;p.kneeR.rotation.x=.4;p.armL.rotation.set(-.3,0,-.6);p.armR.rotation.set(-.3,0,.6)}
 }
-const randChar=()=>({frame:randi(0,1),skin:randi(0,5),build:randi(0,2),hair:randi(0,6),hairColor:randi(0,5),hat:Math.random()<.7?0:randi(1,3),hatColor:randi(0,15),glasses:Math.random()<.7?0:randi(1,2),top:randi(0,5),topColor:randi(0,15),legs:randi(0,3),legsColor:randi(0,15),shoesColor:randi(0,15),chain:Math.random()<.85?0:randi(1,2)});
-const copChar=()=>({frame:Math.random()<.25?1:0,skin:randi(0,5),build:randi(1,2),hair:1,hairColor:randi(0,3),hat:1,hatColor:12,glasses:Math.random()<.5?1:2,top:5,topColor:12,legs:3,legsColor:12,shoesColor:1,chain:0});
-const swatChar=()=>({frame:0,skin:randi(0,5),build:2,hair:1,hairColor:0,hat:4,hatColor:1,glasses:1,top:3,topColor:1,legs:2,legsColor:1,shoesColor:1,chain:0,vest:'#24262a'});
-const armyChar=()=>({frame:Math.random()<.2?1:0,skin:randi(0,5),build:randi(1,2),hair:1,hairColor:randi(0,3),hat:4,hatColor:15,glasses:Math.random()<.3?1:0,top:3,topColor:15,legs:2,legsColor:15,shoesColor:11,chain:0,vest:'#5c5b3e'});
+const randChar=()=>({orig:Math.random()<.2?1:0,beard:Math.random()<.35?1:0,frame:Math.random()<.45?1:0,skin:randi(0,5),build:randi(0,2),hair:randi(0,6),hairColor:randi(0,5),hat:Math.random()<.7?0:randi(1,3),hatColor:randi(0,15),glasses:Math.random()<.7?0:randi(1,2),top:randi(0,5),topColor:randi(0,15),legs:randi(0,3),legsColor:randi(0,15),shoesColor:randi(0,15),chain:Math.random()<.85?0:randi(1,2)});
+const copChar=()=>({frame:0,orig:0,beard:Math.random()<.4?1:0,skin:randi(0,5),build:randi(1,2),hair:1,hairColor:randi(0,3),hat:6,hatColor:12,glasses:Math.random()<.5?1:2,top:5,topColor:12,legs:3,legsColor:12,shoesColor:1,chain:0});
+const swatChar=()=>({unit:'swat',frame:0,skin:randi(0,5),build:2,hair:1,hairColor:0,hat:4,hatColor:1,glasses:1,top:3,topColor:1,legs:2,legsColor:1,shoesColor:1,chain:0,vest:'#24262a'});
+const armyChar=()=>({unit:'army',frame:Math.random()<.2?1:0,skin:randi(0,5),build:randi(1,2),hair:1,hairColor:randi(0,3),hat:4,hatColor:15,glasses:Math.random()<.3?1:0,top:3,topColor:15,legs:2,legsColor:15,shoesColor:11,chain:0,vest:'#5c5b3e'});
 function archChar(a){const c=randChar();
   if(a==='jogger'){c.top=1;c.legs=1;c.hat=Math.random()<.4?1:0;c.build=randi(0,1);c.chain=0}
   else if(a==='elder'){c.hairColor=5;c.hair=pick([0,1,2]);c.build=0;c.legs=3;c.hat=Math.random()<.3?3:0}
@@ -174,9 +175,9 @@ function archChar(a){const c=randChar();
   else if(a==='brawler'){c.top=1;c.build=2;c.legs=pick([0,2]);c.hair=pick([0,1,4])}
   return c}
 const UNITS={
-  police:{hp:90,speed:6.2,react:[.6,1.1],acc:.42,rate:[.6,1.1],burst:1,gap:.1,dmg:7,range:42,gun:'pistol',two:false,armor:0,cfg:()=>copChar()},
-  swat:{hp:160,speed:5.8,react:[.3,.55],acc:.55,rate:[.7,1.2],burst:4,gap:.09,dmg:8,range:55,gun:'smg',two:true,armor:.45,cfg:()=>swatChar()},
-  army:{hp:210,speed:6.4,react:[.2,.4],acc:.62,rate:[.8,1.3],burst:5,gap:.1,dmg:11,range:75,gun:'ar',two:true,armor:.55,cfg:()=>armyChar()},
+  police:{mag:15,reload:2.2,hp:90,speed:6.2,react:[.6,1.1],acc:.42,rate:[.6,1.1],burst:1,gap:.1,dmg:7,range:42,gun:'pistol',two:false,armor:0,cfg:()=>copChar()},
+  swat:{mag:30,reload:2.4,hp:160,speed:5.8,react:[.3,.55],acc:.55,rate:[.7,1.2],burst:4,gap:.09,dmg:8,range:55,gun:'smg',two:true,armor:.45,cfg:()=>swatChar()},
+  army:{mag:30,reload:2.2,hp:210,speed:6.4,react:[.2,.4],acc:.62,rate:[.8,1.3],burst:5,gap:.1,dmg:11,range:75,gun:'ar',two:true,armor:.55,cfg:()=>armyChar()},
 };
 
 // ===================== Vehicles =====================
@@ -187,6 +188,7 @@ const CT={
   suv:{name:'SUV',L:4.8,W:1.98,r:.44,max:37,acc:14,grip:6.6,hp:130,pts:[[-2.4,.5],[2.4,.5],[2.46,.9],[2.32,1.16],[1.25,1.24],[.72,1.86],[-2.1,1.86],[-2.36,1.42],[-2.44,1.22],[-2.46,.9]]},
   gt:{name:'GT coupe',L:4.6,W:1.96,r:.37,max:60,acc:26,grip:9,hp:100,pts:[[-2.3,.32],[2.3,.32],[2.38,.55],[2.15,.72],[.55,.86],[-.25,1.22],[-1.0,1.2],[-2.0,.9],[-2.3,.86],[-2.38,.56]]},
   super:{name:'Supercar',L:4.6,W:2.02,r:.36,max:68,acc:31,grip:9.6,hp:90,pts:[[-2.3,.27],[2.3,.27],[2.37,.42],[2.1,.55],[.9,.72],[-.1,1.07],[-.95,1.07],[-1.95,.86],[-2.3,.84],[-2.37,.5]]},
+  tank:{name:'Tank',L:7.2,W:3.5,r:.5,max:12,acc:5,grip:12,hp:1200,pts:[[-2.7,.48],[2.7,.48],[2.76,.9],[2.62,1.3],[2.12,1.46],[1.55,2.3],[-2.6,2.3],[-2.72,2.0],[-2.76,1.42],[-2.76,.9]]},
   van:{name:'Van',L:5.4,W:2.04,r:.42,max:32,acc:11,grip:6,hp:140,pts:[[-2.7,.48],[2.7,.48],[2.76,.9],[2.62,1.3],[2.12,1.46],[1.55,2.3],[-2.6,2.3],[-2.72,2.0],[-2.76,1.42],[-2.76,.9]]},
 };
 const CIV_TYPES=['sedan','sedan','sedan','suv','suv','sports','muscle','van','sedan','gt'];
@@ -226,7 +228,24 @@ function rimGeo(style,r){const k=style+r;if(rimGeos[k])return rimGeos[k];let g;
 function mergeGeos(list){const p=[],n=[];for(const g0 of list){const g=g0.index?g0.toNonIndexed():g0;const a=g.attributes.position,b=g.attributes.normal;for(let i=0;i<a.count;i++){p.push(a.getX(i),a.getY(i),a.getZ(i));n.push(b.getX(i),b.getY(i),b.getZ(i))}}
   const o=new THREE.BufferGeometry();o.setAttribute('position',new THREE.Float32BufferAttribute(p,3));o.setAttribute('normal',new THREE.Float32BufferAttribute(n,3));return o}
 const carBlobGeo=new THREE.PlaneGeometry(1,1).rotateX(-PI/2);
+function makeTank(){
+  const g=new THREE.Group(),body=new THREE.Group();g.add(body);const dark=lam('#1b1c18'),wheelM=lam('#2c2e26');
+  const hull=new THREE.Mesh(new THREE.BoxGeometry(3.3,1.1,6.6),armyPaint);hull.position.y=1.05;hull.castShadow=true;body.add(hull);
+  const gl=new THREE.Mesh(new THREE.BoxGeometry(3.3,.7,1.3),armyPaint);gl.position.set(0,1.15,3.35);gl.rotation.x=.65;body.add(gl);
+  for(const s of[-1,1]){const tr=new THREE.Mesh(new THREE.BoxGeometry(.78,1.05,7.3),dark);tr.position.set(s*1.72,.55,0);body.add(tr);
+    for(let k=-3;k<=3;k++){const w=new THREE.Mesh(new THREE.CylinderGeometry(.42,.42,.62,12).rotateZ(PI/2),wheelM);w.position.set(s*1.75,.45,k*.95);body.add(w)}
+    const sk=new THREE.Mesh(new THREE.BoxGeometry(.08,.55,6.8),armyPaint);sk.position.set(s*2.13,.95,0);body.add(sk)}
+  const turret=new THREE.Group();turret.position.set(0,1.95,-.4);body.add(turret);
+  const tb=new THREE.Mesh(new THREE.CylinderGeometry(1.25,1.55,.8,10),armyPaint);tb.castShadow=true;turret.add(tb);
+  const mant=new THREE.Mesh(new THREE.BoxGeometry(.8,.5,.6),armyPaint);mant.position.set(0,.05,1.4);turret.add(mant);
+  const barrel=new THREE.Mesh(new THREE.CylinderGeometry(.12,.15,4.6,10).rotateX(PI/2),lam('#3c4230'));barrel.position.set(0,.05,3.8);turret.add(barrel);
+  const hat=new THREE.Mesh(new THREE.CylinderGeometry(.35,.35,.15,10),armyPaint);hat.position.set(.5,.5,-.3);turret.add(hat);
+  const blob=new THREE.Mesh(carBlobGeo,blobMat);blob.scale.set(4.2,1,7.8);blob.position.y=.04;g.add(blob);
+  const gm=new THREE.Mesh(new THREE.BoxGeometry(.01,.01,.01),glassMats[0]);gm.visible=false;body.add(gm);
+  scene.add(g);return{g,body,bm:hull,gm,paint:armyPaint,wheels:[],t:CT.tank,fy:1.1,ry:1.1,bar:null,neon:null,spoiler:null,own:false,turret};
+}
 function makeCar(tn,hex,role){
+  if(tn==='tank')return makeTank();
   const t=CT[tn],G=typeGeo(t),g=new THREE.Group(),body=new THREE.Group();g.add(body);
   const paint=role==='police'?policePaint:role==='swat'?paintMat('#16181c'):role==='army'?armyPaint:paintMat(role==='taxi'?'#f2c230':hex);
   const bm=new THREE.Mesh(G.body,paint);bm.castShadow=true;body.add(bm);
