@@ -144,7 +144,9 @@ input[type=range]{width:100%;accent-color:var(--job)}
 .tb.on{background:rgba(255,204,77,.55)}
 #tF{grid-column:3;grid-row:2/4;height:calc(var(--bs)*2 + 10px);border-radius:calc(var(--bs)/2);background:rgba(200,48,42,.5);font-size:15px}
 #tE{grid-column:3;grid-row:1;background:rgba(255,204,77,.35)}
-#tA{grid-column:2;grid-row:3}#tB{grid-column:1;grid-row:3}#tW{grid-column:2;grid-row:2}#tH{grid-column:1;grid-row:2}
+#tA{grid-column:2;grid-row:3}#tZ{grid-column:2;grid-row:1}
+#scope{position:absolute;inset:0;pointer-events:none;background:radial-gradient(circle at center,transparent 0 31vmin,rgba(0,0,0,.92) 31.4vmin);}
+#scope::before,#scope::after{content:"";position:absolute;left:50%;top:50%;background:rgba(0,0,0,.85)}#scope::before{width:62vmin;height:1px;transform:translate(-50%,0)}#scope::after{height:62vmin;width:1px;transform:translate(0,-50%)}#tB{grid-column:1;grid-row:3}#tW{grid-column:2;grid-row:2}#tH{grid-column:1;grid-row:2}
 
 body.coarse #mapWrap{top:calc(env(safe-area-inset-top,0px) + 54px);bottom:auto;width:140px}
 body.coarse #mm{width:140px;height:110px}
@@ -161,6 +163,7 @@ body.coarse #ret{display:none}body.coarse #ret.lock{display:block}
   <canvas id="view"></canvas>
   <div id="vig"></div>
   <div id="ret" hidden></div>
+  <div id="scope" hidden></div>
 
   <div id="hud" hidden>
     <div id="topL"><button class="chip" id="bMenu" type="button">Menu</button><button class="chip" id="bMap" type="button">Map</button><button class="chip" id="bFull" type="button" hidden>Full screen</button></div>
@@ -189,6 +192,7 @@ body.coarse #ret{display:none}body.coarse #ret.lock{display:block}
         <button class="tb" id="tF" type="button">FIRE</button>
         <button class="tb" id="tB" type="button">JUMP</button>
         <button class="tb" id="tA" type="button">RUN</button>
+        <button class="tb" id="tZ" type="button" hidden>SCOPE</button>
       </div>
     </div>
   </div>
@@ -219,7 +223,7 @@ body.coarse #ret{display:none}body.coarse #ret.lock{display:block}
   <div id="bigmap" hidden>
     <canvas id="bmc"></canvas>
     <div id="bmBar"><span class="t out">San Paloma County</span><span class="fine out" id="bmTip">Tap the map to set a waypoint</span><button class="chip" id="bmClose" type="button">Close</button></div>
-    <div id="bmLegend" class="out"><span><i style="background:#ff9b3d"></i>Mod garage</span><span><i style="background:#ff7ac8"></i>Clothes</span><span><i style="background:#e8453c"></i>Gun shop</span><span><i style="background:#f6efe2"></i>Hospital</span><span><i style="background:#4ea6ff"></i>Police</span><span><i style="background:#ffcc4d"></i>Job</span><span><i style="background:#b46cff"></i>Waypoint</span><span><i style="background:#3ee08f"></i>Your car</span></div>
+    <div id="bmLegend" class="out"><span><i style="background:#ff9b3d"></i>Mod garage</span><span><i style="background:#ff7ac8"></i>Clothes</span><span><i style="background:#e8453c"></i>Gun shop</span><span><i style="background:#3ee0d0"></i>Car dealer</span><span><i style="background:#f6efe2"></i>Hospital</span><span><i style="background:#4ea6ff"></i>Police</span><span><i style="background:#ffcc4d"></i>Job</span><span><i style="background:#b46cff"></i>Waypoint</span><span><i style="background:#3ee08f"></i>Your car</span></div>
   </div>
 </div>
 

@@ -11,7 +11,8 @@ addEventListener('keydown',e=>{
   if(k==='h')sfx.horn();
   if(k==='c')camFar=!camFar;
   if(k==='m')openMap();
-  if(k==='r')radioNext();
+  if(k==='r'){if(player.car)radioNext();else startReload(player.weapon)}
+  if(k==='z'&&WEAP[player.weapon].scope&&!player.car)player.zoom=!player.zoom;
   if(k==='p'||k==='escape'){if(document.pointerLockElement)document.exitPointerLock();openPause()}
   if(k>='1'&&k<='6'){const w=WORDER[+k-1];if(save.weapons[w]!==undefined){player.weapon=w;showGun()}}
 });
@@ -24,6 +25,7 @@ canvas.addEventListener('pointerdown',e=>{
   if(state!=='play'&&state!=='shop')return;
   if(e.pointerType==='touch'){if(!drag){drag={id:e.pointerId,x:e.clientX,y:e.clientY}}return}
   if(state==='shop'){drag={id:e.pointerId,x:e.clientX,y:e.clientY};return}
+  if(e.button===2&&WEAP[player.weapon].scope&&!player.car){player.zoom=!player.zoom;return}
   if(e.button===0){inp.fire=true;if(!document.pointerLockElement&&!lockFailed){try{const p=canvas.requestPointerLock();if(p&&p.catch)p.catch(()=>{lockFailed=true})}catch(err){lockFailed=true}}}
   if(!document.pointerLockElement)drag={id:e.pointerId,x:e.clientX,y:e.clientY};
 });
@@ -50,6 +52,8 @@ addEventListener('wheel',e=>{if(state==='play')cycleWeapon(e.deltaY>0?1:-1)},{pa
   hold('tA',()=>{if(player.car)inp.nos=true;else inp.run=true},()=>{inp.nos=false;inp.run=false});
   hold('tW',()=>{if(player.car)sfx.horn();else cycleWeapon(1)});
   hold('tH',()=>{if(player.car)radioNext();else openMap()});
+  hold('tZ',()=>{player.zoom=!player.zoom});
+  $('wpn').addEventListener('pointerdown',e=>{e.stopPropagation();if(!player.car)startReload(player.weapon)});
   $('radio').addEventListener('click',radioNext);
   document.documentElement.style.setProperty('--bs',64*save.settings.btn+'px');
   if(coarse&&document.documentElement.requestFullscreen){$('bFull').hidden=false;$('bFull').onclick=()=>{const p=document.documentElement.requestFullscreen();if(p&&p.then)p.then(()=>{try{screen.orientation.lock('landscape').catch(()=>{})}catch(e){}}).catch(()=>toast('Full screen is not available here'))}}
@@ -72,7 +76,7 @@ function respawn(){
   if(downKind==='busted'){player.armor=0;for(const w of['smg','shotgun','rifle','rpg'])if(save.weapons[w])save.weapons[w]=Math.floor(save.weapons[w]/2)}
   for(const c of vehicles.slice())if(c.kind==='police'&&!c.mine)removeVehicle(c);
   for(const p of cops.slice())removePed(p);
-  if(heli){scene.remove(heli.g);heli=null}
+  for(const h of helis)scene.remove(h.g);helis.length=0;for(const r of rockets.splice(0));player.zoom=false;player.reloadT=0;
   wanted=0;heat=0;bustT=0;evade=0;
   if(job.on)endJob(6);
   state='play';$('game').classList.remove('down');$('big').hidden=true;camYaw=player.a;
@@ -160,7 +164,7 @@ for(let i=0;i<Q.peds;i++)spawnPed(false);
 for(let i=0;i<Q.traffic;i++)spawnTraffic(20,drawDist*.7);
 for(let i=0;i<10;i++)spawnParked(30,drawDist*.7);
 updateEnv();
-window.__hch={player,save,vehicles,peds,cops,get state(){return state},set state(v){state=v},openGarage,openGuns,openCreator,openMap,closeMap,minWanted,spawnHeli,startGame,teleport:(x,z)=>{player.x=x;player.z=z}};
+window.__hch={player,save,vehicles,peds,cops,get state(){return state},set state(v){state=v},openGarage,openGuns,openCreator,openMap,closeMap,minWanted,spawnHeli,spawnCop,helis,addVehicle,get gameT(){return gameT},get wanted(){return wanted},startGame,teleport:(x,z)=>{player.x=x;player.z=z}};
 requestAnimationFrame(frame);
 })();
 </script>

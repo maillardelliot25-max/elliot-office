@@ -77,7 +77,7 @@ function openGuns(){
   shopCtx={kind:'guns'};state='shop';
   const render=()=>{const B=$('pBody');B.innerHTML='';
     for(const id of WORDER){if(id==='fist')continue;const w=WEAP[id],has=save.weapons[id]!==undefined;const it=el('div','item');
-      it.append(el('div','nm',w.name),el('div','ds',has?'Owned · '+(save.weapons[id]||0)+' rounds':'Not owned'));const a=el('div','acts');
+      it.append(el('div','nm',w.name),el('div','ds',(has?'Owned · '+(save.weapons[id]||0)+' rds':'Not owned')+(w.mag?` · mag ${w.mag} · reload ${w.reload}s`:'')+(w.auto?' · full-auto':'')+(w.scope?' · scoped':'')));const a=el('div','acts');
       const b=el('button','buy',has?'Ammo +'+w.pack+' · '+fmt(w.ammoPrice):'Buy · '+fmt(w.price));b.type='button';const cost=has?w.ammoPrice:w.price;b.disabled=cost>save.money;
       b.onclick=()=>{save.money-=cost;save.weapons[id]=(save.weapons[id]||0)+w.pack;if(!has){player.weapon=id;showGun()}sfx.pickup();persist();render()};a.append(b);it.append(a);B.append(it)}
     const it=el('div','item');it.append(el('div','nm','Body armor'),el('div','ds','Absorbs 70% of incoming damage · now '+Math.round(player.armor)+'%'));const a=el('div','acts'),b=el('button','buy','Buy · $250');b.type='button';b.disabled=save.money<250||player.armor>=100;b.onclick=()=>{save.money-=250;player.armor=100;sfx.pickup();render()};a.append(b);it.append(a);B.append(it);
@@ -86,7 +86,19 @@ function openGuns(){
   panel('Ammo Depot','Hardware for the discerning citizen.',null,render,true);$('pOk').textContent='Done';$('pOk').disabled=false;$('pNo').hidden=true;
   $('pOk').onclick=()=>{closePanel();state='play';persist()};
 }
-function openShop(sh){if(sh.type==='garage')openGarage(player.car);else if(sh.type==='clothes')openCreator(false);else openGuns()}
+function openShop(sh){if(sh.type==='garage')openGarage(player.car);else if(sh.type==='clothes')openCreator(false);else if(sh.type==='dealer')openDealer(sh);else openGuns()}
+const FOR_SALE=[['sports',6000],['muscle',4500],['gt',15000],['super',30000],['suv',3500]];
+function openDealer(sh){
+  shopCtx={kind:'dealer'};state='shop';let color=PAINT[1];
+  const render=()=>{const B=$('pBody');B.innerHTML='';
+    B.append(swRow('Factory color',PAINT,()=>PAINT.indexOf(color),v=>{color=PAINT[v]}));
+    for(const[tn,price]of FOR_SALE){const t=CT[tn],it=el('div','item');it.append(el('div','nm',t.name),el('div','ds',`Top speed ${Math.round(t.max*3.6)} km/h · 0–100 in ${(27.8/t.acc*1.15).toFixed(1)}s · grip ${t.grip.toFixed(1)}`));
+      const a=el('div','acts'),b=el('button','buy',fmt(price));b.type='button';b.disabled=price>save.money;
+      b.onclick=()=>{save.money-=price;for(const v of vehicles)if(v.mine){v.mine=false}const c=addVehicle(tn,sh.x+2,sh.z-3.4,PI/2,'civ','none');c.driver=false;c.mine=true;const spec=Object.assign({},DEF_SPEC,{color});applyMods(c,spec);save.car={tn,spec};persist();sfx.pickup();closePanel();state='play';toast('Your new '+t.name.toLowerCase()+' is parked out front','cash',2.6)};
+      a.append(b);it.append(a);B.append(it)}
+    $('pCost').textContent=fmt(save.money);$('pCost').className=''};
+  panel('Paloma Motorsport','Bought cars become your personal car and are saved.',null,render,true);$('pOk').textContent='Leave';$('pOk').disabled=false;$('pNo').hidden=true;$('pOk').onclick=()=>{closePanel();state='play'};
+}
 // Settings & controls (from title or pause)
 function openSettings(back){
   const S=save.settings;
@@ -109,10 +121,10 @@ function openSettings(back){
 }
 function openHelp(back){
   const render=()=>{const B=$('pBody');B.innerHTML='';const k=el('div','keys');
-    const rows=coarse?[['STICK','move / steer and throttle'],['DRAG','look around (right side)'],['FIRE','shoot · auto-aims'],['ENTER','car / shop'],['WEAPON','switch weapon'],['JUMP · BRAKE','on foot · in car'],['RUN · NITRO','on foot · in car'],['MAP · RADIO','on foot · in car']]
-      :[['W A S D','move / drive'],['MOUSE','look (click to capture)'],['LEFT CLICK','shoot · auto-aims'],['E','car / shop'],['Q · WHEEL','switch weapon'],['SPACE','jump · handbrake'],['SHIFT','sprint · nitro'],['R','radio station'],['H','horn'],['M','map'],['C','camera distance'],['P · ESC','pause']];
+    const rows=coarse?[['STICK','move / steer and throttle'],['DRAG','look around (right side)'],['FIRE','shoot · auto-aims'],['ENTER','car / shop'],['WEAPON','switch weapon'],['JUMP · BRAKE','on foot · in car'],['RUN · NITRO','on foot · in car'],['SCOPE','sniper zoom'],['TAP AMMO','reload'],['MAP · RADIO','on foot · in car']]
+      :[['W A S D','move / drive'],['MOUSE','look (click to capture)'],['LEFT CLICK','shoot · auto-aims'],['E','car / shop'],['Q · WHEEL','switch weapon'],['SPACE','jump · handbrake'],['SHIFT','sprint · nitro'],['R','reload · radio in car'],['Z · RIGHT CLICK','sniper scope'],['H','horn'],['M','map'],['C','camera distance'],['P · ESC','pause']];
     for(const[a,b]of rows){const d=el('div');d.append(el('kbd','',a),el('span','',b));k.append(d)}B.append(k);
-    B.append(el('p','fine','Crimes raise your wanted level. At 2 stars the cops shoot back, at 4 a helicopter joins. Break line of sight long enough and they give up. Mod garages, clothing and gun shops are marked on the map.'))};
+    B.append(el('p','fine','Crimes raise your wanted level. 1–2★ police, 3★ SWAT, 4★ police helicopter, 5★ the army and a gunship. Break line of sight long enough and they give up. Mod garages, clothing and gun shops are marked on the map.'))};
   panel('Controls','',null,render,true);$('pOk').textContent='Back';$('pOk').disabled=false;$('pNo').hidden=true;$('pCost').textContent='';$('pOk').onclick=()=>{closePanel();back()};
 }
 function openPause(){

@@ -29,5 +29,13 @@ Notes so future sessions (and future games) can pick up where we left off.
   - The proxy blocks the CDN, so fetch three.js with `npm pack three@0.128.0` and point the test page at the local file.
   - `window.__hch` exposes test hooks.
 
+## Update 3 (latest)
+- Law escalation: 1–2★ police, 3★ SWAT (vans, armored, SMGs, 4-man squads), 4★ police helicopter, 5★ army (olive SUVs, soldiers with rifles) plus an army gunship that fires rockets.
+- Units are in `UNITS` (p4): hp, speed, reaction time, accuracy, burst fire, armor. Helicopters live in the `helis` array.
+- Civilian archetypes are in `ARCH` (p5): local, jogger, elder, business, tourist, thug (armed, shoots back), brawler (fists). Each has its own walk/run speed, reaction delay and bravery.
+- Weapons (`WEAP`, p6): 9mm, .45, compact SMG, pump shotgun, assault rifle, battle rifle, sniper (scope), LMG, RPG.
+  - Each has a magazine and reload time, recoil and bloom, damage falloff, and semi or full auto.
+- Sports cars: new GT coupe and Supercar types, more common in rich areas. Paloma Motorsport dealers sell them.
+
 ## Ideas not done yet
-Gangs and turf, more mission types, a freeway, swimming, an aircraft, rigged or skinned human models.
+Tanks, gangs and turf, more mission types, a freeway, swimming, an aircraft, rigged or skinned human models.

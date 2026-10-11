@@ -210,7 +210,7 @@ function solidAt(x,y,z){const l=cols.get(colKey(x,z));if(!l)return false;for(con
 function lineClear(x0,y0,z0,x1,y1,z1){const d=Math.hypot(x1-x0,z1-z0),n=Math.ceil(d/2.5);for(let k=1;k<n;k++){const t=k/n;if(solidAt(lerp(x0,x1,t),lerp(y0,y1,t),lerp(z0,z1,t)))return false}return true}
 
 // Shops & services
-const SHOP_DEF={garage:{name:'Torque Kings Customs',col:'#ff9b3d'},clothes:{name:'Threadz',col:'#ff7ac8'},guns:{name:'Ammo Depot',col:'#e8453c'},hospital:{name:'St. Paloma Hospital',col:'#f6efe2'},police:{name:'Police Station',col:'#4ea6ff'}};
+const SHOP_DEF={garage:{name:'Torque Kings Customs',col:'#ff9b3d'},clothes:{name:'Threadz',col:'#ff7ac8'},guns:{name:'Ammo Depot',col:'#e8453c'},hospital:{name:'St. Paloma Hospital',col:'#f6efe2'},dealer:{name:'Paloma Motorsport',col:'#3ee0d0'},police:{name:'Police Station',col:'#4ea6ff'}};
 const shops=[];
 function blockAt(i,j){return blockList.find(b=>b.i===i&&b.j===j)}
 function addShop(type,i,j,s){const b=blockAt(i,j);let x,z;
@@ -219,6 +219,7 @@ function addShop(type,i,j,s){const b=blockAt(i,j);let x,z;
 addShop('garage',-1,-1);addShop('garage',5,3);addShop('garage',-6,4);
 addShop('clothes',1,1,26);addShop('clothes',-6,-4,26);addShop('clothes',-8,2,130);
 addShop('guns',-2,4,26);addShop('guns',4,-3,26);addShop('guns',6,-6,26);
+addShop('dealer',2,-2,26);addShop('dealer',-4,-6,26);
 addShop('hospital',-1,2,26);addShop('police',2,1,26);
 function iconDraw(g,type,x,y,r){
   g.save();g.translate(x,y);g.fillStyle=SHOP_DEF[type]?SHOP_DEF[type].col:'#fff';g.strokeStyle='#000';g.lineWidth=r*.18;
@@ -226,6 +227,7 @@ function iconDraw(g,type,x,y,r){
   if(type==='garage'){g.lineWidth=2.4*s;g.beginPath();g.moveTo(-5*s,5*s);g.lineTo(4*s,-4*s);g.stroke();g.beginPath();g.arc(4.5*s,-4.5*s,3*s,PI*.25,PI*1.75,true);g.stroke()}
   else if(type==='clothes'){g.beginPath();g.moveTo(-6*s,-4*s);g.lineTo(-2.5*s,-6*s);g.lineTo(2.5*s,-6*s);g.lineTo(6*s,-4*s);g.lineTo(4*s,-1*s);g.lineTo(3*s,-2*s);g.lineTo(3*s,6*s);g.lineTo(-3*s,6*s);g.lineTo(-3*s,-2*s);g.lineTo(-4*s,-1*s);g.closePath();g.fill()}
   else if(type==='guns'){g.fillRect(-6*s,-4*s,11*s,3.5*s);g.fillRect(-6*s,-1*s,3.5*s,6*s)}
+  else if(type==='dealer'){g.beginPath();g.moveTo(-7*s,2*s);g.lineTo(-5*s,-2*s);g.lineTo(-2*s,-4*s);g.lineTo(3*s,-4*s);g.lineTo(6*s,-1*s);g.lineTo(7*s,2*s);g.closePath();g.fill();g.fillStyle=SHOP_DEF.dealer.col;g.beginPath();g.arc(-4*s,2.5*s,1.8*s,0,TAU);g.arc(4*s,2.5*s,1.8*s,0,TAU);g.fill()}
   else if(type==='hospital'){g.fillStyle='#d23';g.fillRect(-1.6*s,-6*s,3.2*s,12*s);g.fillRect(-6*s,-1.6*s,12*s,3.2*s)}
   else if(type==='police'){g.fillStyle='#fff';g.beginPath();for(let k=0;k<10;k++){const a=k*PI/5-PI/2,rr=k%2?2.6*s:6*s;g.lineTo(Math.cos(a)*rr,Math.sin(a)*rr)}g.fill()}
   g.restore();

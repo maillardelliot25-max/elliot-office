@@ -20,11 +20,12 @@ function burst(vol,dur,freq,type='lowpass',at){if(!actx)return;const t=at||actx.
 function tone(freq,dur,type,vol,at,dest,slide){if(!actx)return;const t=at||actx.currentTime,o=actx.createOscillator(),g=actx.createGain();o.type=type;o.frequency.setValueAtTime(freq,t);if(slide)o.frequency.exponentialRampToValueAtTime(slide,t+dur);g.gain.setValueAtTime(vol,t);g.gain.exponentialRampToValueAtTime(.001,t+dur);o.connect(g).connect(dest||master);o.start(t);o.stop(t+dur+.02)}
 let lastCrash=0;
 const sfx={
-  gun(id,dist){const v=clamp(1-dist/120,.05,1);const p={pistol:[.5,.16,2200],smg:[.35,.09,2600],shotgun:[.8,.35,1100],rifle:[.5,.14,2000],rpg:[.6,.6,500]}[id]||[.4,.12,2000];burst(p[0]*v,p[1],p[2]);tone(id==='shotgun'?90:140,.08,'sine',.3*v,0,null,40)},
+  gun(id,dist){const v=clamp(1-dist/120,.05,1);const p={pistol:[.5,.16,2200,140],heavy:[.65,.2,1700,110],smg:[.35,.09,2600,160],shotgun:[.85,.38,1000,80],rifle:[.55,.15,2100,120],battle:[.7,.2,1700,95],sniper:[1,.5,1300,70],rpg:[.6,.6,500,60]}[id]||[.4,.12,2000,140];burst(p[0]*v,p[1],p[2]);tone(p[3],.09,'sine',.32*v,0,null,40);if(id==='sniper'&&actx)burst(.25*v,.9,600,'lowpass',actx.currentTime+.12)},
   boom(d){const v=clamp(1-d/220,.08,1);burst(1.2*v,1.4,420);tone(70,.9,'sine',.8*v,0,null,25)},
   crash(imp){const t=performance.now();if(t-lastCrash<140)return;lastCrash=t;burst(clamp(imp/22,.06,.7),.35,900);tone(110,.15,'square',clamp(imp/60,.02,.12),0,null,50)},
   hit(){burst(.25,.08,700)},thud(){tone(90,.12,'sine',.25,0,null,50)},punch(){burst(.3,.07,500);tone(160,.06,'sine',.25,0,null,70)},
   pickup(){tone(880,.12,'triangle',.18);tone(1320,.18,'triangle',.15,actx&&actx.currentTime+.08)},click(){tone(1200,.04,'square',.06)},door(){burst(.25,.12,600);tone(200,.08,'square',.06)},
+  reload(){if(!actx)return;const t=actx.currentTime;burst(.2,.05,3000,'highpass');tone(900,.04,'square',.05,t+.25);burst(.25,.06,2500,'highpass',t+.5)},
   horn(){if(!actx)return;tone(330,.45,'square',.07);tone(415,.45,'square',.06)},
 };
 // Radio: two procedural stations
@@ -63,7 +64,7 @@ function audioFrame(){
   let nd=1e9;for(const v of vehicles)if(v.kind==='police'&&(v.driver||v.lights)&&wanted>0)nd=Math.min(nd,Math.hypot(v.x-player.x,v.z-player.z));
   if(c&&c.kind==='police')nd=0;
   sirO.frequency.setTargetAtTime(760+260*Math.sin(t*TAU*.9),t,.02);sirG.gain.setTargetAtTime(live&&nd<140?.02*(1-nd/140):0,t,.1);
-  const hd=heli?Math.hypot(heli.x-player.x,heli.z-player.z,heli.y-player.y):1e9;heliG.gain.setTargetAtTime(live&&hd<200?(.25*(1-hd/200))*(.6+.4*Math.sin(t*TAU*14)):0,t,.01);
+  let hd=1e9;for(const h of helis)hd=Math.min(hd,Math.hypot(h.x-player.x,h.z-player.z,h.y-player.y));heliG.gain.setTargetAtTime(live&&hd<200?(.25*(1-hd/200))*(.6+.4*Math.sin(t*TAU*14)):0,t,.01);
   skidG.gain.setTargetAtTime(live&&c&&c.slip>5&&sp>4?Math.min(.12,(c.slip-5)*.02):0,t,.05);
   radioTick();
 }
