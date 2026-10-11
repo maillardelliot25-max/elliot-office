@@ -46,7 +46,7 @@ Notes so future sessions (and future games) can pick up where we left off.
 - Aiming, crouching and sliding are procedural bone overrides (`aimBone`).
 - Male outfit colours, skin tint, hair, hats, glasses and chain are applied per instance. Accessories are attached to the head and spine bones.
 - If the models fail to load, the game falls back to the old procedural figures (`makeFigure`).
-- Build order: p1 p2 p3 p4 p4c p5 p6 p7 p8 p9 p10. The artifact needs `assets/*.glb` published alongside the page as supporting files.
+- Build order: p1 p2 p3 p4 p4c p5 p6 p7 p8 p9 p10. The artifact needs `assets/*.json` (glTF with embedded buffers; artifacts do not serve .glb) published alongside the page as supporting files.
 - Police realism: warnings and arrest at 1★, cover behind their cars with peeking, magazines and reloads, and escalation when the suspect flees.
 - Tiers: 3★ adds SWAT and a helicopter, 4★ roadblocks, 5★ army, a tank (`updateTank`) and a gunship.
 - Player can crouch or slide (C/Ctrl, DUCK button). Shots go to the point under the crosshair.

@@ -34,7 +34,7 @@ function loadChars(progress){
   if(!THREE.GLTFLoader||!THREE.SkeletonUtils)return Promise.resolve(false);
   const L=new THREE.GLTFLoader();let n=0;
   const load=u=>new Promise((res,rej)=>L.load(u,g=>{progress&&progress(++n/3);res(g)},undefined,rej));
-  return Promise.all(['assets/male.glb','assets/michelle.glb','assets/soldier.glb'].map(load)).then(([m,f,s])=>{
+  return Promise.all(['assets/male.json','assets/michelle.json','assets/soldier.json'].map(load)).then(([m,f,s])=>{
     const A=(g,nm)=>g.animations.find(a=>a.name===nm);
     const sRest=rtRest(s.scene,A(s,'TPose'));
     const measure=(root)=>{const b=rtBones(root);root.updateMatrixWorld(true);const h=b.Head.getWorldPosition(new THREE.Vector3()).y,f=Math.min(b.LeftFoot.getWorldPosition(new THREE.Vector3()).y,b.RightFoot.getWorldPosition(new THREE.Vector3()).y);return{top:h,foot:f}};
