@@ -1419,7 +1419,11 @@ LISTEN = "127.0.0.1"
 def main():
     global LISTEN
     LISTEN = "0.0.0.0" if load_settings()["phone_access"] else "127.0.0.1"
-    server = ThreadingHTTPServer((LISTEN, PORT), Handler)
+    try:
+        server = ThreadingHTTPServer((LISTEN, PORT), Handler)
+    except OSError:
+        sys.exit(f"Port {PORT} is already in use. Is Friday already running, or is another app "
+                 f"(e.g. Jarvis Station) using it? Close that app, or start Friday with PORT=<other port>.")
     if LISTEN != "127.0.0.1":
         print("Phone access is ON: devices on your Wi-Fi can connect with the pairing code at",
               ", ".join(f"http://{a}:{PORT}" for a in lan_addresses()) or "this PC's address")

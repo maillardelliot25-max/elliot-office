@@ -51,3 +51,12 @@ Every `/api/*` and `/v1/*` call needs the pairing code (header `X-Jarvis-Token`,
 - Never enter passwords, card/bank details or one-time codes. Never press submit or buy without the user.
 - Screen memory and screenshots stay on the PC unless the user chooses a cloud brain; keep it **off by default**.
 - Every remote request needs the pairing code.
+
+## Working alongside Jarvis Station / Cowork
+
+Elliot's other project, **Jarvis God Station** (branch `claude/cross-device-home-app-epwsbl`, folder `New folder/Jarvis/`), controls the PC from the phone and is gaining an autonomous "Cowork" agent. To run both on one PC:
+
+- **Ports:** Friday uses **8765**. Station also defaults to 8765, so start it with `STATION_PORT=8780` (in its `.env`). If the port is taken, Friday now says so and exits instead of crashing.
+- **One brain:** Station/Cowork can think through Friday's OpenAI-compatible gateway at `http://localhost:8765/v1/chat/completions` (`Authorization: Bearer <pairing code>`). That gives it every brain set up in Friday: Ollama, Claude, Gemini, OpenAI and custom brains.
+- **Shared memory:** `GET/POST /api/memory` (header `X-Jarvis-Token: <pairing code>`).
+- **Don't run duplicates:** both have an 8-hour screen recorder and a Chrome form helper. Keep Station's Recall (it has OCR search) and leave Friday's screen memory off. Load only one of the two form-helper extensions.
