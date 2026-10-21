@@ -15,6 +15,7 @@ Run:  python server.py   then open http://localhost:8765
 """
 
 import base64
+import hmac
 import html
 import io
 import json
@@ -22,6 +23,7 @@ import zipfile
 import mimetypes
 import os
 import re
+import socket
 import subprocess
 import sys
 import threading
@@ -32,6 +34,7 @@ import urllib.request
 import uuid
 import webbrowser
 from datetime import datetime
+from http.cookies import SimpleCookie
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
@@ -62,6 +65,7 @@ DEFAULT_SETTINGS = {
     "lens_swipe": True,       # Jarvis Lens: swipe up from the bottom of the screen to ask about it
     "lens_hotkey": "<ctrl>+<alt>+<space>",
     "lens_model": "auto",     # "auto" = best model you have that can see images
+    "phone_access": False,    # let the Jarvis Android app (and phone browsers) on your Wi-Fi connect
     "instructions": "",
     "workspace": str(Path.home() / "ElliotAI-Workspace"),
     "auto_approve": False,
@@ -727,6 +731,9 @@ class Handler(BaseHTTPRequestHandler):
     def end_headers(self):
         if getattr(self, "cors", None):
             self.send_header("Access-Control-Allow-Origin", self.cors)
+        if getattr(self, "set_cookie", False):
+            token = load_settings()["chrome_token"]
+            self.send_header("Set-Cookie", f"jarvis_key={token}; HttpOnly; SameSite=Strict; Path=/; Max-Age=31536000")
         super().end_headers()
 
     def do_OPTIONS(self):
@@ -786,13 +793,16 @@ class Handler(BaseHTTPRequestHandler):
 
     def guard(self):
         """Only answer our own page: blocks other websites (CSRF) and DNS-rebinding tricks."""
+        self.cors, self.set_cookie = None, False
+        ip = self.client_address[0]
+        if not (ip.startswith("127.") or ip in ("::1", "::ffff:127.0.0.1")):
+            return self.guard_remote()
         host = (self.headers.get("Host") or "").split(":")[0]
         origin = self.headers.get("Origin")
         ok_host = host in ("localhost", "127.0.0.1")
-        self.cors = None
         # Every API call carries the pairing code: the app page has it built in, the Chrome extension
         # gets it when you paste it. Other websites and other extensions can't read it, so can't use the API.
-        if self.path.startswith("/api/") and self.headers.get("X-Jarvis-Token") != load_settings()["chrome_token"]:
+        if self.path.startswith("/api/") and not hmac.compare_digest(self.headers.get("X-Jarvis-Token") or "", load_settings()["chrome_token"]):
             self.send_json({"error": "Jarvis isn't paired: paste the pairing code from Elliot AI → Settings."}, 401)
             return False
         if origin and origin.startswith("chrome-extension://"):
@@ -806,6 +816,24 @@ class Handler(BaseHTTPRequestHandler):
             return True
         self.send_json({"error": "forbidden"}, 403)
         return False
+
+    def guard_remote(self):
+        """Another device on your Wi-Fi (the Jarvis phone app, or a phone browser): only with phone
+        access switched on, and only with the pairing code (header, ?key= on the start page, or the
+        cookie that page sets so its pictures and previews load)."""
+        s = load_settings()
+        if not s["phone_access"]:
+            self.send_json({"error": "Phone access is off. Turn it on in Jarvis → Settings on the PC."}, 403)
+            return False
+        url = urllib.parse.urlparse(self.path)
+        key = urllib.parse.parse_qs(url.query).get("key", [""])[0] if url.path in ("/", "/index.html") else ""
+        cookie = SimpleCookie(self.headers.get("Cookie") or "")
+        presented = self.headers.get("X-Jarvis-Token") or key or (cookie["jarvis_key"].value if "jarvis_key" in cookie else "")
+        if not hmac.compare_digest(presented, s["chrome_token"]):
+            self.send_json({"error": "Jarvis isn't paired: use the pairing code from Settings on the PC."}, 401)
+            return False
+        self.set_cookie = bool(key)
+        return True
 
     def body(self):
         n = int(self.headers.get("Content-Length") or 0)
@@ -864,6 +892,9 @@ class Handler(BaseHTTPRequestHandler):
                 self.send_json(load_json(PROJECTS, url.path.rsplit("/", 1)[1]))
             elif url.path == "/api/settings":
                 self.send_json(public_settings())
+            elif url.path == "/api/lan_info":
+                self.send_json({"addresses": [f"{a}:{PORT}" for a in lan_addresses()],
+                                "phone_access": load_settings()["phone_access"], "listening_on_wifi": LISTEN != "127.0.0.1"})
             elif url.path == "/api/lens_model":
                 self.send_json({"model": lens_model()})
             elif url.path == "/api/memory":
@@ -1112,8 +1143,32 @@ def learn(chat_id, model):
     return learned
 
 
+def lan_addresses():
+    """This PC's addresses on the local network, for typing into the phone app."""
+    found = set()
+    try:
+        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
+            s.connect(("10.255.255.255", 1))   # no packet is sent; this just picks the Wi-Fi/LAN interface
+            found.add(s.getsockname()[0])
+    except OSError:
+        pass
+    try:
+        found.update(socket.gethostbyname_ex(socket.gethostname())[2])
+    except OSError:
+        pass
+    return sorted(a for a in found if not a.startswith("127."))
+
+
+LISTEN = "127.0.0.1"
+
+
 def main():
-    server = ThreadingHTTPServer(("127.0.0.1", PORT), Handler)
+    global LISTEN
+    LISTEN = "0.0.0.0" if load_settings()["phone_access"] else "127.0.0.1"
+    server = ThreadingHTTPServer((LISTEN, PORT), Handler)
+    if LISTEN != "127.0.0.1":
+        print("Phone access is ON: devices on your Wi-Fi can connect with the pairing code at",
+              ", ".join(f"http://{a}:{PORT}" for a in lan_addresses()) or "this PC's address")
     url = f"http://localhost:{PORT}"
     print(f"Elliot AI running at {url}  (Ollama: {OLLAMA})  Ctrl+C to quit")
     if "--no-browser" not in sys.argv:

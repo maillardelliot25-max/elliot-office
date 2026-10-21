@@ -280,6 +280,10 @@
     <input type="text" id="sHotkey" placeholder="<ctrl>+<alt>+<space>">
     <label>Model that looks at your screen</label>
     <select id="sLens"><option value="auto">Auto: best model that can see images</option></select>
+    <h3>📱 Jarvis on your phone (Samsung / Android)</h3>
+    <div style="font-size:13px;color:var(--dim);margin-top:6px">Install the Jarvis Android app (README, step 9), set it as your phone's digital assistant, then swipe up from a bottom corner in any app to ask about your screen. Answers come from this PC, so your phone needs to be on the same Wi-Fi.</div>
+    <label><input type="checkbox" id="sPhone"> Allow my phone to connect over Wi-Fi (needs the pairing code below; restart the app after changing)</label>
+    <div id="sLan" style="font-size:14px;margin-top:6px"></div>
     <h3>Jarvis in Chrome</h3>
     <div style="font-size:13px;color:var(--dim);margin-top:6px">Install the extension from the <code>LocalAI/chrome-extension</code> folder (README, step 6), click its icon, and paste this pairing code:</div>
     <div style="display:flex;gap:8px;margin-top:6px"><input type="text" id="sToken" readonly style="font:15px ui-monospace,monospace;letter-spacing:1px"><button id="sCopyToken">Copy</button></div>
@@ -1153,6 +1157,13 @@ function fillSettings(s) {
   $("sName").value = s.name || ""; $("sInstr").value = s.instructions || "";
   $("sWs").value = s.workspace || ""; $("sAsst").value = s.assistant_name || "Jarvis";
   $("sLearn").checked = s.auto_memory !== false; $("sToken").value = s.chrome_token || "";
+  $("sPhone").checked = !!s.phone_access;
+  api("/api/lan_info").then(l => {
+    $("sLan").innerHTML = !l.addresses.length ? "" :
+      `PC address for the phone app: <b style="font-family:ui-monospace,monospace">${l.addresses.map(esc).join("</b> or <b style=\"font-family:ui-monospace,monospace\">")}</b>` +
+      (l.phone_access && !l.listening_on_wifi ? `<br><span style="color:var(--accent)">Restart the app to turn phone access on.</span>` : "") +
+      (!l.phone_access && l.listening_on_wifi ? `<br><span style="color:var(--accent)">Restart the app to finish turning phone access off.</span>` : "");
+  }).catch(() => {});
   $("sSwipe").checked = s.lens_swipe !== false; $("sHotkey").value = s.lens_hotkey || "<ctrl>+<alt>+<space>";
   $("sLens").innerHTML = `<option value="auto">Auto: best model that can see images</option>` +
     models.filter(m => m.caps.includes("vision")).map(m => `<option value="${esc(m.name)}">${esc(m.label)}</option>`).join("");
@@ -1177,6 +1188,7 @@ $("sSave").onclick = async () => {
     settings = await api("/api/settings", { method: "POST", body: {
       name: $("sName").value.trim(), instructions: $("sInstr").value,
       assistant_name: $("sAsst").value.trim() || "Jarvis", auto_memory: $("sLearn").checked,
+      phone_access: $("sPhone").checked,
       lens_swipe: $("sSwipe").checked, lens_hotkey: $("sHotkey").value.trim() || "<ctrl>+<alt>+<space>", lens_model: $("sLens").value,
       workspace: $("sWs").value.trim(), auto_approve: $("sAuto").checked,
       google_api_key: $("sKey").value.trim(), image_provider: $("sProvider").value,

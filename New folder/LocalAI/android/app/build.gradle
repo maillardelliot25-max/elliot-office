@@ -1,0 +1,38 @@
+plugins {
+    id 'com.android.application'
+}
+
+android {
+    namespace 'com.maillard.jarvis'
+    compileSdk 35
+
+    defaultConfig {
+        applicationId 'com.maillard.jarvis'
+        minSdk 29          // Android 10+: needed for the assistant's screen-reading API
+        targetSdk 35
+        versionCode 1
+        versionName '1.0'
+    }
+
+    // A fixed key (committed on purpose, it guards nothing secret) so each new build
+    // installs over the previous one instead of asking you to uninstall first.
+    signingConfigs {
+        shared {
+            storeFile file('debug.keystore')
+            storePassword 'android'
+            keyAlias 'androiddebugkey'
+            keyPassword 'android'
+        }
+    }
+    buildTypes {
+        debug { signingConfig signingConfigs.shared }
+        release {
+            minifyEnabled false
+            signingConfig signingConfigs.shared
+        }
+    }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}

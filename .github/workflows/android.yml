@@ -1,0 +1,47 @@
+# Builds the Jarvis Android app and publishes Jarvis.apk on the "jarvis-android" release,
+# so you can download and install it straight from your phone.
+name: Build Jarvis Android app
+
+on:
+  push:
+    paths:
+      - "New folder/LocalAI/android/**"
+      - ".github/workflows/android.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.11.1"
+
+      - name: Build the app
+        working-directory: New folder/LocalAI/android
+        run: gradle assembleDebug --no-daemon --stacktrace
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: jarvis-android
+          path: New folder/LocalAI/android/app/build/outputs/apk/debug/app-debug.apk
+
+      - name: Publish Jarvis.apk
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cp "New folder/LocalAI/android/app/build/outputs/apk/debug/app-debug.apk" Jarvis.apk
+          gh release view jarvis-android >/dev/null 2>&1 || gh release create jarvis-android --prerelease \
+            --title "Jarvis for Android" \
+            --notes "Latest build of the Jarvis Android app (branch ${GITHUB_REF_NAME}). On your phone, download Jarvis.apk, open it and allow installing from your browser."
+          gh release upload jarvis-android Jarvis.apk --clobber

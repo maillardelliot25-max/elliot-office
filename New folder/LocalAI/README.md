@@ -28,6 +28,7 @@ On top of that it creates images and videos with **Gemini Nano Banana / Veo**, b
 | 🎤 **Voice** | Speak your messages (🎤), and have answers read aloud (🔊) |
 | 🧠 **Memory that learns** | After each conversation Jarvis notes anything lasting it learned about you: likes, dislikes, preferences, people, work, goals. It shows "🧠 Remembered: …". It never stores passwords or card numbers. Say "remember…" or "forget…" anytime, ask "what did we decide about X last week?" (it searches past chats), or manage everything on the 🧠 Memory screen |
 | 📸 **Jarvis Lens: ask about your screen** | Like Gemini's screen feature: **swipe up from the bottom edge of your screen** (a quick upward flick of the mouse, touchpad or finger) or press **Ctrl+Alt+Space**. Jarvis takes a screenshot and a bar pops up at the bottom: ask "what's this error?", "summarise this", "translate", "what should I reply?". Follow-up questions work, and **Open in app** continues the chat |
+| 📱 **Jarvis on your Samsung phone** | An Android app that becomes your phone's **digital assistant** (instead of Gemini). **Swipe up from a bottom corner** (or hold the side button) in any app: Jarvis gets a screenshot plus the text on screen, a sheet slides up, and you ask by typing, quick buttons or 🎤 voice. Answers come from Jarvis on your PC, with the same models, memory and chats |
 | 🎨 **Make it yours** | Settings → **Edit appearance**: themes (Claude, Midnight, Jarvis, Ocean, Forest, Rose, Mono), light/dark, your own colours, font, text size, roundness, chat width, and a **video or image background** with dim, blur and see-through panels. Chrome uses your colours too |
 | 🌐 **Jarvis in Chrome** | Side panel on any website: summarise or explain the page, right-click selected text or an image → *Ask Jarvis*, draft replies. With 🖱 *Browse for me* on, Jarvis clicks, types, scrolls and opens pages for you, asking before each action |
 | ⤓ **Export** | Save any chat as a Markdown file |
@@ -146,6 +147,28 @@ Settings → **🎨 Edit appearance**. Everything previews live. **Save** keeps 
 
 For a video background, use **⬆ Upload** (MP4 or WebM, up to 150 MB; short loops of 10 to 30 seconds look best) or paste a link to an .mp4. Turn **Darken** up and use **See-through panels** to keep text readable.
 
+## 9. Jarvis on your Samsung phone
+
+**On the PC:**
+1. Open Jarvis → ⚙ **Settings** → **📱 Jarvis on your phone** → tick **Allow my phone to connect over Wi-Fi** → Save.
+2. Close and restart the app (`Start Elliot AI.bat`). If Windows asks whether to allow Python on networks, choose **Private networks**.
+3. Back in Settings, note the **PC address** (like `192.168.1.20:8765`) and the **pairing code**.
+
+**On the phone:**
+1. Install the app: open `https://github.com/maillardelliot25-max/elliot-office/releases/tag/jarvis-android` in the phone's browser (sign in to GitHub if asked), download **Jarvis.apk**, open it, and allow installing from your browser when asked. GitHub rebuilds this file whenever the app's code changes.
+2. Open **Jarvis**, enter the PC address and pairing code, and tap **Connect**.
+3. Tap **Open assistant settings** and choose Jarvis as the **Digital assistant app / Device assistance app**. On the same screen, turn on **Use screenshot** and **Analyse text on screen** (wording varies by phone and One UI version).
+4. Pick how to open it:
+   - **Swipe gestures:** Settings → Display → Navigation bar → *Swipe gestures*, then swipe up diagonally from a bottom corner.
+   - **Side button:** Settings → Advanced features → Side button → *Press and hold* → *Digital assistant*.
+5. Optional: tap **Allow microphone** to ask by voice with 🎤.
+
+**Good to know:**
+- The phone must be on the **same Wi-Fi as the PC**, and Jarvis must be running on the PC. To use it away from home, install [Tailscale](https://tailscale.com) on both devices and use the PC's Tailscale address instead.
+- Screenshots and screen text go to your PC and then to the model Jarvis Lens uses (Settings → Jarvis Lens). With a ☁ model that means the company behind it. Password fields are never read.
+- Android requires an assistant to include a voice service. Jarvis's simply passes voice typing through to Google's or Samsung's, so voice typing elsewhere keeps working.
+- To go back to Gemini, choose it again under Digital assistant app.
+
 ## Troubleshooting
 
 - **"Can't reach Ollama":** open the Ollama app (or run `ollama serve`).
@@ -156,6 +179,8 @@ For a video background, use **⬆ Upload** (MP4 or WebM, up to 150 MB; short loo
 - **React or diagram preview is blank:** those previews need internet, to load React or Mermaid. Web pages, SVGs and documents work offline.
 - **🎤 doesn't work:** use Chrome or Edge. Voice typing uses the browser's speech service, which needs internet.
 - **Chrome says "Jarvis isn't paired" or "can't reach Elliot AI":** make sure the app is running, then paste the pairing code again (the ⚙ Settings screen shows it).
+- **Phone says "Can't reach the PC":** check that phone access is ticked **and** the app was restarted, that both devices are on the same Wi-Fi (not guest Wi-Fi), and that Windows Firewall allows Python on Private networks.
+- **The phone assistant opens but has no screenshot:** turn on *Use screenshot* in the Digital assistant app settings. Some apps (banking, Netflix) block screenshots, but Jarvis still reads their text where allowed.
 - **Swiping up does nothing:** check Lens is running (start the app with `Start Elliot AI.bat`), try Ctrl+Alt+Space, and make sure the swipe starts at the very last pixel row of the screen. If it triggers by accident, turn the swipe off in Settings and use the shortcut.
 - **Background video doesn't play:** use MP4 (H.264) or WebM. iPhone .mov files often won't play in browsers, so convert them first.
 - **"PDF support needs pypdf":** run `python -m pip install pypdf`.
