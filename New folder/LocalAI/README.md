@@ -26,12 +26,19 @@ On top of that it creates images and videos with **Gemini Nano Banana / Veo**, b
 | 🎨 **Create & edit images** | **Gemini Nano Banana 2 / Pro**: top-quality images, text in images, edit your photos. Follow-ups like "make it bluer" edit the last image. Also works with a local Stable Diffusion server |
 | 🎬 **Create videos** | **Google Veo 3.1**: about 8-second clips with sound, from text or by animating an image |
 | 🎤 **Voice** | Speak your messages (🎤), and have answers read aloud (🔊) |
-| 🧠 **Memory** + custom instructions | Remembers facts about you across chats. View and edit them in Settings |
+| 🧠 **Memory that learns** | After each conversation Jarvis notes anything lasting it learned about you: likes, dislikes, preferences, people, work, goals. It shows "🧠 Remembered: …". It never stores passwords or card numbers. Say "remember…" or "forget…" anytime, ask "what did we decide about X last week?" (it searches past chats), or manage everything on the 🧠 Memory screen |
+| 🌐 **Jarvis in Chrome** | Side panel on any website: summarise or explain the page, right-click selected text or an image → *Ask Jarvis*, draft replies. With 🖱 *Browse for me* on, Jarvis clicks, types, scrolls and opens pages for you, asking before each action |
 | ⤓ **Export** | Save any chat as a Markdown file |
 
 Plus **Claude Code** itself in your terminal on the same local model (`start-claude-local`), and **Jarvis** running offline.
 
 > **Be realistic:** the app gives you what the Claude app does, but the chat "brain" is a free open-source model, not Claude itself. Claude can't be downloaded. Local models are good for everyday chat, writing and coding, but slower and weaker than Claude on hard problems. Images and videos come from Google's top models, so those *are* state of the art.
+
+Your assistant is called **Jarvis** (rename it in Settings). It works in two places:
+- **The app**: a full Claude-style app in your browser at http://localhost:8765.
+- **Jarvis in Chrome**: a side panel that sits next to any website (step 6).
+
+Both share the same chats and the same memory.
 
 ## 1. Pick models for your machine
 
@@ -101,6 +108,23 @@ All three are pay-as-you-go (charged per use by each company), separate from any
 
 **Add more models anytime:** run `ollama pull <name>`. Browse models at https://ollama.com/search.
 
+## 6. Add Jarvis to Chrome (2 minutes)
+
+1. Start the app (`Start Elliot AI.bat`), open **⚙ Settings, keys & Chrome**, and copy the **pairing code**.
+2. In Chrome, go to `chrome://extensions` and switch on **Developer mode** (top right).
+3. Click **Load unpacked** and choose the `New folder/LocalAI/chrome-extension` folder.
+4. Pin Jarvis (🧩 puzzle icon → 📌), then click its **J** icon or press **Alt+J**. Paste the pairing code and click **Connect**.
+
+Then:
+- **📄 This page** (on by default): Jarvis reads the page you're on.
+- **🖱 Browse for me**: Jarvis can operate the page ("find the cheapest flight on this site", "fill this form with my details"). It asks before every click, type or page change, and never types passwords or card details.
+- **Right-click** selected text → *Ask Jarvis about…*, an image → *Ask Jarvis about this image*, or any page → *Summarise this page with Jarvis*.
+- The **⤢** button opens the full app. Chats from Chrome show up there too.
+
+The app must be running for the extension to work. Chrome doesn't let extensions read its own pages (chrome://, the Web Store), so Jarvis can't help there.
+
+**Security:** every request to the app must carry the pairing code. Websites and other extensions can't use your Jarvis.
+
 ## Troubleshooting
 
 - **"Can't reach Ollama":** open the Ollama app (or run `ollama serve`).
@@ -110,6 +134,7 @@ All three are pay-as-you-go (charged per use by each company), separate from any
 - **Gemini error 429 or "quota":** you've hit your limit. Check billing in Google AI Studio.
 - **React or diagram preview is blank:** those previews need internet, to load React or Mermaid. Web pages, SVGs and documents work offline.
 - **🎤 doesn't work:** use Chrome or Edge. Voice typing uses the browser's speech service, which needs internet.
+- **Chrome says "Jarvis isn't paired" or "can't reach Elliot AI":** make sure the app is running, then paste the pairing code again (the ⚙ Settings screen shows it).
 - **"PDF support needs pypdf":** run `python -m pip install pypdf`.
 
 **Privacy & safety:** with a 💻 local model, chat, documents and memory never leave your computer. With a ☁ model, your messages and attachments go to that company (Anthropic, OpenAI or Google) under your API account. File organizing with a ☁ model sends small previews of each photo and the start of each document. Image and video prompts, and any images you edit, are sent to Google when you use Gemini. Web search goes to DuckDuckGo. In Tools mode, file access is limited to the workspace folder. Commands, however, run with your user's full permissions, so keep the permission prompts on unless you trust what you're asking for.

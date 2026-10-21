@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Jarvis</title>
+<style>
+  :root { --bg:#faf9f5; --panel:#fff; --line:#e3e0d6; --text:#1f1e1d; --dim:#73726c; --accent:#c96442; --user:#ece9df; --code:#f5f4ef; --danger:#b3261e; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#262624; --panel:#30302e; --line:#3e3e3a; --text:#ecebe6; --dim:#a6a59f; --user:#3a3936; --code:#1c1c1a; --danger:#ff8a80; }
+  }
+  * { box-sizing:border-box; }
+  html, body { height:100%; margin:0; }
+  body { background:var(--bg); color:var(--text); font:14px/1.55 ui-sans-serif, system-ui, "Segoe UI", sans-serif; display:flex; flex-direction:column; }
+  button, select, input, textarea { font:inherit; color:inherit; }
+  button { cursor:pointer; background:var(--panel); border:1px solid var(--line); border-radius:8px; padding:4px 9px; }
+  button:hover { background:var(--user); }
+  button.primary { background:var(--accent); border-color:var(--accent); color:#fff; }
+  select { background:var(--panel); border:1px solid var(--line); border-radius:8px; padding:4px 6px; max-width:100%; }
+  header { display:flex; align-items:center; gap:6px; padding:8px 10px; border-bottom:1px solid var(--line); }
+  header .logo { width:20px; height:20px; border-radius:5px; background:var(--accent); color:#fff; font-weight:700; display:grid; place-items:center; font-size:13px; }
+  header b { margin-right:auto; }
+  header button { border:none; background:none; color:var(--dim); padding:2px 6px; }
+  #model { flex:1; min-width:0; }
+  #log { flex:1; overflow-y:auto; padding:12px; }
+  .user { background:var(--user); border-radius:12px; padding:8px 11px; margin:12px 0 12px auto; width:fit-content; max-width:90%; white-space:pre-wrap; word-wrap:break-word; }
+  .user .ctx { display:block; font-size:12px; color:var(--dim); }
+  .ai { margin:0 0 10px; word-wrap:break-word; }
+  .ai p { margin:0 0 9px; } .ai ul, .ai ol { margin:0 0 9px; padding-left:20px; } .ai h3, .ai h4 { margin:12px 0 6px; }
+  .ai a { color:var(--accent); }
+  pre { background:var(--code); border:1px solid var(--line); border-radius:8px; padding:8px; overflow-x:auto; font:12px/1.5 ui-monospace, Consolas, monospace; }
+  code { font:12px ui-monospace, Consolas, monospace; background:var(--code); padding:1px 4px; border-radius:4px; }
+  .line { font-size:12px; color:var(--dim); margin:0 0 8px; }
+  .line.mem b { color:var(--accent); font-weight:500; }
+  .approve { border:1px solid var(--line); border-radius:10px; padding:8px; margin:0 0 10px; background:var(--panel); }
+  .approve div { margin-bottom:6px; }
+  .err { color:var(--danger); }
+  .typing::after { content:"▍"; color:var(--accent); animation:b 1s steps(2) infinite; } @keyframes b { 50% { opacity:0; } }
+  #quick { display:flex; gap:6px; flex-wrap:wrap; padding:0 10px 6px; }
+  #quick button { font-size:12px; color:var(--dim); border-radius:14px; }
+  footer { padding:0 10px 10px; }
+  #box { border:1px solid var(--line); border-radius:14px; background:var(--panel); padding:8px 10px; }
+  #input { width:100%; border:none; outline:none; resize:none; background:none; min-height:24px; max-height:160px; }
+  #row { display:flex; align-items:center; gap:6px; }
+  .toggle { font-size:12px; color:var(--dim); }
+  .toggle.on { color:var(--accent); border-color:var(--accent); }
+  #row .sp { flex:1; }
+  #pair { padding:20px; }
+  #pair input { width:100%; padding:8px; border:1px solid var(--line); border-radius:8px; background:var(--panel); margin:6px 0 10px; }
+  .welcome { color:var(--dim); text-align:center; margin-top:18vh; }
+  .welcome h2 { color:var(--text); font-weight:500; margin:0 0 6px; }
+</style>
+</head>
+<body>
+<div id="pair" hidden>
+  <h2 style="margin:0 0 8px">Connect Jarvis</h2>
+  <p style="color:var(--dim)">1. Start Elliot AI on this computer (<b>Start Elliot AI.bat</b>).<br>2. In it, open <b>⚙ Settings, keys &amp; Chrome</b> and copy the pairing code.<br>3. Paste it here.</p>
+  <label>Pairing code</label>
+  <input id="pToken" placeholder="e.g. 3f9a1c7b2d4e" autocomplete="off">
+  <label>App address (leave as is unless you changed the port)</label>
+  <input id="pServer" value="http://localhost:8765">
+  <button class="primary" id="pSave">Connect</button>
+  <p id="pMsg" class="err"></p>
+</div>
+
+<div id="app" style="display:none">
+  <header>
+    <div class="logo">J</div><b id="name">Jarvis</b>
+    <select id="model" title="Model"></select>
+    <button id="newChat" title="New chat">＋</button>
+    <button id="openApp" title="Open the full app">⤢</button>
+  </header>
+  <div id="log"></div>
+  <div id="quick">
+    <button data-q="Summarise this page in a few bullet points.">📝 Summarise page</button>
+    <button data-q="What are the key takeaways and anything I should watch out for on this page?">💡 Key points</button>
+    <button data-q="Explain the text I selected in simple terms.">❓ Explain selection</button>
+    <button data-q="Draft a reply to this (email/message/post) in my usual style.">✉ Draft a reply</button>
+  </div>
+  <footer>
+    <div id="box">
+      <textarea id="input" rows="1" placeholder="Ask Jarvis about this page, or anything…"></textarea>
+      <div id="row">
+        <button class="toggle" id="pageBtn" title="Include the current page's text">📄 This page</button>
+        <button class="toggle" id="browseBtn" title="Let Jarvis click, type, scroll and open pages for you (asks before acting)">🖱 Browse for me</button>
+        <div class="sp"></div>
+        <button class="primary" id="send">Send</button>
+      </div>
+    </div>
+  </footer>
+</div>
+<script src="sidepanel.js"></script>
+</body>
+</html>

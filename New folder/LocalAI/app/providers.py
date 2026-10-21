@@ -139,7 +139,7 @@ def _flat(messages, provider):
     results) are not replayable natively, so they're marked for plain-text replay."""
     structured = False
     for m in messages:
-        if m.get("error"):
+        if m.get("error") or m["role"] not in ("user", "assistant", "tool"):
             continue
         if m["role"] == "assistant":
             structured = m.get("provider") == provider and m.get("raw") is not None

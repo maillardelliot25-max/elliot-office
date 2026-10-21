@@ -36,6 +36,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+import memory as memory_store  # noqa: E402
 import organizer  # noqa: E402
 import providers  # noqa: E402
 
@@ -49,11 +50,14 @@ PROJECTS = DATA / "projects"
 MEDIA = DATA / "media"
 PLANS = DATA / "organize"
 SETTINGS_FILE = DATA / "settings.json"
+MEMORY = memory_store.Memory(DATA / "memory.json")
 for d in (CHATS, PROJECTS, MEDIA, PLANS):
     d.mkdir(parents=True, exist_ok=True)
 
 DEFAULT_SETTINGS = {
     "name": "Elliot",
+    "assistant_name": "Jarvis",
+    "auto_memory": True,      # learn what you like from every conversation
     "instructions": "",
     "workspace": str(Path.home() / "ElliotAI-Workspace"),
     "auto_approve": False,
@@ -76,6 +80,7 @@ NEEDS_APPROVAL = {"write_file", "edit_file", "run_command", "run_python", "gener
 
 _lock = threading.Lock()
 _approvals = {}   # approval id -> {"event": Event, "allow": bool}
+_browser = {}     # browser action id -> {"event": Event, "output": str}  (answered by the Chrome extension)
 _stops = {}       # chat id -> Event
 _caps = {}        # model name -> capabilities list
 
@@ -84,9 +89,16 @@ _caps = {}        # model name -> capabilities list
 
 def load_settings():
     try:
-        return {**DEFAULT_SETTINGS, **json.loads(SETTINGS_FILE.read_text("utf-8"))}
+        s = {**DEFAULT_SETTINGS, **json.loads(SETTINGS_FILE.read_text("utf-8"))}
     except (OSError, ValueError):
-        return dict(DEFAULT_SETTINGS)
+        s = dict(DEFAULT_SETTINGS)
+    if not s.get("chrome_token") or s.get("memory"):
+        # first run: make the Chrome pairing code; older versions kept memory here as plain strings
+        MEMORY.migrate(s.get("memory"))
+        s["memory"] = []
+        s["chrome_token"] = s.get("chrome_token") or uuid.uuid4().hex[:12]
+        save_settings(s)
+    return s
 
 
 def save_settings(s):
@@ -332,15 +344,22 @@ TOOLS = [
      "optionally animating the user's attached image (set from_attached to 'yes'). Slow and paid, so only when asked.",
      "params": {"prompt": "Detailed description of the scene, motion, camera and sound",
                 "aspect_ratio": "16:9 or 9:16", "from_attached": "'yes' to animate the attached image"}, "required": ["prompt"]},
-    {"name": "remember", "description": "Save a lasting fact about the user or their preferences to long-term memory.",
-     "params": {"fact": "The fact to remember"}, "required": ["fact"]},
+    {"name": "remember", "description": "Save a lasting fact about the user (something they like, dislike, prefer, their "
+     "people, work, projects or goals) to long-term memory. Use it whenever they share one, or say 'remember…'.",
+     "params": {"fact": "The fact, as one short sentence about the user",
+                "category": "One of: " + ", ".join(memory_store.CATEGORIES)}, "required": ["fact"]},
+    {"name": "forget", "description": "Delete something from long-term memory when the user asks you to forget it or it is wrong.",
+     "params": {"fact": "What to forget"}, "required": ["fact"]},
+    {"name": "recall", "description": "Search long-term memory and all past conversations, e.g. 'what did we decide about "
+     "the logo last week', 'that recipe I liked'.",
+     "params": {"query": "Keywords to look for"}, "required": ["query"]},
 ]
 
 TOOL_SCHEMAS = {t["name"]: t for t in TOOLS}
 
 
 def valid_args(name, args):
-    t = TOOL_SCHEMAS.get(name)
+    t = TOOL_SCHEMAS.get(name) or next((b for b in BROWSER_TOOLS if b["name"] == name), None)
     return bool(t) and isinstance(args, dict) and "__invalid__" not in args and \
         all(isinstance(args.get(k), str) for k in t["required"])
 
@@ -457,11 +476,56 @@ def run_tool(name, args, chat=None, progress=lambda msg: None):
         url = generate_video(a["prompt"], img, a.get("aspect_ratio", "16:9"), progress)
         return f"Video created and already shown to the user: ![video]({url})"
     if name == "remember":
-        s = load_settings()
-        s["memory"].append(a["fact"])
-        save_settings(s)
-        return "Saved to memory."
+        entry = MEMORY.add(a["fact"], a.get("category", "Other"), "chat")
+        return "Saved to memory." if entry else "Already known (or not something to store)."
+    if name == "forget":
+        hit = MEMORY.forget(a["fact"])
+        return f"Forgot: {hit['text']}" if hit else "Nothing like that was in memory."
+    if name == "recall":
+        return recall(a["query"], chat)
     return f"Unknown tool {name}"
+
+
+def recall(query, current=None):
+    words = [w for w in re.findall(r"\w+", query.lower()) if len(w) > 2]
+    found = [f"Memory: {m['text']}" for m in MEMORY.search(query, 8)]
+    for c in list_json(CHATS, ("id", "title", "updated")):
+        if current and c["id"] == current.get("id"):
+            continue
+        try:
+            msgs = load_json(CHATS, c["id"])["messages"]
+        except (OSError, ValueError):
+            continue
+        for m in msgs:
+            text = m.get("display") or m.get("content") or ""
+            low = text.lower()
+            if m.get("role") in ("user", "assistant") and words and all(w in low for w in words):
+                i = low.find(words[0])
+                when = datetime.fromtimestamp(c["updated"] or 0).strftime("%d %b %Y")
+                found.append(f"Chat \"{c['title']}\" ({when}), {m['role']}: …{text[max(0, i - 150):i + 350]}…")
+                break
+        if len(found) >= 12:
+            break
+    return "\n\n".join(found) or "Nothing found in memory or past chats."
+
+
+BROWSER_TOOLS = [
+    {"name": "browser_read_page", "description": "Read the web page open in the user's Chrome: title, URL, visible text "
+     "and a numbered list of the links, buttons and form fields you can use.",
+     "params": {}, "required": []},
+    {"name": "browser_click", "description": "Click a link or button on the current page.",
+     "params": {"target": "Its number from browser_read_page (e.g. '12'), or its visible text"}, "required": ["target"]},
+    {"name": "browser_type", "description": "Type into a text box or search field on the current page.",
+     "params": {"target": "The field's number from browser_read_page, or its label/placeholder",
+                "text": "What to type", "press_enter": "'yes' to press Enter afterwards (e.g. to search)"},
+     "required": ["target", "text"]},
+    {"name": "browser_navigate", "description": "Open a URL in the current tab.",
+     "params": {"url": "Full URL"}, "required": ["url"]},
+    {"name": "browser_scroll", "description": "Scroll the current page.",
+     "params": {"direction": "'down' or 'up'"}, "required": []},
+    {"name": "browser_back", "description": "Go back to the previous page.", "params": {}, "required": []},
+]
+BROWSER_NEEDS_OK = {"browser_click", "browser_type", "browser_navigate"}
 
 
 # ── Documents ────────────────────────────────────────────────────────────
@@ -488,7 +552,8 @@ def system_prompt(tools_on, chat, opts):
     research = opts.get("research")
     s = load_settings()
     parts = [
-        f"You are {s['name']} AI, a helpful, capable assistant running privately on the user's own computer.",
+        f"You are {s['assistant_name']}, {s['name']}'s personal AI assistant, running on their own computer. You know "
+        "them well and remember what they like; use that to personalise every answer without making a show of it.",
         f"Today is {datetime.now():%A, %B %d, %Y}.",
         "Format answers in Markdown. When you write a web page, React component, SVG, Mermaid diagram or long "
         "document the user may want to view, put it in ONE complete fenced code block (```html, ```jsx, ```svg, "
@@ -501,7 +566,14 @@ def system_prompt(tools_on, chat, opts):
             "write_file, then run and test them with run_command, and fix any errors you see. Use web_search for "
             "current information and cite sources. Use generate_image when the user wants a picture, logo, design or "
             "photo (or to edit an attached image), and generate_video when they ask for a video. Use remember when the "
-            "user tells you something worth keeping long-term. Do not ask for permission; the app asks the user for you.")
+            "user tells you something worth keeping long-term, forget when they ask, and recall to look up past "
+            "conversations. Do not ask for permission; the app asks the user for you.")
+    if opts.get("browser"):
+        parts.append(
+            "You are inside the user's Chrome browser (the Jarvis extension) and can operate it with the browser_* "
+            "tools: read the page first, then click, type, scroll or navigate step by step, reading the page again "
+            "after each action to check the result. Never enter passwords or payment details and never submit "
+            "purchases; ask the user to do those parts themselves.")
     if opts.get("math"):
         parts.append(
             "MATH MODE: solve step by step and explain each step clearly. Write maths in LaTeX: \\( ... \\) inline "
@@ -523,8 +595,10 @@ def system_prompt(tools_on, chat, opts):
             "different angles, fetch_url the most relevant 3-6 sources, and cross-check facts. Then write a structured "
             "report with headings, a short summary first, numbered citations like [1] in the text, and a Sources list "
             "with the URLs at the end.")
-    if s["memory"]:
-        parts.append("Things you remember about the user:\n" + "\n".join(f"- {m}" for m in s["memory"]))
+    last_user = next((m.get("display") or m.get("content", "") for m in reversed(chat["messages"]) if m["role"] == "user"), "")
+    known = MEMORY.for_prompt(last_user)
+    if known:
+        parts.append(f"What you remember about {s['name']} (long-term memory):\n{known}")
     if s["instructions"].strip():
         parts.append("The user's custom instructions:\n" + s["instructions"].strip())
     if chat.get("project_id"):
@@ -550,6 +624,8 @@ def converse(chat, model, opts, emit):
     caps = model_caps(model)
     wants_tools = opts.get("tools") or opts.get("research") or opts.get("math") or opts.get("build")
     tools = TOOLS if wants_tools and "tools" in caps else []
+    if opts.get("browser") and "tools" in caps:
+        tools = tools + BROWSER_TOOLS
     opts = {**opts, "caps": caps}
     if opts.get("think") or opts.get("research") or opts.get("math") or opts.get("build"):
         opts["effort"] = "high"
@@ -577,7 +653,10 @@ def converse(chat, model, opts, emit):
                 output, is_error = "The user denied this action. Ask them what they would like instead.", True
             else:
                 try:
-                    output, is_error = run_tool(name, args, chat, lambda t: emit({"type": "status", "id": call["id"], "text": t})), False
+                    if name.startswith("browser_"):
+                        output, is_error = browser_action(call["id"], name, args, emit, stop), False
+                    else:
+                        output, is_error = run_tool(name, args, chat, lambda t: emit({"type": "status", "id": call["id"], "text": t})), False
                 except Exception as e:
                     output, is_error = f"Error: {e}", True
             emit({"type": "tool_result", "id": call["id"], "output": output})
@@ -589,8 +668,22 @@ def converse(chat, model, opts, emit):
             return
 
 
+def browser_action(cid, name, args, emit, stop):
+    """Browser tools run inside the Chrome extension: send it the action, wait for its answer."""
+    ev = threading.Event()
+    _browser[cid] = {"event": ev, "output": "The browser didn't answer (is the Jarvis side panel still open?)."}
+    emit({"type": "browser_action", "id": cid, "name": name, "args": args})
+    started = time.time()
+    while not ev.wait(0.5):
+        if stop.is_set() or time.time() - started > 90:
+            break
+    return clip(_browser.pop(cid)["output"], 20000)
+
+
 def needs_ok(name):
     s = load_settings()
+    if name in BROWSER_NEEDS_OK:
+        return not s["auto_approve"]
     if name == "run_python" and s["auto_python"]:
         return False
     return name in NEEDS_APPROVAL and not s["auto_approve"]
@@ -612,6 +705,20 @@ class Handler(BaseHTTPRequestHandler):
     def log_message(self, *a):
         pass
 
+    def end_headers(self):
+        if getattr(self, "cors", None):
+            self.send_header("Access-Control-Allow-Origin", self.cors)
+        super().end_headers()
+
+    def do_OPTIONS(self):
+        origin = self.headers.get("Origin") or ""
+        self.send_response(204)
+        if origin.startswith("chrome-extension://"):
+            self.send_header("Access-Control-Allow-Origin", origin)
+            self.send_header("Access-Control-Allow-Methods", "GET, POST, DELETE")
+            self.send_header("Access-Control-Allow-Headers", "Content-Type, X-Jarvis-Token")
+        self.end_headers()
+
     def send_bytes(self, data, ctype, code=200):
         self.send_response(code)
         self.send_header("Content-Type", ctype)
@@ -627,6 +734,15 @@ class Handler(BaseHTTPRequestHandler):
         host = (self.headers.get("Host") or "").split(":")[0]
         origin = self.headers.get("Origin")
         ok_host = host in ("localhost", "127.0.0.1")
+        self.cors = None
+        # Every API call carries the pairing code: the app page has it built in, the Chrome extension
+        # gets it when you paste it. Other websites and other extensions can't read it, so can't use the API.
+        if self.path.startswith("/api/") and self.headers.get("X-Jarvis-Token") != load_settings()["chrome_token"]:
+            self.send_json({"error": "Jarvis isn't paired: paste the pairing code from Elliot AI → Settings."}, 401)
+            return False
+        if origin and origin.startswith("chrome-extension://"):
+            self.cors = origin
+            origin = None
         ok_origin = origin is None or origin in (f"http://localhost:{PORT}", f"http://127.0.0.1:{PORT}") or \
             (origin == "null" and self.command == "GET" and self.path.startswith("/ws/"))
         ok_type = self.command == "GET" or self.command == "DELETE" or \
@@ -646,7 +762,8 @@ class Handler(BaseHTTPRequestHandler):
         url = urllib.parse.urlparse(self.path)
         try:
             if url.path in ("/", "/index.html"):
-                self.send_bytes((APP_DIR / "index.html").read_bytes(), "text/html; charset=utf-8")
+                page = (APP_DIR / "index.html").read_text("utf-8").replace("__JARVIS_TOKEN__", load_settings()["chrome_token"])
+                self.send_bytes(page.encode(), "text/html; charset=utf-8")
             elif url.path.startswith("/media/"):
                 name = Path(urllib.parse.unquote(url.path[7:])).name
                 p = MEDIA / name
@@ -692,6 +809,8 @@ class Handler(BaseHTTPRequestHandler):
                 self.send_json(load_json(PROJECTS, url.path.rsplit("/", 1)[1]))
             elif url.path == "/api/settings":
                 self.send_json(public_settings())
+            elif url.path == "/api/memory":
+                self.send_json({"memories": MEMORY.all(), "categories": memory_store.CATEGORIES})
             else:
                 self.send_json({"error": "not found"}, 404)
         except urllib.error.URLError:
@@ -704,6 +823,9 @@ class Handler(BaseHTTPRequestHandler):
             return
         try:
             kind, i = self.path.strip("/").split("/")[1:3]
+            if kind == "memory":
+                MEMORY.delete(i)
+                return self.send_json({"ok": True})
             folder = {"chats": CHATS, "projects": PROJECTS}[kind]
             (folder / f"{check_id(i)}.json").unlink(missing_ok=True)
             if kind == "projects":  # keep the chats, just detach them
@@ -736,6 +858,19 @@ class Handler(BaseHTTPRequestHandler):
                     n = organizer.undo(plan)
                 save_json(PLANS, plan)
                 return self.send_json({"moved": n, "folder": plan["folder"]})
+            if path == "/api/browser_result":
+                if b.get("id") in _browser:
+                    _browser[b["id"]]["output"] = str(b.get("output", ""))[:50000]
+                    _browser[b["id"]]["event"].set()
+                return self.send_json({"ok": True})
+            if path == "/api/memory":
+                if b.get("id"):
+                    MEMORY.update(b["id"], b.get("text"), b.get("category"))
+                    return self.send_json({"ok": True})
+                entry = MEMORY.add(b.get("text", ""), b.get("category", "Other"), "you")
+                return self.send_json({"entry": entry})
+            if path == "/api/memory/learn":
+                return self.send_json({"learned": learn(b.get("chat_id"), b.get("model"))})
             if path == "/api/approve":
                 if b.get("id") in _approvals:
                     _approvals[b["id"]]["allow"] = bool(b.get("allow"))
@@ -828,7 +963,7 @@ class Handler(BaseHTTPRequestHandler):
             emit({"type": "error", "message": msg})
 
     def run_chat(self, chat, b, emit):
-        opts = {k: bool(b.get(k)) for k in ("tools", "think", "research", "math", "build")}
+        opts = {k: bool(b.get(k)) for k in ("tools", "think", "research", "math", "build", "browser")}
         model = b["model"]
         if opts["math"]:
             model = math_model(model)
@@ -886,6 +1021,33 @@ class Handler(BaseHTTPRequestHandler):
         chat["messages"].append(msg)
         save_json(CHATS, chat)
         emit({"type": "text", "delta": content})
+
+
+def learn(chat_id, model):
+    """After a reply: ask the model what lasting things it just learned about the user."""
+    s = load_settings()
+    if not s["auto_memory"] or not chat_id or not model:
+        return []
+    chat = load_json(CHATS, chat_id)
+    msgs = chat["messages"]
+    user = next((m for m in reversed(msgs) if m["role"] == "user"), None)
+    reply = next((m for m in reversed(msgs) if m["role"] == "assistant" and m.get("content") and not m.get("error")), None)
+    text = (user or {}).get("display") or (user or {}).get("content", "")
+    if not user or len(text.strip()) < 8:
+        return []
+    if model == "generator":
+        return []
+    known = "\n".join(f"- {m['text']}" for m in MEMORY.all()[-150:])
+    try:
+        answer = providers.complete(model, memory_store.learn_prompt(s["name"], text, (reply or {}).get("content", ""), known),
+                                    (), s)
+    except Exception:
+        return []
+    learned = [e for e in (MEMORY.add(t, c, chat_id) for t, c in memory_store.parse_learned(answer)) if e]
+    if learned:
+        chat["messages"].append({"role": "memory", "content": "", "items": [e["text"] for e in learned]})
+        save_json(CHATS, chat)
+    return learned
 
 
 def main():

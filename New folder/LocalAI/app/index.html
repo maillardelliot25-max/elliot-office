@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Elliot AI</title>
+<title>Jarvis</title>
 <style>
   :root {
     --bg:#faf9f5; --side:#f0eee6; --panel:#ffffff; --line:#e3e0d6; --text:#1f1e1d; --dim:#73726c;
@@ -138,6 +138,12 @@
   .fileList .chip { cursor:default; }
   .fileList .chip button { border:none; padding:0 0 0 4px; font-size:11px; }
   .mathBlock { overflow-x:auto; margin:0 0 12px; }
+  .memline { font-size:13px; color:var(--dim); margin:0 0 12px; }
+  .memline b { color:var(--accent); font-weight:500; }
+  .memGroup h4 { margin:14px 0 4px; font-size:13px; color:var(--dim); text-transform:uppercase; letter-spacing:.5px; }
+  .memItem { display:flex; gap:8px; align-items:center; padding:4px 0; border-bottom:1px solid var(--line); }
+  .memItem span { flex:1; }
+  .memItem button { border:none; color:var(--dim); padding:0 6px; }
   .srvtool { font-size:13px; color:var(--dim); margin:0 0 8px; }
   .appBtns { display:flex; gap:8px; margin:0 0 12px; flex-wrap:wrap; }
   #orgList { max-height:46vh; overflow-y:auto; border:1px solid var(--line); border-radius:10px; margin-top:12px; }
@@ -162,7 +168,7 @@
 </head>
 <body>
 <nav id="side">
-  <div class="brand"><span></span>Elliot AI</div>
+  <div class="brand"><span></span><b id="brandName">Jarvis</b></div>
   <div class="sidePad">
     <select id="project" title="Project"></select>
     <button id="projectSettings" title="Project settings" style="flex:0">⚙</button>
@@ -171,7 +177,8 @@
   <div class="sidePad"><button id="openOrganize" style="text-align:left">🗂 Organize files &amp; photos</button></div>
   <div class="sidePad"><input id="search" placeholder="Search chats"></div>
   <div id="chatList"></div>
-  <div class="bottom"><button id="openSettings" style="width:100%">⚙ Settings, memory &amp; keys</button></div>
+  <div class="sidePad"><button id="openMemory" style="text-align:left">🧠 Memory: what I know about you</button></div>
+  <div class="bottom"><button id="openSettings" style="width:100%">⚙ Settings, keys &amp; Chrome</button></div>
 </nav>
 
 <main id="main">
@@ -235,10 +242,14 @@
     <h2 style="margin:0">Settings</h2>
     <label>Your name</label>
     <input type="text" id="sName">
+    <label>Assistant's name</label>
+    <input type="text" id="sAsst" placeholder="Jarvis">
     <label>Custom instructions (how the AI should respond, in every chat)</label>
     <textarea id="sInstr" placeholder="e.g. Keep answers short. I run Maillard AI, a freelance AI agency."></textarea>
-    <label>Memory (one fact per line; the AI also adds to this itself)</label>
-    <textarea id="sMem"></textarea>
+    <label><input type="checkbox" id="sLearn"> Learn what I like automatically from conversations (see 🧠 Memory)</label>
+    <h3>Jarvis in Chrome</h3>
+    <div style="font-size:13px;color:var(--dim);margin-top:6px">Install the extension from the <code>LocalAI/chrome-extension</code> folder (README, step 6), click its icon, and paste this pairing code:</div>
+    <div style="display:flex;gap:8px;margin-top:6px"><input type="text" id="sToken" readonly style="font:15px ui-monospace,monospace;letter-spacing:1px"><button id="sCopyToken">Copy</button></div>
     <h3>Cloud AI brains (optional): add keys to use Claude, ChatGPT and Gemini</h3>
     <label>Anthropic API key, for <b>Claude</b>: <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener">console.anthropic.com</a></label>
     <input type="password" id="sAnthropic" placeholder="sk-ant-…" autocomplete="off">
@@ -323,11 +334,28 @@
     </div>
   </div>
 </div>
+<div class="modal" id="memModal">
+  <div class="card" style="width:620px">
+    <h2 style="margin:0">🧠 What <span class="asstName">Jarvis</span> remembers about you</h2>
+    <div style="color:var(--dim);font-size:14px;margin-top:4px">Used in every chat to personalise answers. <span class="asstName">Jarvis</span> adds to it as you talk (when learning is on), when you say "remember…", and you can add or delete entries here. Say "forget…" in any chat to remove something.</div>
+    <label><input type="checkbox" id="mLearn"> Learn automatically from my conversations</label>
+    <div style="display:flex;gap:6px;margin-top:10px">
+      <input type="text" id="mText" placeholder="e.g. I love minimalist designs in terracotta and cream" style="flex:1">
+      <select id="mCat" style="width:auto"></select>
+      <button class="primary" id="mAdd">Add</button>
+    </div>
+    <input type="text" id="mSearch" placeholder="Search memory" style="margin-top:10px">
+    <div id="mList" style="max-height:48vh;overflow-y:auto;margin-top:6px"></div>
+    <div class="actions"><button id="mClose">Close</button></div>
+  </div>
+</div>
 <div id="lightbox"><img alt=""></div>
 <div id="toast"></div>
 
 <script>
 const $ = id => document.getElementById(id);
+const TOKEN = "__JARVIS_TOKEN__";   // filled in by the server; every API call must carry it
+const HEADERS = { "Content-Type": "application/json", "X-Jarvis-Token": TOKEN };
 const esc = s => String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const PREVIEW = ["html", "svg", "xml", "jsx", "tsx", "react", "mermaid", "markdown", "md"];
 let chatId = null, models = [], busy = false, controller = null, pending = [], settings = {}, projects = [], allChats = [];
@@ -339,7 +367,7 @@ function pref(k, d) { try { const v = localStorage.getItem(k); return v === null
 function setPref(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} }
 function toast(msg) { const t = $("toast"); t.textContent = msg; t.style.display = "block"; clearTimeout(t._h); t._h = setTimeout(() => t.style.display = "none", 4000); }
 async function api(path, opts = {}) {
-  const r = await fetch(path, { headers: { "Content-Type": "application/json" }, ...opts, body: opts.body && JSON.stringify(opts.body) });
+  const r = await fetch(path, { headers: HEADERS, ...opts, body: opts.body && JSON.stringify(opts.body) });
   const j = await r.json();
   if (j && j.error) throw new Error(j.error);
   return j;
@@ -504,7 +532,13 @@ function openApp(url) {
   setUrlMode(true);
 }
 $("artTab").onclick = () => window.open(artUrl, "_blank");
-$("artZip").onclick = () => { location.href = "/api/zip?path=" + encodeURIComponent(decodeURIComponent(artUrl.replace(/^\/ws\//, ""))); };
+async function downloadZip(path) {
+  const r = await fetch("/api/zip?path=" + encodeURIComponent(path), { headers: HEADERS });
+  if (!r.ok) return toast((await r.json()).error || "Download failed");
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(await r.blob()); a.download = path.split("/").filter(Boolean).pop() + ".zip"; a.click();
+}
+$("artZip").onclick = () => downloadZip(decodeURIComponent(artUrl.replace(/^\/ws\//, "")));
 function openArtifact(id) {
   art = codeStore[id];
   if (!art) return;
@@ -640,7 +674,7 @@ function setResult(card, output) {
     d.className = "appBtns";
     d.innerHTML = `<button class="primary">▶ Open app</button><button>⤓ Download .zip</button>`;
     d.children[0].onclick = () => openApp(app[1]);
-    d.children[1].onclick = () => { location.href = "/api/zip?path=" + encodeURIComponent(decodeURIComponent(app[1].slice(4))); };
+    d.children[1].onclick = () => downloadZip(decodeURIComponent(app[1].slice(4)));
     card.after(d);
   }
   return app && app[1];
@@ -677,6 +711,7 @@ function renderChat(chat) {
   chat.messages.forEach((m, i) => {
     if (m.role === "user") userBubble(m, i);
     else if (m.error) inner.insertAdjacentHTML("beforeend", `<p class="err">⚠ ${esc(m.error)}</p>`);
+    else if (m.role === "memory") memoryLine(m.items || []);
     else if (m.role === "assistant") {
       if (m.thinking) thinkBlock(m.thinking);
       (m.server_tools || []).forEach(t => serverToolLine(t.name, t.input || {}));
@@ -758,7 +793,7 @@ $("export").onclick = async () => {
   if (!chatId) return toast("Nothing to export yet");
   const chat = await api(`/api/chats/${chatId}`);
   const md = chat.messages.filter(m => (m.role === "user" || m.role === "assistant") && (m.display || m.content))
-    .map(m => `## ${m.role === "user" ? "You" : "Elliot AI"}\n\n${m.display ?? m.content}`).join("\n\n");
+    .map(m => `## ${m.role === "user" ? "You" : (settings.assistant_name || "Jarvis")}\n\n${m.display ?? m.content}`).join("\n\n");
   download(`${chat.title.replace(/[^\w -]/g, "").slice(0, 50) || "chat"}.md`, `# ${chat.title}\n\n${md}\n`);
 };
 
@@ -965,7 +1000,7 @@ async function run(message, { retry = false, editIndex } = {}) {
       ? { chat_id: chatId, project_id: projectId || null, message, kind: mode, aspect_ratio: $("aspect").value, edit_index: editIndex }
       : { chat_id: chatId, project_id: projectId || null, model, message, tools, think, research, math, build: mode === "build", retry, edit_index: editIndex };
     const r = await fetch(gen ? "/api/generate" : "/api/chat", {
-      method: "POST", signal: controller.signal, headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
+      method: "POST", signal: controller.signal, headers: HEADERS, body: JSON.stringify(body),
     });
     const reader = r.body.getReader(), dec = new TextDecoder();
     let buf = "";
@@ -1025,6 +1060,7 @@ async function run(message, { retry = false, editIndex } = {}) {
   if (chatId) { try { renderChat(await api(`/api/chats/${chatId}`)); } catch {} }
   scrollDown(true);
   if (speak && spoken.trim() && !gen) say(spoken);
+  if (!gen && chatId) learnFrom(chatId, model);
   // Like Claude: pop open the newest web page / app / diagram the AI just made
   const last = Object.keys(codeStore).reverse().find(id => canPreview(codeStore[id]) && lastText.includes(codeStore[id].code));
   if (last && codeStore[last].code.length > 200 && !appOpen) openArtifact(last);
@@ -1045,7 +1081,8 @@ function approvalBar(id, card) {
 // ── Settings ──────────────────────────────────────────────────────────
 function fillSettings(s) {
   $("sName").value = s.name || ""; $("sInstr").value = s.instructions || "";
-  $("sMem").value = (s.memory || []).join("\n"); $("sWs").value = s.workspace || "";
+  $("sWs").value = s.workspace || ""; $("sAsst").value = s.assistant_name || "Jarvis";
+  $("sLearn").checked = s.auto_memory !== false; $("sToken").value = s.chrome_token || "";
   $("sAuto").checked = !!s.auto_approve; $("sKey").value = s.google_api_key || "";
   $("sAnthropic").value = s.anthropic_api_key || ""; $("sOpenAI").value = s.openai_api_key || "";
   $("sPy").checked = !!s.auto_python;
@@ -1065,7 +1102,7 @@ $("sSave").onclick = async () => {
   try {
     settings = await api("/api/settings", { method: "POST", body: {
       name: $("sName").value.trim(), instructions: $("sInstr").value,
-      memory: $("sMem").value.split("\n").map(s => s.trim()).filter(Boolean),
+      assistant_name: $("sAsst").value.trim() || "Jarvis", auto_memory: $("sLearn").checked,
       workspace: $("sWs").value.trim(), auto_approve: $("sAuto").checked,
       google_api_key: $("sKey").value.trim(), image_provider: $("sProvider").value,
       image_model: $("sImgModel").value, video_model: $("sVidModel").value.trim() || "veo-3.1-generate-preview",
@@ -1074,10 +1111,58 @@ $("sSave").onclick = async () => {
       math_model: $("sMath").value, auto_python: $("sPy").checked,
     }});
     $("settings").classList.remove("open"); toast("Settings saved");
-    loadModels();
+    applyName(); loadModels();
     if (!chatId) welcome();
   } catch (e) { toast(e.message); }
 };
+// ── Memory ────────────────────────────────────────────────────────────
+function applyName() {
+  const n = settings.assistant_name || "Jarvis";
+  $("brandName").textContent = n; document.title = n;
+  document.querySelectorAll(".asstName").forEach(e => e.textContent = n);
+}
+function memoryLine(items) {
+  if (!items.length) return;
+  const d = document.createElement("div");
+  d.className = "memline";
+  d.innerHTML = `🧠 <b>Remembered:</b> ${items.map(esc).join(" · ")}`;
+  inner.append(d);
+}
+async function learnFrom(id, model) {
+  if (settings.auto_memory === false) return;
+  try {
+    const r = await api("/api/memory/learn", { method: "POST", body: { chat_id: id, model } });
+    if (r.learned.length && id === chatId && !busy) { memoryLine(r.learned.map(e => e.text)); scrollDown(); }
+    if (r.learned.length) toast("🧠 Remembered: " + r.learned.map(e => e.text).join(" · "));
+  } catch {}
+}
+let memories = [];
+async function drawMemory() {
+  const r = await api("/api/memory");
+  memories = r.memories;
+  if (!$("mCat").options.length) $("mCat").innerHTML = r.categories.map(c => `<option>${esc(c)}</option>`).join("");
+  const q = $("mSearch").value.trim().toLowerCase();
+  const list = memories.filter(m => !q || m.text.toLowerCase().includes(q));
+  $("mList").innerHTML = list.length ? r.categories.filter(c => list.some(m => m.category === c)).map(c =>
+    `<div class="memGroup"><h4>${esc(c)}</h4>${list.filter(m => m.category === c).sort((a, b) => b.added - a.added).map(m =>
+      `<div class="memItem"><span>${esc(m.text)}</span><button title="Forget this" data-forget="${m.id}">✕</button></div>`).join("")}</div>`).join("")
+    : `<div style="color:var(--dim);margin-top:12px">${q ? "No matches." : "Nothing yet. Chat normally and I'll pick up what you like, or add things above."}</div>`;
+  $("mList").querySelectorAll("[data-forget]").forEach(b => b.onclick = async () => { await api(`/api/memory/${b.dataset.forget}`, { method: "DELETE" }); drawMemory(); });
+}
+$("openMemory").onclick = () => { $("memModal").classList.add("open"); $("mLearn").checked = settings.auto_memory !== false; drawMemory(); };
+$("mClose").onclick = () => $("memModal").classList.remove("open");
+$("mSearch").oninput = drawMemory;
+$("mLearn").onchange = async () => { settings = await api("/api/settings", { method: "POST", body: { auto_memory: $("mLearn").checked } }); };
+$("mAdd").onclick = async () => {
+  const text = $("mText").value.trim();
+  if (!text) return;
+  const r = await api("/api/memory", { method: "POST", body: { text, category: $("mCat").value } });
+  if (!r.entry) toast("Already remembered (or looks like a password/number I shouldn't store)");
+  $("mText").value = ""; drawMemory();
+};
+$("mText").onkeydown = e => { if (e.key === "Enter") $("mAdd").click(); };
+$("sCopyToken").onclick = () => { navigator.clipboard.writeText($("sToken").value); toast("Pairing code copied"); };
+
 // ── File organizer ────────────────────────────────────────────────────
 let plan = null, orgCtl = null;
 $("openOrganize").onclick = () => {
@@ -1098,7 +1183,7 @@ $("oScan").onclick = async () => {
   $("oScan").disabled = true; $("orgProgress").textContent = "Scanning…";
   orgCtl = new AbortController();
   try {
-    const r = await fetch("/api/organize/scan", { method: "POST", signal: orgCtl.signal, headers: { "Content-Type": "application/json" },
+    const r = await fetch("/api/organize/scan", { method: "POST", signal: orgCtl.signal, headers: HEADERS,
       body: JSON.stringify({ folder, method: $("oMethod").value, model: $("oModel").value, categories: $("oCats").value.split(",").map(s => s.trim()).filter(Boolean) }) });
     const reader = r.body.getReader(), dec = new TextDecoder();
     let buf = "";
@@ -1147,6 +1232,7 @@ document.querySelectorAll(".modal").forEach(m => m.addEventListener("click", e =
 
 (async () => {
   try { settings = await api("/api/settings"); } catch {}
+  applyName();
   drawToggles();
   try { await refreshProjects(); } catch {}
   setMode("chat");
