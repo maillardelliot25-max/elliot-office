@@ -118,6 +118,11 @@ class LocalBrain:
         return parse_reply(r.json().get("message", {}).get("content", ""))
 
 
+    async def fill_form(self, url: str, title: str, fields: list[dict], profile: dict,
+                        memories: list[dict]) -> list[dict]:
+        return await fill_form(self, url, title, fields, profile, memories)
+
+
 class BrainOffline(Exception):
     """Ollama isn't running or the model isn't installed."""
 
@@ -132,3 +137,63 @@ def parse_reply(content: str) -> dict:
         return {"reply": str(data), "actions": []}
     actions = [a for a in data.get("actions") or [] if isinstance(a, dict) and a.get("type") in ACTION_TYPES]
     return {"reply": str(data.get("reply") or "Done."), "actions": actions}
+
+
+FILL_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "values": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {"i": {"type": "integer"}, "value": {"type": "string"}},
+                "required": ["i", "value"],
+            },
+        },
+    },
+    "required": ["values"],
+}
+
+FILL_PROMPT = """You fill in web forms for {owner}. Page: "{title}" ({url}).
+
+What you know about {owner}:
+{profile}
+{memories}
+Form fields that still need answers (i = field number):
+{fields}
+
+Answer ONLY with JSON: {{"values": [{{"i": <field number>, "value": "<text>"}}]}}
+Only include fields you are confident about from the information above. Never invent facts,
+passwords, card numbers or ID numbers. For a field with options, use one of the options exactly."""
+
+
+async def fill_form(brain: "LocalBrain", url: str, title: str, fields: list[dict],
+                    profile: dict, memories: list[dict]) -> list[dict]:
+    """Ask the local brain for the fields the profile couldn't answer."""
+    if not fields:
+        return []
+    lines = []
+    for f in fields[:40]:
+        desc = f"{f['i']}: {(f.get('label') or f.get('placeholder') or f.get('name') or '?')[:120]}"
+        if f.get("options"):
+            desc += f"  (options: {', '.join(o[:40] for o in f['options'][:25])})"
+        lines.append(desc)
+    prof = "\n".join(f"- {k}: {v}" for k, v in profile.items() if v) or "- (nothing saved yet)"
+    mem = ""
+    if memories:
+        mem = "\nFrom past conversations:\n" + "\n".join(f"- {m['text'][:200]}" for m in memories) + "\n"
+    prompt = FILL_PROMPT.format(owner=brain.owner, title=title[:120], url=url[:200],
+                                profile=prof, memories=mem, fields="\n".join(lines))
+    payload = {"model": brain.model, "messages": [{"role": "user", "content": prompt}],
+               "stream": False, "format": FILL_SCHEMA, "options": {"temperature": 0.1}}
+    try:
+        async with httpx.AsyncClient(timeout=180) as client:
+            r = await client.post(f"{brain.url}/api/chat", json=payload)
+        r.raise_for_status()
+        data = json.loads(r.json().get("message", {}).get("content", "") or "{}")
+    except (httpx.HTTPError, json.JSONDecodeError, ValueError):
+        return []
+    valid = {f["i"] for f in fields}
+    return [{"i": v["i"], "value": str(v["value"]), "source": "jarvis"}
+            for v in data.get("values", [])
+            if isinstance(v, dict) and v.get("i") in valid and str(v.get("value", "")).strip()]

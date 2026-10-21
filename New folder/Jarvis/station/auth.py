@@ -89,6 +89,27 @@ class DeviceAuth:
                 return device_id
         return None
 
+    def ensure_local_token(self, path: Path, name: str) -> str:
+        """A token for programs on this PC (e.g. Claude's Jarvis tools), kept in a file only you can read."""
+        path = Path(path)
+        if path.exists():
+            token = path.read_text().strip()
+            if self.check(token):
+                return token
+        token = secrets.token_urlsafe(32)
+        with self._lock:
+            self.devices["local-" + secrets.token_hex(3)] = {
+                "name": name, "token_hash": _hash(token),
+                "paired_at": datetime.now().isoformat(timespec="seconds"),
+            }
+            self._save()
+        path.write_text(token)
+        try:
+            path.chmod(0o600)
+        except OSError:
+            pass
+        return token
+
     def list(self) -> list[dict]:
         return [{"id": i, "name": d["name"], "paired_at": d["paired_at"]} for i, d in self.devices.items()]
 

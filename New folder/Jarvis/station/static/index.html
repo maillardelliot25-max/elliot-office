@@ -125,9 +125,30 @@
     <p class="hint" id="shareHint">Tip: install this app (see README, HTTPS) and “Jarvis” appears in your phone's <b>Share</b> menu — share any link, text or photo straight to the PC.</p>
   </section>
 
+  <!-- RECALL: screen memory -->
+  <section class="tab" data-tab="recall">
+    <div class="card">
+      <div class="rec-line"><span class="dot" id="recDot"></span><b id="recState">Screen memory</b></div>
+      <div class="hint" id="recInfo"></div>
+      <div class="meter"><i id="recBar"></i></div>
+    </div>
+    <form id="recSearch" class="search">
+      <input id="recQ" placeholder="Search what was on your screen…">
+      <button class="icon-btn" type="submit" title="Search">⌕</button>
+    </form>
+    <div class="segs" id="segList"></div>
+    <div class="frames" id="frameGrid"></div>
+    <button class="btn wide hidden" id="moreFrames">Load more</button>
+  </section>
+
   <!-- PC -->
   <section class="tab" data-tab="pc">
     <div class="stats" id="stats"></div>
+
+    <h2>Switches</h2>
+    <ul class="switches" id="switchList"></ul>
+    <h2>Photos, music &amp; files sync</h2>
+    <div id="syncBox"></div>
 
     <h2>Power</h2>
     <div class="grid">
@@ -173,6 +194,16 @@
     <h2>Running apps <button class="link" id="procRefresh">refresh</button></h2>
     <ul class="procs" id="procList"></ul>
 
+    <h2>My details <span class="hint inline">used to fill forms · stays on your PC</span></h2>
+    <form id="profileForm" class="profile"></form>
+
+    <h2>Signature <button class="link" id="sigClear">clear</button></h2>
+    <canvas id="sigPad" class="sigpad" width="600" height="200"></canvas>
+    <div class="row">
+      <button class="btn primary grow" id="sigSave">Save signature</button>
+    </div>
+    <p class="hint" id="sigInfo">Draw with your finger. Then in Files, tap ✍ next to a PDF to sign it.</p>
+
     <h2>Paired devices</h2>
     <ul class="procs" id="deviceList"></ul>
     <button class="btn danger wide" id="unpairBtn">Unpair this device</button>
@@ -183,9 +214,16 @@
     <button data-go="jarvis"><span>✦</span>Jarvis</button>
     <button data-go="files"><span>🗂</span>Files</button>
     <button data-go="clip"><span>📋</span>Clip</button>
+    <button data-go="recall"><span>🕘</span>Recall</button>
     <button data-go="pc"><span>⚙</span>PC</button>
   </nav>
 </main>
+
+<div class="viewer hidden" id="viewer">
+  <img id="viewerImg" alt="Saved screen">
+  <div class="viewer-cap" id="viewerCap"></div>
+  <button class="icon-btn viewer-x" id="viewerClose" title="Close">✕</button>
+</div>
 
 <div class="toast" id="toast"></div>
 <script src="app.js"></script>

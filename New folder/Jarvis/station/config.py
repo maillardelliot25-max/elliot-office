@@ -31,6 +31,8 @@ class StationConfig:
     owner_name:   str  = "Boss"
     upload_dir:   Path = field(default_factory=lambda: Path.home() / "Downloads" / "Jarvis")
     clipboard_history: bool = True                  # remember what you copy on the PC
+    telegram_token:   str = ""                      # same .env names as the original Jarvis
+    telegram_chat_id: str = ""
 
     @property
     def outbox_dir(self) -> Path:
@@ -49,4 +51,6 @@ class StationConfig:
             owner_name=os.getenv("OWNER_NAME", "Boss"),
             upload_dir=Path(os.getenv("STATION_UPLOAD_DIR", str(Path.home() / "Downloads" / "Jarvis"))),
             clipboard_history=_bool("STATION_CLIPBOARD_HISTORY", True),
+            telegram_token=os.getenv("TELEGRAM_BOT_TOKEN", "").strip(),
+            telegram_chat_id=os.getenv("TELEGRAM_CHAT_ID", "").strip(),
         )

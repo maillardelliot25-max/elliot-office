@@ -82,6 +82,9 @@ class FakeBrain:
         self.seen = {"message": message, "history": history, "memories": memories}
         return self.next
 
+    async def fill_form(self, url, title, fields, profile, memories):
+        return []
+
 
 @pytest.fixture
 def station(tmp_path, capsys):

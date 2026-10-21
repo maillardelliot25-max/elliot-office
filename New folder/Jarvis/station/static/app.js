@@ -84,7 +84,8 @@ function go(tab) {
   if (tab === "jarvis") { loadHistory(); setTimeout(() => $("#chatInput").focus(), 50); }
   if (tab === "files" && !files.loaded) openDir("");
   if (tab === "clip") { loadClips(); loadOutbox(); }
-  if (tab === "pc") { loadStats(); loadProcs(); loadDevices(); }
+  if (tab === "pc") { loadStats(); loadSwitches(); loadProcs(); loadDevices(); loadProfile(); loadSignature(); }
+  if (tab === "recall") loadRecall();
 }
 $$(".tabs button").forEach((b) => b.addEventListener("click", () => go(b.dataset.go)));
 
@@ -387,6 +388,19 @@ async function openDir(path) {
       li.innerHTML = `<span>${f.is_dir ? "📁" : "📄"}</span><span class="name"></span><span class="size"></span>`;
       li.querySelector(".name").textContent = f.name;
       li.querySelector(".size").textContent = fmtSize(f.size);
+      if (/\.pdf$/i.test(f.name)) {
+        [["✍ Sign", "sign"], ["✎ Fill", "fill"]].forEach(([label, what]) => {
+          const b = document.createElement("button");
+          b.className = "doc-btn"; b.textContent = label;
+          b.onclick = async (e) => {
+            e.stopPropagation();
+            toast(what === "sign" ? "Signing, sir…" : "Filling, sir…");
+            const r = await act(() => api(`/api/docs/${what}`, { method: "POST", body: { path: f.path } }));
+            if (r) openDir(files.path);
+          };
+          li.append(b);
+        });
+      }
       li.onclick = () => (f.is_dir ? openDir(f.path) : download(f));
       list.append(li);
     });
@@ -608,6 +622,256 @@ $("#unpairBtn").addEventListener("click", async () => {
   if (!confirm("Unpair this device?")) return;
   try { await api(`/api/devices/${info.device_id}`, { method: "DELETE" }); } catch {}
   logout();
+});
+
+// ── Switches ───────────────────────────────────────────────────────────────
+
+const SWITCHES = [
+  ["clipboard", "Clipboard sync", "Copies on the PC reach your phone & tablet"],
+  ["recall", "Screen memory", "Jarvis remembers what was on screen (8-hour segments, on this PC only)"],
+  ["assist", "Form helper", "Chrome highlights forms and offers to fill them"],
+  ["telegram", "Telegram", "Talk to Jarvis from Telegram"],
+];
+const localGet = (k, d) => { try { return localStorage.getItem(k) ?? d; } catch { return d; } };
+const localSet = (k, v) => { try { localStorage.setItem(k, v); } catch {} };
+
+function switchRow(title, desc, on, onChange) {
+  const li = document.createElement("li");
+  li.innerHTML = `<div class="what"><b></b><small></small></div><label class="toggle"><input type="checkbox"><span></span></label>`;
+  li.querySelector("b").textContent = title;
+  li.querySelector("small").textContent = desc;
+  const input = li.querySelector("input");
+  input.checked = on;
+  input.onchange = async () => { input.disabled = true; try { await onChange(input.checked); } catch (e) { input.checked = !input.checked; toast(e.message, true); } input.disabled = false; };
+  return li;
+}
+
+async function loadSwitches() {
+  const list = $("#switchList");
+  try {
+    const s = await api("/api/settings");
+    list.innerHTML = "";
+    SWITCHES.forEach(([key, title, desc]) => {
+      const extra = key === "telegram" ? ` — ${s.telegram_status}` : "";
+      list.append(switchRow(title, desc + extra, s[key], async (on) => {
+        await api("/api/settings", { method: "PATCH", body: { [key]: on } });
+        toast(`${title} ${on ? "on" : "off"}`);
+        if (key === "recall") loadRecallStatus();
+      }));
+    });
+    list.append(switchRow("Auto-copy on this device", "When the app is open, new copies from other devices go straight to this device's clipboard",
+      localGet("station_autocopy", "1") === "1", async (on) => localSet("station_autocopy", on ? "1" : "0")));
+    loadSync(s);
+  } catch (e) { list.innerHTML = `<li class="error">${e.message}</li>`; }
+}
+
+async function loadSync(s) {
+  const box = $("#syncBox");
+  const r = await api("/api/sync/folders").catch((e) => ({ connected: false, error: e.message, folders: [] }));
+  box.innerHTML = "";
+  if (!r.connected) {
+    box.innerHTML = `<div class="card"><p class="hint" style="margin:0 0 8px">Photos, music and files sync on their own with <b>Syncthing</b> (free).
+      Install it on the PC and on your phone/tablet, share your Camera, Music and Documents folders, then paste the PC's
+      Syncthing API key here (Syncthing → Actions → Settings → API Key). Each folder then gets an on/off switch.</p>
+      <p class="error" style="margin:0 0 8px"></p>
+      <form class="row" id="stForm"><input id="stKey" placeholder="Syncthing API key" autocomplete="off"><button class="btn primary">Connect</button></form></div>`;
+    box.querySelector(".error").textContent = s.syncthing_configured ? r.error : "";
+    box.querySelector("#stForm").onsubmit = async (e) => {
+      e.preventDefault();
+      await act(() => api("/api/settings", { method: "PATCH", body: { syncthing_api_key: $("#stKey").value.trim() } }), "Saved");
+      loadSwitches();
+    };
+    return;
+  }
+  const ul = document.createElement("ul");
+  ul.className = "switches";
+  if (!r.folders.length) ul.innerHTML = '<li class="muted">No folders shared in Syncthing yet.</li>';
+  r.folders.forEach((f) => ul.append(switchRow(f.label, `${f.path} · with ${f.devices.join(", ") || "no devices"}`, !f.paused,
+    async (on) => { await api(`/api/sync/folders/${encodeURIComponent(f.id)}`, { method: "POST", body: { paused: !on } }); toast(`${f.label} sync ${on ? "on" : "paused"}`); })));
+  box.append(ul);
+}
+
+// Auto-copy: newest clip from another device goes to this device's clipboard while the app is open
+let lastClipSeen = +localGet("station_lastclip", "0");
+async function autoCopyCheck() {
+  if (!token || document.hidden || localGet("station_autocopy", "1") !== "1") return;
+  try {
+    const [c] = await api("/api/clips?limit=1");
+    if (!c || c.id <= lastClipSeen) return;
+    const fresh = lastClipSeen > 0;
+    lastClipSeen = c.id; localSet("station_lastclip", String(c.id));
+    if (fresh && c.source !== $("#deviceName").value && document.hasFocus()) {
+      if (await copyToDevice(c.text)) toast(`📋 Copied from ${c.source}`);
+    }
+  } catch {}
+}
+setInterval(autoCopyCheck, 3000);
+
+// ── My details & signature ─────────────────────────────────────────────────
+
+async function loadProfile() {
+  try {
+    const p = await api("/api/profile");
+    const form = $("#profileForm");
+    form.innerHTML = "";
+    p.fields.forEach(({ key, label }) => {
+      const l = document.createElement("label");
+      if (["address_line1", "address_line2", "notes", "full_name"].includes(key)) l.className = "wide";
+      l.textContent = label;
+      const input = document.createElement(key === "notes" ? "textarea" : "input");
+      input.name = key; input.value = p.values[key] || "";
+      if (key === "notes") input.rows = 3;
+      l.append(input);
+      form.append(l);
+    });
+    const save = document.createElement("button");
+    save.className = "btn primary"; save.textContent = "Save my details";
+    form.append(save);
+  } catch (e) { toast(e.message, true); }
+}
+$("#profileForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const body = Object.fromEntries(new FormData(e.target).entries());
+  await act(() => api("/api/profile", { method: "PUT", body }), "Saved, sir");
+});
+
+const pad = $("#sigPad");
+const pctx = pad.getContext("2d");
+let drawing = false, inked = false;
+function padPoint(e) {
+  const r = pad.getBoundingClientRect(), t = e.touches ? e.touches[0] : e;
+  return [(t.clientX - r.left) * pad.width / r.width, (t.clientY - r.top) * pad.height / r.height];
+}
+function padStart(e) { e.preventDefault(); drawing = true; inked = true; const [x, y] = padPoint(e); pctx.beginPath(); pctx.moveTo(x, y); }
+function padMove(e) { if (!drawing) return; e.preventDefault(); const [x, y] = padPoint(e); pctx.lineTo(x, y); pctx.stroke(); }
+function padEnd() { drawing = false; }
+pctx.lineWidth = 4; pctx.lineCap = "round"; pctx.lineJoin = "round"; pctx.strokeStyle = "#0b1a3a";
+pad.addEventListener("touchstart", padStart, { passive: false }); pad.addEventListener("touchmove", padMove, { passive: false });
+pad.addEventListener("touchend", padEnd); pad.addEventListener("mousedown", padStart);
+pad.addEventListener("mousemove", padMove); window.addEventListener("mouseup", padEnd);
+$("#sigClear").addEventListener("click", () => { pctx.clearRect(0, 0, pad.width, pad.height); inked = false; });
+$("#sigSave").addEventListener("click", async () => {
+  if (!inked) return toast("Draw your signature first", true);
+  const blob = await new Promise((r) => pad.toBlob(r, "image/png"));
+  const form = new FormData();
+  form.append("file", blob, "signature.png");
+  if (await act(() => api("/api/signature", { method: "POST", form }), "Signature saved, sir")) loadSignature();
+});
+async function loadSignature() {
+  try {
+    const r = await api("/api/signature", { raw: true });
+    const img = new Image();
+    img.onload = () => {
+      pctx.clearRect(0, 0, pad.width, pad.height);
+      const s = Math.min(pad.width / img.width, pad.height / img.height) * 0.9;
+      pctx.drawImage(img, (pad.width - img.width * s) / 2, (pad.height - img.height * s) / 2, img.width * s, img.height * s);
+      inked = true;
+      $("#sigInfo").textContent = "Saved. In Files, tap ✍ next to a PDF to sign it. Draw again to replace it.";
+    };
+    img.src = URL.createObjectURL(await r.blob());
+  } catch {}
+}
+
+// ── Recall ─────────────────────────────────────────────────────────────────
+
+const recall = { segment: "", lastId: null, query: "" };
+
+async function loadRecallStatus() {
+  try {
+    const s = await api("/api/recall/status");
+    $("#recDot").className = "dot " + (s.enabled && !s.status.startsWith("error") ? "ok" : "bad");
+    $("#recState").textContent = s.enabled ? `Screen memory: ${s.status}` : "Screen memory is off (PC → Switches)";
+    $("#recInfo").textContent = `${fmtSize(s.total_bytes)} used of ${fmtSize(s.max_bytes)} limit · ${s.segments} segment${s.segments === 1 ? "" : "s"} of 8 h · ` +
+      `${fmtSize(s.disk_free_bytes)} free on disk${s.ocr ? " · reading text" : ""}${s.last_saved ? ` · last saved ${fmtTime(s.last_saved)}` : ""}`;
+    $("#recBar").style.width = `${Math.min(100, (100 * s.total_bytes) / s.max_bytes)}%`;
+  } catch (e) { $("#recState").textContent = e.message; }
+}
+
+async function loadRecall() {
+  loadRecallStatus();
+  try {
+    const segs = await api("/api/recall/segments");
+    const list = $("#segList");
+    list.innerHTML = "";
+    const all = document.createElement("button");
+    all.innerHTML = "Latest<small>all segments</small>";
+    all.className = recall.segment ? "" : "on";
+    all.onclick = () => { recall.segment = ""; recall.query = ""; loadRecall(); };
+    list.append(all);
+    segs.forEach((s) => {
+      const b = document.createElement("button");
+      b.innerHTML = `<span></span><small>${s.frames} shots · ${fmtSize(s.bytes)}</small>`;
+      b.querySelector("span").textContent = s.label;
+      b.className = recall.segment === s.segment ? "on" : "";
+      b.onclick = () => { recall.segment = s.segment; recall.query = ""; loadRecall(); };
+      b.oncontextmenu = async (e) => {
+        e.preventDefault();
+        if (!confirm(`Delete ${s.label} (${fmtSize(s.bytes)})?`)) return;
+        await act(() => api(`/api/recall/segments/${s.segment}`, { method: "DELETE" }), "Deleted");
+        recall.segment = ""; loadRecall();
+      };
+      list.append(b);
+    });
+  } catch (e) { toast(e.message, true); }
+  recall.lastId = null;
+  $("#frameGrid").innerHTML = "";
+  loadFrames();
+}
+
+async function loadFrames() {
+  const url = recall.query
+    ? `/api/recall/search?q=${encodeURIComponent(recall.query)}`
+    : `/api/recall/frames?limit=24&segment=${recall.segment}${recall.lastId ? `&before_id=${recall.lastId}` : ""}`;
+  try {
+    const frames = await api(url);
+    const grid = $("#frameGrid");
+    if (!frames.length && !grid.children.length) grid.innerHTML = `<p class="hint">${recall.query ? "Nothing on screen matched that, sir." : "Nothing saved yet — screen memory saves a shot whenever your screen changes."}</p>`;
+    frames.forEach((f) => {
+      const card = document.createElement("div");
+      card.className = "frame";
+      card.innerHTML = `<img alt="" loading="lazy"><div><b></b> · <span></span></div>${f.snippet ? "<p></p>" : ""}`;
+      card.querySelector("b").textContent = fmtTime(f.ts);
+      card.querySelector("span").textContent = f.window || "—";
+      if (f.snippet) card.querySelector("p").textContent = f.snippet;
+      loadThumb(card.querySelector("img"), f.id);
+      card.onclick = () => openViewer(f);
+      grid.append(card);
+    });
+    recall.lastId = frames.length ? frames[frames.length - 1].id : recall.lastId;
+    $("#moreFrames").classList.toggle("hidden", !!recall.query || frames.length < 24);
+  } catch (e) { toast(e.message, true); }
+}
+
+const thumbObserver = "IntersectionObserver" in window ? new IntersectionObserver((entries) => {
+  entries.forEach(async (en) => {
+    if (!en.isIntersecting) return;
+    thumbObserver.unobserve(en.target);
+    try {
+      const r = await api(`/api/recall/frame/${en.target.dataset.id}?w=480`, { raw: true });
+      en.target.src = URL.createObjectURL(await r.blob());
+    } catch {}
+  });
+}, { rootMargin: "200px" }) : null;
+function loadThumb(img, id) { img.dataset.id = id; thumbObserver?.observe(img); }
+
+async function openViewer(f) {
+  $("#viewer").classList.remove("hidden");
+  $("#viewerCap").textContent = `${fmtTime(f.ts)} · ${f.window || ""}`;
+  $("#viewerImg").removeAttribute("src");
+  try {
+    const r = await api(`/api/recall/frame/${f.id}`, { raw: true });
+    $("#viewerImg").src = URL.createObjectURL(await r.blob());
+  } catch (e) { $("#viewerCap").textContent = e.message; }
+}
+$("#viewerClose").addEventListener("click", () => $("#viewer").classList.add("hidden"));
+$("#viewer").addEventListener("click", (e) => { if (e.target.id === "viewer") $("#viewer").classList.add("hidden"); });
+$("#moreFrames").addEventListener("click", loadFrames);
+$("#recSearch").addEventListener("submit", (e) => {
+  e.preventDefault();
+  recall.query = $("#recQ").value.trim();
+  recall.lastId = null;
+  $("#frameGrid").innerHTML = "";
+  loadFrames();
 });
 
 // ── Boot ───────────────────────────────────────────────────────────────────

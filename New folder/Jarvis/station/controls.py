@@ -77,13 +77,45 @@ class PCControl:
 
     # ── Screen ───────────────────────────────────────────────────────────────
 
-    def screenshot(self, width: int = 1280, quality: int = 60) -> tuple[bytes, int, int]:
-        """JPEG of the main screen, scaled to `width`. Returns (jpeg, screen_w, screen_h)."""
-        from PIL import Image, ImageDraw, ImageGrab
+    def grab_image(self):
+        """The main screen as a PIL image (no cursor)."""
+        from PIL import ImageGrab
         try:
-            img = ImageGrab.grab()
+            return ImageGrab.grab()
         except Exception as e:
             raise ControlError(f"Screen capture failed: {e}")
+
+    def active_window(self) -> str:
+        """Title of the window you're using, plus its program name, e.g. 'Inbox - Gmail — chrome'."""
+        if IS_WINDOWS:
+            try:
+                import ctypes
+                import psutil
+                user32 = ctypes.windll.user32
+                hwnd = user32.GetForegroundWindow()
+                length = user32.GetWindowTextLengthW(hwnd)
+                buf = ctypes.create_unicode_buffer(length + 1)
+                user32.GetWindowTextW(hwnd, buf, length + 1)
+                pid = ctypes.c_ulong()
+                user32.GetWindowThreadProcessId(hwnd, ctypes.byref(pid))
+                try:
+                    app = psutil.Process(pid.value).name().removesuffix(".exe")
+                except Exception:
+                    app = ""
+                return f"{buf.value} — {app}" if app else buf.value
+            except Exception:
+                return ""
+        try:
+            out = subprocess.run(["xdotool", "getactivewindow", "getwindowname"],
+                                 capture_output=True, text=True, timeout=2)
+            return out.stdout.strip()
+        except (OSError, subprocess.SubprocessError):
+            return ""
+
+    def screenshot(self, width: int = 1280, quality: int = 60) -> tuple[bytes, int, int]:
+        """JPEG of the main screen, scaled to `width`. Returns (jpeg, screen_w, screen_h)."""
+        from PIL import Image, ImageDraw
+        img = self.grab_image()
         full_w, full_h = img.size
 
         # Draw the mouse cursor so you can see it on the phone

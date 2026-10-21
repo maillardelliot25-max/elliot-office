@@ -17,6 +17,8 @@ if errorlevel 1 (
   pause
   exit /b 1
 )
+echo Installing free Windows OCR for screen memory (optional)...
+.venv\Scripts\python.exe -m pip install winocr || echo   OCR skipped - screen memory will still work, just without searchable text.
 call install_sendto.bat
 echo.
 echo  Done! Now double-click start_station.bat

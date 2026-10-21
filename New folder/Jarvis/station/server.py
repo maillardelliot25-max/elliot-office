@@ -7,6 +7,7 @@ The phone app talks to these endpoints. Every /api route except
 
 import asyncio
 import logging
+from datetime import datetime
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -16,13 +17,18 @@ from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from station import __version__
+from station import __version__, docs
+from station.assist import PROFILE_FIELDS, Profile, fill_from_profile, greeting
 from station.auth import DeviceAuth
 from station.brain import BrainOffline, LocalBrain
 from station.config import StationConfig
 from station.controls import ControlError, PCControl
 from station.intents import describe, quick_intent
 from station.memory import StationMemory
+from station.recall import RecallStore, Recorder, load_ocr, segment_of
+from station.settings import Settings
+from station.syncthing import Syncthing, SyncthingError
+from station.telegram_bot import TelegramBot
 
 logger = logging.getLogger("jarvis.station")
 
@@ -80,21 +86,41 @@ class ChatBody(BaseModel):
 class RunActionBody(BaseModel):
     action: dict
 
+class PausedBody(BaseModel):
+    paused: bool
+
+class PathBody(BaseModel):
+    path: str
+
+class FormBody(BaseModel):
+    url: str = ""
+    title: str = ""
+    fields: list[dict]
+
 
 # ── App ──────────────────────────────────────────────────────────────────────
 
 def create_app(config: StationConfig, control: PCControl | None = None,
-               brain: LocalBrain | None = None) -> FastAPI:
+               brain: LocalBrain | None = None, telegram_transport=None) -> FastAPI:
     config.data_dir.mkdir(parents=True, exist_ok=True)
     auth = DeviceAuth(config.data_dir)
     memory = StationMemory(config.data_dir / "memory.db")
     control = control or PCControl(upload_dir=config.upload_dir)
     brain = brain or LocalBrain(config.ollama_url, config.ollama_model, config.owner_name)
+    settings = Settings(config.data_dir, overrides=None if config.clipboard_history else {"clipboard": False})
+    profile = Profile(config.data_dir)
+    recall = RecallStore(config.data_dir / "recall")
+    recorder = Recorder(recall, control, settings, ocr=load_ocr())
+    signature_path = config.data_dir / "signature.png"
+    auth.ensure_local_token(config.data_dir / "claude.token", "Claude (this PC)")
 
     async def watch_clipboard():
         """Every copy on the PC lands in the shared clipboard history."""
         failures = 0
         while True:
+            if not settings["clipboard"]:
+                await asyncio.sleep(2)
+                continue
             try:
                 memory.add_clip(await run_in_threadpool(control.get_clipboard), "PC")
                 failures = 0
@@ -104,17 +130,37 @@ def create_app(config: StationConfig, control: PCControl | None = None,
                     logger.warning(f"[CLIP] Can't read the PC clipboard: {e}")
             await asyncio.sleep(1 if failures < 5 else 15)
 
+    async def watch_screen():
+        """Recall: look at the screen every few seconds (only saves when something changed)."""
+        last_error = ""
+        while True:
+            try:
+                await run_in_threadpool(recorder.tick)
+                last_error = ""
+            except Exception as e:
+                recorder.last_status = f"error: {e}"
+                if str(e) != last_error:
+                    logger.warning(f"[RECALL] {e}")
+                    last_error = str(e)
+            await asyncio.sleep(settings["recall_every_s"])
+
     @asynccontextmanager
     async def lifespan(_app):
-        task = asyncio.create_task(watch_clipboard()) if config.clipboard_history else None
+        tasks = [asyncio.create_task(watch_clipboard()), asyncio.create_task(watch_screen())]
+        if telegram:
+            tasks.append(asyncio.create_task(telegram.run()))
         yield
-        if task:
+        for task in tasks:
             task.cancel()
 
     app = FastAPI(title="Jarvis — God Station", version=__version__, docs_url=None, redoc_url=None,
                   lifespan=lifespan)
     app.state.auth = auth
     app.state.memory = memory
+    app.state.settings = settings
+    app.state.recall = recall
+    app.state.recorder = recorder
+    telegram = None  # set below, once converse/execute exist
 
     def device(authorization: str = Header(default="")) -> str:
         token = authorization.removeprefix("Bearer ").strip()
@@ -310,15 +356,13 @@ def create_app(config: StationConfig, control: PCControl | None = None,
     async def brain_status(_: str = Depends(device)):
         return await brain.status()
 
-    @app.post("/api/chat")
-    async def chat(body: ChatBody, device_id: str = Depends(device)):
-        message = body.message.strip()
-        if not message:
-            raise HTTPException(400, "Empty message")
-        device_name = auth.devices.get(device_id, {}).get("name", body.device)
-
+    async def converse(message: str, device_name: str, device_kind: str = "phone") -> dict:
+        """One conversation turn — shared by the app and Telegram."""
         history = memory.recent(8)
         memories = memory.search(message, limit=5, exclude_ids={h["id"] for h in history})
+        for hit in recall.search(message, limit=3, any_word=True):  # what was on screen
+            memories.append({"ts": hit["ts"], "role": "screen",
+                             "text": f"in '{hit['window']}': {hit['snippet']}"})
         memory.add("you", message, device_name)
 
         # 1. Instant commands — no AI needed
@@ -331,7 +375,7 @@ def create_app(config: StationConfig, control: PCControl | None = None,
 
         # 2. The local brain
         try:
-            out = await brain.reply(message, history, memories, device=body.device)
+            out = await brain.reply(message, history, memories, device=device_kind)
         except BrainOffline as e:
             reply = ("My brain is offline, so I can only do instant commands right now "
                      "(open …, lock, volume up, pause, next, show desktop, type …). "
@@ -341,6 +385,20 @@ def create_app(config: StationConfig, control: PCControl | None = None,
         results = [await run_in_threadpool(execute, a, False) for a in out["actions"]]
         memory.add("jarvis", out["reply"], device_name)
         return {"reply": out["reply"], "actions": results, "brain": brain.model}
+
+    if config.telegram_token:
+        telegram = TelegramBot(config.telegram_token, config.telegram_chat_id, converse=converse,
+                               execute=execute, control=control, recall=recall, settings=settings,
+                               save_dir=config.upload_dir, transport=telegram_transport)
+    app.state.telegram = telegram
+
+    @app.post("/api/chat")
+    async def chat(body: ChatBody, device_id: str = Depends(device)):
+        message = body.message.strip()
+        if not message:
+            raise HTTPException(400, "Empty message")
+        device_name = auth.devices.get(device_id, {}).get("name", body.device)
+        return await converse(message, device_name, body.device)
 
     @app.post("/api/actions/run")
     async def run_action(body: RunActionBody, device_id: str = Depends(device)):
@@ -354,6 +412,165 @@ def create_app(config: StationConfig, control: PCControl | None = None,
     @app.get("/api/memory/recent")
     def memory_recent(limit: int = Query(50, ge=1, le=500), _: str = Depends(device)):
         return memory.recent(limit)
+
+    @app.post("/api/memory/note")
+    def memory_note(body: TextBody, device_id: str = Depends(device)):
+        """Lets Claude (or you) save something for Jarvis to remember."""
+        name = auth.devices.get(device_id, {}).get("name", "note")
+        return {"id": memory.add("note", body.text.strip()[:5000], name)}
+
+    # ── Switches ─────────────────────────────────────────────────────────────
+
+    def settings_view() -> dict:
+        out = settings.public()
+        out["telegram_status"] = telegram.status if telegram else "not set up (add TELEGRAM_BOT_TOKEN to .env)"
+        return out
+
+    @app.get("/api/settings")
+    def get_settings(_: str = Depends(device)):
+        return settings_view()
+
+    @app.patch("/api/settings")
+    def patch_settings(body: dict, device_id: str = Depends(device)):
+        try:
+            out = settings.update(body)
+        except ValueError as e:
+            raise HTTPException(400, str(e))
+        logger.info(f"[SETTINGS] {device_id} changed {[k for k in body if k != 'syncthing_api_key']}")
+        return {**out, "telegram_status": settings_view()["telegram_status"]}
+
+    # ── Photo / music / file sync (Syncthing) ────────────────────────────────
+
+    def syncthing() -> Syncthing:
+        return Syncthing(settings["syncthing_url"], settings["syncthing_api_key"])
+
+    @app.get("/api/sync/folders")
+    async def sync_folders(_: str = Depends(device)):
+        try:
+            return {"connected": True, "folders": await syncthing().folders()}
+        except SyncthingError as e:
+            return {"connected": False, "error": str(e), "folders": []}
+
+    @app.post("/api/sync/folders/{folder_id}")
+    async def sync_toggle(folder_id: str, body: PausedBody, _: str = Depends(device)):
+        try:
+            return await syncthing().set_paused(folder_id, body.paused)
+        except SyncthingError as e:
+            raise HTTPException(400, str(e))
+
+    # ── Recall: screen memory ────────────────────────────────────────────────
+
+    @app.get("/api/recall/status")
+    def recall_status(_: str = Depends(device)):
+        import shutil
+        segs = recall.segments()
+        free = shutil.disk_usage(recall.root).free
+        return {"enabled": settings["recall"], "status": recorder.last_status,
+                "last_saved": recorder.last_saved, "current_segment": segment_of(datetime.now()),
+                "segments": len(segs), "total_bytes": sum(s["bytes"] for s in segs),
+                "max_bytes": int(settings["recall_max_gb"] * 1e9), "disk_free_bytes": free,
+                "ocr": recorder.ocr is not None}
+
+    @app.get("/api/recall/segments")
+    def recall_segments(_: str = Depends(device)):
+        return recall.segments()
+
+    @app.delete("/api/recall/segments/{segment}")
+    def recall_delete(segment: str, _: str = Depends(device)):
+        if not recall.delete_segment(segment):
+            raise HTTPException(404, "No such segment")
+        return {"ok": True}
+
+    @app.get("/api/recall/frames")
+    def recall_frames(segment: str = "", before_id: int | None = None,
+                      limit: int = Query(48, ge=1, le=200), _: str = Depends(device)):
+        return recall.frames(segment or None, limit, before_id)
+
+    @app.get("/api/recall/search")
+    def recall_search(q: str, limit: int = Query(40, ge=1, le=200), _: str = Depends(device)):
+        return recall.search(q, limit)
+
+    @app.get("/api/recall/frame/{frame_id}")
+    def recall_frame(frame_id: int, w: int = Query(0, ge=0, le=4000), _: str = Depends(device)):
+        path = recall.frame_path(frame_id)
+        if not path or not path.exists():
+            raise HTTPException(404, "Frame not found (it may have been cleaned up)")
+        if not w:
+            return FileResponse(path, media_type="image/jpeg")
+        import io
+        from PIL import Image
+        img = Image.open(path)
+        img.thumbnail((w, w))
+        buf = io.BytesIO()
+        img.save(buf, "JPEG", quality=60)
+        return Response(buf.getvalue(), media_type="image/jpeg", headers={"Cache-Control": "max-age=86400"})
+
+    # ── Your details + Assist (form helper) ──────────────────────────────────
+
+    @app.get("/api/profile")
+    def get_profile(_: str = Depends(device)):
+        return {"fields": [{"key": k, "label": label} for k, label in PROFILE_FIELDS],
+                "values": profile.data}
+
+    @app.put("/api/profile")
+    def put_profile(body: dict, _: str = Depends(device)):
+        return {"values": profile.update(body)}
+
+    @app.get("/api/assist/status")
+    def assist_status(_: str = Depends(device)):
+        return {"enabled": settings["assist"], "greeting": greeting(), "owner": config.owner_name}
+
+    @app.post("/api/assist/fill")
+    async def assist_fill(body: FormBody, device_id: str = Depends(device)):
+        if not settings["assist"]:
+            raise HTTPException(403, "The form helper is switched off (turn it on in the app: PC → Switches).")
+        fields = [f for f in body.fields if isinstance(f.get("i"), int)][:200]
+        values = profile.values()
+        filled, unknown = fill_from_profile(fields, values)
+        if unknown:
+            hints = " ".join(f.get("label") or f.get("name") or "" for f in unknown)
+            mems = memory.search(f"{body.title} {hints}", limit=5)
+            try:
+                filled += await brain.fill_form(body.url, body.title, unknown, values, mems)
+            except Exception as e:
+                logger.warning(f"[ASSIST] brain couldn't help: {e}")
+        n = len(filled)
+        memory.add("jarvis", f"Filled {n} field(s) on “{body.title or body.url}” ({body.url})", "Chrome")
+        if n:
+            msg = f"Done, sir. I filled {n} field{'s' if n != 1 else ''}. Please check them before you submit."
+        else:
+            msg = "I'm sorry, sir — I don't know what goes in these. Add your details in the app (PC → My details)."
+        return {"values": filled, "message": msg}
+
+    # ── Signature + PDFs ─────────────────────────────────────────────────────
+
+    @app.post("/api/signature")
+    async def put_signature(file: UploadFile = File(...), _: str = Depends(device)):
+        try:
+            docs.save_signature(await file.read(), signature_path)
+        except docs.DocError as e:
+            raise HTTPException(400, str(e))
+        return {"ok": True}
+
+    @app.get("/api/signature")
+    def get_signature(_: str = Depends(device)):
+        if not signature_path.exists():
+            raise HTTPException(404, "No signature saved yet")
+        return FileResponse(signature_path, media_type="image/png", headers={"Cache-Control": "no-store"})
+
+    @app.post("/api/docs/sign")
+    async def doc_sign(body: PathBody, _: str = Depends(device)):
+        try:
+            return await run_in_threadpool(docs.sign_pdf, body.path, signature_path)
+        except docs.DocError as e:
+            raise HTTPException(400, str(e))
+
+    @app.post("/api/docs/fill")
+    async def doc_fill(body: PathBody, _: str = Depends(device)):
+        try:
+            return await run_in_threadpool(docs.fill_pdf, body.path, profile.values())
+        except docs.DocError as e:
+            raise HTTPException(400, str(e))
 
     # ── The app itself ───────────────────────────────────────────────────────
 
