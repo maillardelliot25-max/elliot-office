@@ -140,6 +140,41 @@ def screen_recorder():
         time.sleep(every)
 
 
+# ── Watching for moments you'd like help ────────────────────────────────
+
+OFFER_COOLDOWN = 600    # at most one offer every 10 minutes
+
+
+def screen_watcher(lens):
+    """When "Watch my screen" is on, glance at the screen whenever it changes and ask the watching model
+    (offline by default) whether you'd welcome help: a form, an error, or being stuck."""
+    last, quiet_until = None, 0.0
+    while True:
+        s = settings()
+        every = max(10, int(s.get("screen_watch_every") or 20))
+        if s.get("screen_watch") and time.time() >= quiet_until and not lens.busy_on_screen():
+            try:
+                x, y = mouse.Controller().position
+                img, b64, mon = capture(x, y)
+                sig = img.resize((48, 27)).convert("L").tobytes()
+                if last is None or sum(abs(a - b) for a, b in zip(sig, last)) > 48 * 27 * 3:
+                    last = sig
+                    small = img.copy()
+                    small.thumbnail((1024, 1024))
+                    buf = io.BytesIO()
+                    small.save(buf, "JPEG", quality=70)
+                    r = json.loads(call("/api/screen_check", {"image": base64.b64encode(buf.getvalue()).decode()}).read())
+                    if r.get("help"):
+                        quiet_until = time.time() + OFFER_COOLDOWN
+                        lens.events.put(("offer", r.get("message") or "I can help with this.", (img, b64, mon)))
+                    elif r.get("error"):
+                        print("screen watch:", r["error"])
+                        quiet_until = time.time() + OFFER_COOLDOWN
+            except Exception as e:
+                print("screen watch:", e)
+        time.sleep(every)
+
+
 # ── The pop-up bar ───────────────────────────────────────────────────────
 
 class Lens:
@@ -151,6 +186,9 @@ class Lens:
         self.chat_id = None
         self.image_b64 = None
         self.busy = False
+        self.showing = False      # read by the watcher thread
+        self.offer_parts = []     # the notification card
+        self.edges = []           # the glowing screen edges
         self.build()
         self.root.after(50, self.pump)
 
@@ -233,18 +271,27 @@ class Lens:
                     self.out.see("end")
                 elif kind == "done":
                     self.busy = False
+                elif kind == "offer":
+                    self.offer(*args)
         except queue.Empty:
             pass
         self.root.after(50, self.pump)
 
-    def show(self, x=None, y=None):
-        if x is None:
-            x, y = mouse.Controller().position
-        if self.win.winfo_viewable():
-            self.win.withdraw()
-            self.root.update()
-            time.sleep(0.15)   # don't photograph our own window
-        img, self.image_b64, mon = capture(x, y)
+    def busy_on_screen(self):
+        return self.showing or bool(self.offer_parts)
+
+    def show(self, x=None, y=None, preset=None, question=None):
+        self.close_offer()
+        if preset:
+            img, self.image_b64, mon = preset
+        else:
+            if x is None:
+                x, y = mouse.Controller().position
+            if self.win.winfo_viewable():
+                self.win.withdraw()
+                self.root.update()
+                time.sleep(0.15)   # don't photograph our own window
+            img, self.image_b64, mon = capture(x, y)
         self.chat_id = None
         small = img.copy()
         small.thumbnail((220, 150))
@@ -263,12 +310,83 @@ class Lens:
         self.entry.focus_set()
         # borderless windows sometimes miss the first focus request; ask again once it's on screen
         self.win.after(150, lambda: (self.win.focus_force(), self.entry.focus_force()))
+        self.showing = True
+        if question:
+            self.ask(question)
+
+    # ── "Sir, I've got this": the offer in the corner, with the screen edges glowing ──
+
+    def offer(self, message, preset):
+        if self.showing:
+            return
+        self.close_offer()
+        c, (_, _, mon) = self.colours(), preset
+        name = settings().get("assistant_name") or "Jarvis"
+        for gx, gy, gw, gh in ((0, 0, mon["width"], 6), (0, mon["height"] - 6, mon["width"], 6),
+                               (0, 0, 6, mon["height"]), (mon["width"] - 6, 0, 6, mon["height"])):
+            edge = tk.Toplevel(self.root)
+            edge.overrideredirect(True)
+            edge.attributes("-topmost", True)
+            try:
+                edge.attributes("-alpha", 0.85)
+            except tk.TclError:
+                pass
+            edge.configure(bg=c["accent"])
+            edge.geometry(f"{gw}x{gh}+{mon['left'] + gx}+{mon['top'] + gy}")
+            self.edges.append(edge)
+        t = tk.Toplevel(self.root)
+        t.overrideredirect(True)
+        t.attributes("-topmost", True)
+        t.configure(bg=c["accent"])
+        card = tk.Frame(t, bg=c["bg"], padx=14, pady=12)
+        card.pack(fill="both", expand=True, padx=2, pady=2)
+        tk.Label(card, text=f"✦ {name}", bg=c["bg"], fg=c["accent"], font=("Segoe UI", 11, "bold")).pack(anchor="w")
+        tk.Label(card, text=message, bg=c["bg"], fg=c["text"], font=("Segoe UI", 11), wraplength=330,
+                 justify="left").pack(anchor="w", pady=(4, 10))
+        row = tk.Frame(card, bg=c["bg"])
+        row.pack(anchor="w")
+        question = (f"You noticed: \"{message}\" Help me with what's on my screen. If it's a form, tell me exactly what "
+                    "to put in each field using what you know about me, and list anything you still need from me. "
+                    "If it's an error, explain it simply and give the fix step by step.")
+        for label, cmd, primary in (("Help me", lambda: self.show(preset=preset, question=question), True),
+                                    ("Not now", self.close_offer, False),
+                                    ("Stop watching", self.stop_watching, False)):
+            tk.Button(row, text=label, command=cmd, relief="flat", bd=0, padx=10, pady=4, cursor="hand2",
+                      bg=c["accent"] if primary else c["field"], fg="#fff" if primary else c["text"]).pack(side="left", padx=(0, 6))
+        t.update_idletasks()
+        w, h = 380, t.winfo_reqheight()
+        t.geometry(f"{w}x{h}+{mon['left'] + mon['width'] - w - 24}+{mon['top'] + mon['height'] - h - 70}")
+        self.offer_parts.append(t)
+        self.root.after(30000, self.close_offer)        # don't linger if you're busy
+        self.root.after(6000, self.dim_edges)            # the glow is a nudge, not a frame
+
+    def dim_edges(self):
+        for edge in self.edges:
+            try:
+                edge.destroy()
+            except tk.TclError:
+                pass
+        self.edges = []
+
+    def close_offer(self):
+        self.dim_edges()
+        for part in self.offer_parts:
+            try:
+                part.destroy()
+            except tk.TclError:
+                pass
+        self.offer_parts = []
+
+    def stop_watching(self):
+        self.close_offer()
+        threading.Thread(target=lambda: call("/api/settings", {"screen_watch": False}).read(), daemon=True).start()
 
     def recapture(self):
         self.show()
 
     def hide(self):
         self.win.withdraw()
+        self.showing = False
 
     def open_app(self):
         webbrowser.open(SERVER + (f"/#chat={self.chat_id}" if self.chat_id else "/"))
@@ -333,6 +451,7 @@ def main():
         swipe = SwipeDetector(lens.trigger)
         mouse.Listener(on_move=swipe.move).start()
     threading.Thread(target=screen_recorder, daemon=True).start()
+    threading.Thread(target=screen_watcher, args=(lens,), daemon=True).start()
     print(f"Jarvis Lens is running: swipe up from the bottom of the screen or press {hotkey}. Ctrl+C to quit.")
     if "--show" in sys.argv:
         lens.trigger()

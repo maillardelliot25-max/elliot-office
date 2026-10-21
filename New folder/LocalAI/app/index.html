@@ -313,6 +313,12 @@
     <input type="text" id="sHotkey" placeholder="<ctrl>+<alt>+<space>">
     <label>Model that looks at your screen</label>
     <select id="sLens"><option value="auto">Auto: best model that can see images</option></select>
+    <label><input type="checkbox" id="sWatch"> Watch my screen and offer help (forms, error messages, being stuck): the screen edges glow and a note pops up: "Sir, I've got this"</label>
+    <div style="display:flex;gap:12px;flex-wrap:wrap">
+      <label style="flex:2">Model that watches<select id="sWatchModel"></select></label>
+      <label style="flex:1">Check every (seconds)<input type="text" id="sWatchEvery"></label>
+    </div>
+    <div style="font-size:12px;color:var(--dim);margin-top:4px">Checks only when the screen changes, and offers help at most once every 10 minutes. "Auto" uses an offline model so your screen never leaves this PC; a ☁ model would send a screenshot every check.</div>
     <h3>🎞 Screen memory</h3>
     <div style="font-size:13px;color:var(--dim);margin-top:6px">Jarvis Lens saves a screenshot to this PC whenever your screen changes, grouped in 8-hour blocks (00-08, 08-16, 16-24). Old blocks are deleted automatically. Nothing is uploaded anywhere. Takes effect within a minute; Lens must be running.</div>
     <label><input type="checkbox" id="sScreen"> Remember my screen</label>
@@ -1370,6 +1376,11 @@ function fillSettings(s) {
   $("sLens").innerHTML = `<option value="auto">Auto: best model that can see images</option>` +
     models.filter(m => m.caps.includes("vision")).map(m => `<option value="${esc(m.name)}">${esc(m.label)}</option>`).join("");
   $("sLens").value = [...$("sLens").options].some(o => o.value === s.lens_model) ? s.lens_model : "auto";
+  $("sWatch").checked = !!s.screen_watch; $("sWatchEvery").value = s.screen_watch_every || 20;
+  const seeing = models.filter(m => m.caps.includes("vision"));
+  $("sWatchModel").innerHTML = `<option value="auto">Auto: offline model that can see (private)</option>` +
+    seeing.map(m => `<option value="${esc(m.name)}">${m.offline ? "🔒" : "☁"} ${esc(m.label)}</option>`).join("");
+  $("sWatchModel").value = [...$("sWatchModel").options].some(o => o.value === s.screen_watch_model) ? s.screen_watch_model : "auto";
   $("sAuto").checked = !!s.auto_approve; $("sKey").value = s.google_api_key || "";
   $("sAnthropic").value = s.anthropic_api_key || ""; $("sOpenAI").value = s.openai_api_key || "";
   $("sPy").checked = !!s.auto_python;
@@ -1391,6 +1402,7 @@ $("sSave").onclick = async () => {
       name: $("sName").value.trim(), instructions: $("sInstr").value,
       assistant_name: $("sAsst").value.trim() || "Jarvis", auto_memory: $("sLearn").checked,
       phone_access: $("sPhone").checked, persona: $("sPersona").value,
+      screen_watch: $("sWatch").checked, screen_watch_model: $("sWatchModel").value, screen_watch_every: Math.max(10, +$("sWatchEvery").value || 20),
       screen_memory: $("sScreen").checked, screen_every: Math.max(10, +$("sScreenEvery").value || 60), screen_keep_blocks: Math.max(1, +$("sScreenKeep").value || 3),
       lens_swipe: $("sSwipe").checked, lens_hotkey: $("sHotkey").value.trim() || "<ctrl>+<alt>+<space>", lens_model: $("sLens").value,
       workspace: $("sWs").value.trim(), auto_approve: $("sAuto").checked,

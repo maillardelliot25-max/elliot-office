@@ -71,6 +71,9 @@ DEFAULT_SETTINGS = {
     "screen_memory": False,   # Jarvis Lens saves a screenshot when your screen changes, in 8-hour blocks
     "screen_every": 60,       # seconds between screen-memory checks
     "screen_keep_blocks": 3,  # how many 8-hour blocks to keep (3 = the last 24 hours)
+    "screen_watch": False,    # Lens watches the screen and offers help (forms, errors, being stuck)
+    "screen_watch_every": 20, # seconds between checks (only when the screen changed)
+    "screen_watch_model": "auto",  # "auto" = an offline model that can see images, so nothing leaves the PC
     "instructions": "",
     "workspace": str(Path.home() / "ElliotAI-Workspace"),
     "auto_approve": False,
@@ -238,6 +241,43 @@ def screen_memory_stats():
         files = list(d.glob("*.jpg"))
         blocks.append({"name": d.name, "count": len(files), "mb": round(sum(f.stat().st_size for f in files) / 1e6, 1)})
     return {"blocks": blocks, "total_mb": round(sum(b["mb"] for b in blocks), 1), "folder": str(SCREENS)}
+
+
+def watch_model():
+    """The model that watches the screen: your choice, else an offline one that can see images (private)."""
+    choice = load_settings()["screen_watch_model"]
+    if choice and choice != "auto":
+        return choice
+    return next((m["name"] for m in list_models()["models"] if m["offline"] and "vision" in m["caps"]), "")
+
+
+def screen_check(image):
+    """Look at a screenshot and decide whether to offer help right now."""
+    s = load_settings()
+    model = watch_model()
+    if not model:
+        return {"help": False, "error": "No offline model that can see images. Download qwen3-vl:8b in 🧠 AI brains, "
+                                        "or pick a watching model in Settings."}
+    sir = "Address them as \"sir\". " if s.get("persona") == "butler" else ""
+    prompt = f"""You are {s['assistant_name']}, {s['name']}'s helpful digital assistant, glancing at their screen (with their permission).
+
+Decide whether they would welcome help RIGHT NOW. Offer help only when you clearly see one of these:
+- "form": they are filling in a form, application, sign-up, survey or document with empty fields
+- "error": an error, warning or failure message is on screen
+- "stuck": an obvious problem they seem stuck on (e.g. a failed install, a confusing settings page)
+Do NOT offer help for normal reading, browsing, videos, music, games, chatting, writing or coding without a visible error.
+
+If you offer help, write ONE short, friendly sentence to them saying what you noticed and offering to take care of it. {sir}
+
+Reply with JSON only: {{"help": true or false, "kind": "form" | "error" | "stuck" | "none", "message": "..."}}"""
+    reply = providers.complete(model, prompt, [image] if image else (), s)
+    m = re.search(r"\{.*\}", reply or "", re.S)
+    try:
+        data = json.loads(m.group(0)) if m else {}
+    except ValueError:
+        data = {}
+    helpful = data.get("help") is True and data.get("kind") in ("form", "error", "stuck")
+    return {"help": helpful, "kind": data.get("kind", "none"), "message": str(data.get("message", ""))[:300], "model": model}
 
 
 def autofill(b):
@@ -1063,6 +1103,8 @@ class Handler(BaseHTTPRequestHandler):
                 return self.send_json({"moved": n, "folder": plan["folder"]})
             if path == "/v1/chat/completions":
                 return self.gateway_chat(b)
+            if path == "/api/screen_check":
+                return self.send_json(screen_check(b.get("image", "")))
             if path == "/api/autofill":
                 return self.send_json(autofill(b))
             if path == "/api/screen_memory/clear":

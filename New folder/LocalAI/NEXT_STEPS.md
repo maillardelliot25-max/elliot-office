@@ -31,13 +31,13 @@ Every `/api/*` and `/v1/*` call needs the pairing code (header `X-Jarvis-Token`,
 - Memory that learns what you like; recall past chats; Projects; files, images, PDFs; artifacts; image/video generation (Gemini); research, math, app builder; file organizer
 - Chrome: side panel, page reading, browse-for-me with **Autopilot**, and the **"I've got this, sir"** form helper that highlights forms and fills them from memory (never passwords, cards or submit)
 - Butler personality (calls you "sir", announces each job)
-- PC: Jarvis Lens (swipe up from the bottom edge), screen memory in 8-hour blocks with storage shown in Settings
+- PC: Jarvis Lens (swipe up from the bottom edge), screen memory in 8-hour blocks with storage shown in Settings, and screen watching that offers help with forms and errors anywhere on the PC
 - Samsung/Android: assistant app (corner swipe), connects to the PC over Wi-Fi
 - Brain hub (`/v1`) for other systems
 
 ## Next tasks (in order)
 
-1. **Watch the whole PC screen for forms, not just Chrome.** In `jarvis_lens.py`, every N seconds (setting `screen_watch`, off by default), take a small screenshot when the screen changed and ask the Lens model, briefly: "Is the user filling in a form or stuck? Reply JSON {help: bool, message}". If `help` is true, show a Windows notification ("Sir, I've got this…"), for example with `pip install win11toast`, whose button opens the Lens bar. Throttle to at most one offer per 10 minutes, and only when a cheap/local model is selected (this sends screenshots constantly).
+1. ✅ **Done: watch the whole PC screen.** `screen_watcher()` in `jarvis_lens.py` + `/api/screen_check` in `server.py`. Settings → Jarvis Lens → "Watch my screen and offer help". It checks only when the screen changes, uses an offline vision model by default, glows the screen edges and shows "Sir, I've got this" with Help me / Not now / Stop watching, at most once every 10 minutes.
 2. **Let Lens fill forms in desktop apps.** After the user accepts, ask the model for the field values (re-use `autofill()` in `server.py` with labels read from the screenshot), then type them with `pynput.keyboard` (Tab between fields). Never type into password fields; always stop before submitting.
 3. **Sign PDFs / fill PDF documents.** Add a tool `fill_pdf(path, values)` and `sign_pdf(path, page, x, y)` in `server.py` using `pypdf` (`PdfWriter.update_page_form_field_values` for form PDFs) and a saved signature image (Settings: upload `signature.png`) stamped with `pypdf` + Pillow. Save as a new file, never overwrite the original.
 4. **"What was I doing at 3pm?"** Add a tool `screen_history(time)` that loads the screenshot nearest that time from `data/screen_memory/` and sends it to a vision model; return its description.
