@@ -240,7 +240,7 @@ a { color: inherit; text-decoration: none; }
 .hero-stats span { color: var(--text-faint); font-size: .85rem; }
 
 /* ---------- generic section spacing ---------- */
-section { padding: 5rem 0; }
+section { padding: 4rem 0; }
 section h2 { font-size: clamp(1.8rem, 3.5vw, 2.6rem); }
 
 .services { background: var(--bg-alt); }
@@ -270,7 +270,7 @@ section h2 { font-size: clamp(1.8rem, 3.5vw, 2.6rem); }
   display: flex;
   flex-wrap: wrap;
   gap: .6rem;
-  margin-bottom: 2.5rem;
+  margin-bottom: 1.1rem;
 }
 .filter-btn {
   background: transparent;
@@ -288,6 +288,12 @@ section h2 { font-size: clamp(1.8rem, 3.5vw, 2.6rem); }
   border-color: var(--gold);
   color: #201705;
   font-weight: 600;
+}
+
+.menu-count {
+  font-size: .82rem;
+  color: var(--text-faint);
+  margin-bottom: 1.5rem;
 }
 
 .menu-grid {

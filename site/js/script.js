@@ -15,7 +15,7 @@ const CATEGORY_LABELS = {
 
 const DRINKS = [
   // ---- Classic Cocktails ----
-  { name: 'Old Fashioned', cat: 'classic', desc: 'Bourbon, sugar, bitters, orange peel — the benchmark classic.' },
+  { name: 'Old Fashioned', cat: 'classic', desc: 'Bourbon, sugar, bitters, orange peel — the benchmark classic.', pick: true },
   { name: 'Whiskey Sour', cat: 'classic', desc: 'Whiskey, fresh lemon, simple syrup, silky egg-white foam.' },
   { name: 'Manhattan', cat: 'classic', desc: 'Rye whiskey, sweet vermouth, bitters, a brandied cherry.' },
   { name: 'Negroni', cat: 'classic', desc: 'Gin, Campari, sweet vermouth — bitter, bold, in equal parts.' },
@@ -25,7 +25,7 @@ const DRINKS = [
   { name: 'Sidecar', cat: 'classic', desc: 'Cognac, orange liqueur, fresh lemon, sugar rim.' },
 
   // ---- Mojito Bar ----
-  { name: 'Classic Mojito', cat: 'mojito', desc: 'White rum, fresh mint, lime, soda — muddled to order.' },
+  { name: 'Classic Mojito', cat: 'mojito', desc: 'White rum, fresh mint, lime, soda — muddled to order.', pick: true },
   { name: 'Strawberry Mojito', cat: 'mojito', desc: 'Classic mojito muddled fresh with strawberry.' },
   { name: 'Blue Lagoon Mojito', cat: 'mojito', desc: 'Blue curaçao twist — the go-to for beach and pool events.' },
   { name: 'Passion Fruit Mojito', cat: 'mojito', desc: 'Tropical passion fruit puree layered into the classic build.' },
@@ -33,7 +33,7 @@ const DRINKS = [
   { name: 'Virgin Mojito', cat: 'mojito', desc: 'All the mint and lime, none of the alcohol.' },
 
   // ---- Margarita & Tequila ----
-  { name: 'Classic Margarita', cat: 'margarita', desc: 'Tequila, orange liqueur, fresh lime, salted rim.' },
+  { name: 'Classic Margarita', cat: 'margarita', desc: 'Tequila, orange liqueur, fresh lime, salted rim.', pick: true },
   { name: 'Spicy Mango Margarita', cat: 'margarita', desc: 'Mango puree, tequila, jalapeño-infused finish.' },
   { name: 'Mezcal Margarita', cat: 'margarita', desc: 'Smoky mezcal in place of tequila for a bolder pour.' },
   { name: 'Paloma', cat: 'margarita', desc: 'Tequila, grapefruit soda, lime — light and effervescent.' },
@@ -42,7 +42,7 @@ const DRINKS = [
   { name: 'Clase Azul Reposado Sipper', cat: 'margarita', desc: 'Served neat over a single large cube in the signature decanter pour.', premium: true },
 
   // ---- Sangria & Wine ----
-  { name: 'Classic Red Sangria', cat: 'sangria', desc: 'Red wine, brandy, orange, seasonal fruit, batch-made.' },
+  { name: 'Classic Red Sangria', cat: 'sangria', desc: 'Red wine, brandy, orange, seasonal fruit, batch-made.', pick: true },
   { name: 'White Peach Sangria', cat: 'sangria', desc: 'White wine, peach, citrus — bright and summery.' },
   { name: 'Sparkling Rosé Sangria', cat: 'sangria', desc: 'Rosé and prosecco with berries for a celebratory pour.' },
   { name: 'Homemade Infused Wine', cat: 'sangria', desc: 'House-made fruit-infused wine, built to your recipe or mine.' },
@@ -51,7 +51,7 @@ const DRINKS = [
   { name: 'Prosecco / Champagne Toast', cat: 'sangria', desc: 'A proper toast service for speeches and send-offs.' },
 
   // ---- Tropical & Tiki ----
-  { name: 'Piña Colada', cat: 'tropical', desc: 'Rum, coconut cream, pineapple — blended or shaken.' },
+  { name: 'Piña Colada', cat: 'tropical', desc: 'Rum, coconut cream, pineapple — blended or shaken.', pick: true },
   { name: 'Mai Tai', cat: 'tropical', desc: 'Aged rum, orgeat, lime, orange liqueur.' },
   { name: 'Painkiller', cat: 'tropical', desc: 'Dark rum, pineapple, orange, cream of coconut, nutmeg.' },
   { name: 'Hurricane', cat: 'tropical', desc: 'Rum blend with passion fruit and a splash of grenadine.' },
@@ -61,7 +61,7 @@ const DRINKS = [
   // ---- Punch & Event Batch ----
   { name: 'Rum Punch', cat: 'punch', desc: 'Multi-rum blend with tropical juices, batch-ready.' },
   { name: 'Event Punch Bowl', cat: 'punch', desc: 'Large-format batch cocktail, self-serve or bartended.' },
-  { name: 'Sunrise Cooler', cat: 'punch', desc: 'Signature orange-and-sunset build, designed for sunrise-themed events.' },
+  { name: 'Sunrise Cooler', cat: 'punch', desc: 'Signature orange-and-sunset build, designed for sunrise-themed events.', pick: true },
   { name: 'Signature Event Color Cocktail', cat: 'punch', desc: 'Custom-built to match your event\'s color palette.' },
   { name: 'Fruit Punch (Family Base)', cat: 'punch', desc: 'Alcohol-optional punch base — spiked or family-friendly.' },
 
@@ -71,21 +71,26 @@ const DRINKS = [
   { name: 'Macallan 12 Neat / Rocks', cat: 'premium', desc: 'Single malt Scotch, served exactly how your guest wants it.', premium: true },
   { name: 'Grey Goose Martini', cat: 'premium', desc: 'Premium vodka martini, ice-cold and properly stirred.', premium: true },
   { name: 'Johnnie Walker Blue Sipper', cat: 'premium', desc: 'A neat pour for the guest who wants the best in the room.', premium: true },
-  { name: 'Espresso Martini', cat: 'premium', desc: 'Vodka, coffee liqueur, fresh espresso — the dessert-course favorite.' },
+  { name: 'Espresso Martini', cat: 'premium', desc: 'Vodka, coffee liqueur, fresh espresso — the dessert-course favorite.', pick: true },
 
   // ---- Mocktails & Kids ----
-  { name: 'Shirley Temple', cat: 'mocktail', desc: 'Ginger ale, grenadine, a cherry on top — a kids\' event staple.' },
+  { name: 'Shirley Temple', cat: 'mocktail', desc: 'Ginger ale, grenadine, a cherry on top — a kids\' event staple.', pick: true },
   { name: 'Sparkling Fruit Punch', cat: 'mocktail', desc: 'Fizzy, fruity, and alcohol-free for the youngest guests.' },
   { name: 'Strawberry Lemonade Fizz', cat: 'mocktail', desc: 'Fresh strawberry, lemonade, soda water.' },
   { name: 'Tropical Sunrise Mocktail', cat: 'mocktail', desc: 'All the color of a Tequila Sunrise, none of the alcohol.' },
   { name: 'Cotton Candy Fizz', cat: 'mocktail', desc: 'A playful, color-changing soda drink built for kids\' tables.' },
 ];
 
-function renderMenu(filter = 'all') {
+function renderMenu(filter = 'picks') {
   const grid = document.getElementById('menuGrid');
+  const count = document.getElementById('menuCount');
   if (!grid) return;
-  grid.innerHTML = DRINKS
-    .filter((d) => filter === 'all' || d.cat === filter)
+  const shown = DRINKS.filter((d) => {
+    if (filter === 'picks') return d.pick;
+    if (filter === 'all') return true;
+    return d.cat === filter;
+  });
+  grid.innerHTML = shown
     .map(
       (d) => `
       <div class="menu-item cat-${d.cat}${d.premium ? ' premium-item' : ''}">
@@ -98,6 +103,12 @@ function renderMenu(filter = 'all') {
       </div>`
     )
     .join('');
+  if (count) {
+    count.textContent =
+      filter === 'picks'
+        ? `Showing ${shown.length} staff picks — select "All 50 Drinks" or a category to see the rest.`
+        : `Showing ${shown.length} of 50 drinks.`;
+  }
 }
 
 function initMenuFilters() {
@@ -140,7 +151,7 @@ function initBookingForm() {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-  renderMenu();
+  renderMenu('picks');
   initMenuFilters();
   initNavToggle();
   initBookingForm();
