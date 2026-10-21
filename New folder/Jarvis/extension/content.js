@@ -1,7 +1,7 @@
 // Jarvis Assist — spots forms you start filling, highlights them and offers to fill them.
 // Never submits anything: you always check and press Submit yourself.
 (() => {
-  if (window.__jarvisAssist) return;
+  if (window.__jarvisAssist || document.querySelector('meta[name="jarvis-station"]')) return;  // not on Jarvis's own app
   window.__jarvisAssist = true;
 
   const FIELDS = 'input:not([type]),input[type=text],input[type=email],input[type=tel],input[type=url],' +
@@ -23,7 +23,7 @@
   // ── Jarvis bubble (shadow DOM so pages can't break it) ─────────────────────
   const host = document.createElement("div");
   host.style.cssText = "all:initial;position:fixed;right:20px;bottom:20px;z-index:2147483647;";
-  const root = host.attachShadow({ mode: "closed" });
+  const root = host.attachShadow({ mode: "open" });
   root.innerHTML = `
     <style>
       .b { font: 14px/1.45 system-ui, "Segoe UI", sans-serif; color: #e6edf9; background: #0f1626;
@@ -53,6 +53,7 @@
 
   function show(text, buttons = [], autoHideMs = 0) {
     if (!host.isConnected) document.documentElement.append(host);
+    host.style.display = "block";
     msgEl.textContent = text;
     rowEl.replaceChildren(...buttons.map(([label, fn, primary]) => {
       const b = document.createElement("button");
@@ -65,7 +66,7 @@
     clearTimeout(hideTimer);
     if (autoHideMs) hideTimer = setTimeout(hide, autoHideMs);
   }
-  function hide() { box.hidden = true; }
+  function hide() { box.hidden = true; host.style.display = "none"; }  // closed bubble never blocks the page
 
   const send = (msg) => new Promise((res) => chrome.runtime.sendMessage(msg, (r) => res(r || { ok: false, error: chrome.runtime.lastError?.message })));
 

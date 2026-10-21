@@ -250,7 +250,7 @@ class Recorder:
         self._ticks += 1
         if self._ticks % 50 == 1:
             removed = self.store.enforce_limits(self.settings["recall_keep_segments"],
-                                                int(self.settings["recall_max_gb"] * 1e9))
+                                                int(self.settings["recall_max_gb"] * 2**30))
             if removed:
                 logger.info(f"[RECALL] Freed space: deleted {removed}")
         return "saved"

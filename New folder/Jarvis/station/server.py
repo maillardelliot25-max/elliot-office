@@ -468,7 +468,7 @@ def create_app(config: StationConfig, control: PCControl | None = None,
         return {"enabled": settings["recall"], "status": recorder.last_status,
                 "last_saved": recorder.last_saved, "current_segment": segment_of(datetime.now()),
                 "segments": len(segs), "total_bytes": sum(s["bytes"] for s in segs),
-                "max_bytes": int(settings["recall_max_gb"] * 1e9), "disk_free_bytes": free,
+                "max_bytes": int(settings["recall_max_gb"] * 2**30), "disk_free_bytes": free,
                 "ocr": recorder.ocr is not None}
 
     @app.get("/api/recall/segments")

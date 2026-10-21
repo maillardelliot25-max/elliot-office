@@ -10,7 +10,14 @@ Every device gets the same app and the same features. Tablets get a big-screen l
 | ✦ **Jarvis** | Chat or talk 🎙 to Jarvis. It remembers every conversation from every device, and you can search it all. Say *"open youtube"*, *"lock my pc"*, *"volume up"*, *"next song"* and it does it. |
 | 🗂 **Files** | Browse every drive on the PC, download any file to your phone, and upload photos and files to the PC |
 | 📋 **Clip** | **Shared clipboard**, like Phone Link. Copy on the PC (Ctrl+C) and it shows up on your phone/tablet; tap to copy it there. Paste on the phone and send it to the PC (Ctrl+V). Send files from the PC with right-click → **Send to → Jarvis phone**. |
-| ⚙ **PC** | CPU/RAM/battery/disk, lock/sleep/restart/shut down, volume and media, open apps and websites, running apps (close them), PowerShell terminal |
+| 🕘 **Recall** | **Screen memory.** Jarvis remembers what was on your screen, in 8-hour segments stored on the PC. Search it ("invoice", "flight"), scroll the timeline, and see how much storage each segment uses. |
+| ⚙ **PC** | **Switches** to turn each feature on/off, photo/music/file sync folders, CPU/RAM/battery/disk, power, volume and media, open apps, running apps, terminal, **My details** (for forms) and your **signature** |
+
+Plus:
+- **Jarvis Assist** for Chrome: start filling any web form and Jarvis highlights it and says *"Sir, I've got this."* One tap fills it from your details.
+- **Sign and fill PDFs:** in **Files**, tap ✍ next to a PDF to sign it, or ✎ to fill its form.
+- **Telegram:** talk to Jarvis from Telegram, anywhere.
+- **Claude link:** Claude (the desktop app) can use Jarvis's memory, screen history, files and your details, so the two AIs work together.
 
 Shut down, restart, sleep, terminal commands and closing apps **always ask before running**.
 
@@ -75,7 +82,91 @@ Your laptop has an Intel i7 with no graphics card, so Jarvis thinks on the CPU. 
 Want faster? Use `llama3.2:1b`. Want smarter? Try `qwen2.5:7b` if you have 16 GB RAM.
 To switch, set `OLLAMA_MODEL=` in `.env` (see below).
 
-## 6. Make it always-on (the God Station)
+## 6. Switches: turn anything on or off
+
+App → **PC** → **Switches**. Changes apply instantly and are saved on the PC.
+
+| Switch | What it does |
+|---|---|
+| Clipboard sync | Copies on the PC show up on your phone/tablet (Clip tab) |
+| Screen memory | Recall: Jarvis remembers your screen |
+| Form helper | The Chrome helper offers to fill forms |
+| Telegram | Jarvis answers you on Telegram |
+| Auto-copy on this device | While the app is open, new copies from other devices go straight to *this* device's clipboard |
+| Photo / music / file folders | One switch per Syncthing folder (below) |
+
+### Photos, music and files that sync on their own (Syncthing)
+
+A web app can't run in the background on Android, so automatic photo/music/file sync uses **Syncthing**, a free, open-source app.
+1. Install Syncthing on the PC (syncthing.net, or `winget install Syncthing.Syncthing`) and **Syncthing-Fork** on the phone and tablet (Play Store / F-Droid).
+2. Link the devices (scan the QR code) and share the folders you want: Camera (DCIM), Pictures, Music, Documents…
+3. In Syncthing on the PC: **Actions → Settings → API Key** → copy. In the Jarvis app: **PC → Photos, music & files sync**, paste it, then **Connect**.
+4. Every shared folder now has its own on/off switch in the app.
+
+**What Android allows:** since Android 10, no app can read your clipboard in the background, not even Phone Link.
+So **phone → everywhere** takes one tap: *Share → Jarvis*, or *Clip → Paste → Send*.
+**PC → phone/tablet** is automatic.
+
+## 7. Screen memory (Recall)
+
+Jarvis looks at the screen every 5 seconds and saves a picture **only when something changed**. It also saves the window title and the text on screen (free Windows OCR), so you can search it.
+
+- **8-hour segments:** 00:00–08:00, 08:00–16:00, 16:00–24:00. The Recall tab shows each segment's size.
+- **Storage:** about 50–150 MB per busy segment (a few hundred MB a day). The defaults keep the **last 9 segments (3 days)** and **never more than 10 GB**; the oldest segment is deleted first.
+  Change these in `station_data/settings.json` (`recall_keep_segments`, `recall_max_gb`, `recall_every_s`).
+- **Private:** everything stays on your PC. Nothing is saved while the PC is locked, or when the window title contains
+  *password, Bitwarden, 1Password, LastPass, KeePass, InPrivate, Incognito* (edit `recall_exclude` to add your bank, etc.).
+- Delete a segment: long-press it in the Recall tab. Turn it all off: **PC → Switches → Screen memory**.
+- Jarvis uses it in chat ("what was the price of that flight I looked at?"), and so can Claude.
+
+## 8. Jarvis Assist: the Chrome form helper
+
+1. In Chrome, open `chrome://extensions` and turn on **Developer mode** (top right).
+2. **Load unpacked** → choose the `Jarvis/extension` folder.
+3. Click the puzzle icon → pin **Jarvis Assist** → click it → enter the PIN from the God Station window.
+4. Fill in **App → PC → My details** (name, email, phone, address…).
+
+Start typing in any form. Jarvis highlights it in blue: *"Sir, I've got this. Shall I fill it in?"*
+**Fill it** fills what it knows (green) and leaves the rest for you (yellow).
+- It **never presses Submit**. You always check first.
+- It never fills passwords, logins, card numbers, CVV or ID numbers, and it stays quiet on sign-in pages.
+- **Never on this site** silences it for that website. The popup has an on/off switch too.
+- Unusual questions ("Why do you want this job?") go to the local brain when it's running. It only answers from your details and memory, and leaves the box empty if unsure.
+
+## 9. Sign and fill PDFs
+
+- **PC → Signature:** draw your signature with your finger, then **Save signature** (stored on the PC).
+- **Files:** next to any PDF, tap **✍ Sign**. Jarvis finds "Signature / Sign here" and puts your signature there
+  (or bottom-right of the last page). It saves `name-signed.pdf` next to the original, which is never changed.
+- **✎ Fill** fills a fillable PDF form from *My details* and saves `name-filled.pdf`.
+- Always open the result and check it before sending.
+
+## 10. Telegram
+
+The same Jarvis (brain, memory and PC control) in Telegram, from anywhere, with no Tailscale needed.
+1. Telegram → **@BotFather** → `/newbot` → copy the token into `Jarvis/.env`: `TELEGRAM_BOT_TOKEN=...`
+2. Restart the station and send your bot any message. The station window prints your chat id.
+   Add `TELEGRAM_CHAT_ID=...` to `.env` and restart. Jarvis says *"Jarvis online, sir."*
+
+Talk normally, or use `/screen` (screenshot), `/clip` (PC clipboard), `/recall <words>` (search screen memory) and `/status`.
+Send a photo or file and it's saved on the PC. Shut down, restart and terminal commands come with a **▶ Run** button.
+Only **your** chat id is obeyed; anyone else is ignored.
+
+## 11. The Claude link: Jarvis + Claude working together
+
+Jarvis is the local, always-on part: memory, eyes on your screen, files, details. **Claude** is the strong brain.
+The link lets Claude use Jarvis's tools. It's free beyond your Claude account.
+1. Install the **Claude desktop app** (claude.ai/download) and sign in.
+2. With the station running, double-click **`setup_claude_link.bat`**, then fully quit Claude (tray icon → Quit) and reopen it.
+3. Ask Claude things like: *"Search my screen history for the invoice I saw this morning and fill in this PDF with my details,"*
+   *"What did I tell Jarvis about my tablet?"* or *"Look at my screen and help me with this form."*
+
+Claude's tools: search memory, remember, search/view screen history, look at the screen now, clipboard, list folders, read text files,
+my details, sign PDF, fill PDF form, open on PC.
+**Claude in Chrome** (Claude's browser extension, on paid Claude plans) can then do the clicking and typing on websites,
+with Jarvis supplying the details and memory.
+
+## 12. Make it always-on (the God Station)
 
 - Double-click **`install_autostart.bat`**. The station starts every time you log in.
 - Settings → System → Power → **When plugged in, put my device to sleep after: Never**.
@@ -92,7 +183,11 @@ STATION_ALLOW_SHELL=true      # false = remove the terminal from the phone
 OLLAMA_MODEL=llama3.2:3b
 STATION_UPLOAD_DIR=C:\Users\Elliot\Downloads\Jarvis
 STATION_CLIPBOARD_HISTORY=true  # false = don't keep a history of PC copies
+TELEGRAM_BOT_TOKEN=             # from @BotFather (see section 10)
+TELEGRAM_CHAT_ID=
 ```
+
+Everything else (switches, screen memory limits) is in `station_data/settings.json`, changed from the app.
 
 ## Where things live
 
@@ -102,6 +197,10 @@ STATION_CLIPBOARD_HISTORY=true  # false = don't keep a history of PC copies
 | `station/static/` | The phone app |
 | `station_data/memory.db` | Every conversation. Back this file up to keep Jarvis's memory |
 | `station_data/devices.json` | Paired devices (only hashes of their keys) |
+| `station_data/recall/` | Screen memory, one folder per 8-hour segment |
+| `station_data/profile.json`, `signature.png` | Your details and signature, used for forms and PDFs |
+| `station_data/claude.token` | The key Claude's Jarvis tools use. Delete it to cut Claude off; it's recreated on restart |
+| `extension/` | Jarvis Assist for Chrome |
 
 ## Security
 
@@ -120,5 +219,8 @@ STATION_CLIPBOARD_HISTORY=true  # false = don't keep a history of PC copies
 | Clicks land in the wrong place | Restart the station (it fixes Windows display scaling at startup). |
 | "brain offline" | Start Ollama (Start menu) and run `ollama pull llama3.2:3b`. |
 | Can't control Task Manager or admin windows | Right-click `start_station.bat` → Run as administrator. |
+| Recall has no searchable text | The optional OCR didn't install. In the Jarvis folder run `.venv\Scripts\python -m pip install winocr`. |
+| Form helper doesn't appear | Click the Jarvis Assist icon: paired? switch on? Did you choose "Never on this site"? (Clear it via the site's local storage, or use another site.) |
+| Telegram silent | Check `TELEGRAM_CHAT_ID` is set and see the Telegram line under **PC → Switches**. |
 
 Developers: tests run with `python -m pytest station/tests -q` (from the `Jarvis` folder).

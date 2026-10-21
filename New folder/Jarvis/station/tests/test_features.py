@@ -124,7 +124,7 @@ def test_recall_api(station):
     img.save(buf, "JPEG")
     fid = store.add_frame(datetime.now(), buf.getvalue(), "Bank — chrome", "balance statement")
     status = client.get("/api/recall/status").json()
-    assert status["enabled"] and status["segments"] == 1 and status["max_bytes"] == 10 * 10**9
+    assert status["enabled"] and status["segments"] == 1 and status["max_bytes"] == 10 * 2**30
     assert client.get("/api/recall/search", params={"q": "statement"}).json()[0]["id"] == fid
     assert client.get(f"/api/recall/frame/{fid}", params={"w": 32}).headers["content-type"] == "image/jpeg"
     seg = client.get("/api/recall/segments").json()[0]["segment"]
