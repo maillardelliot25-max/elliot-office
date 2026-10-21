@@ -5,7 +5,9 @@ The phone app talks to these endpoints. Every /api route except
 /api/pair needs the device token from pairing.
 """
 
+import asyncio
 import logging
+from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import Depends, FastAPI, File, Form, Header, HTTPException, Query, UploadFile
@@ -89,7 +91,28 @@ def create_app(config: StationConfig, control: PCControl | None = None,
     control = control or PCControl(upload_dir=config.upload_dir)
     brain = brain or LocalBrain(config.ollama_url, config.ollama_model, config.owner_name)
 
-    app = FastAPI(title="Jarvis — God Station", version=__version__, docs_url=None, redoc_url=None)
+    async def watch_clipboard():
+        """Every copy on the PC lands in the shared clipboard history."""
+        failures = 0
+        while True:
+            try:
+                memory.add_clip(await run_in_threadpool(control.get_clipboard), "PC")
+                failures = 0
+            except Exception as e:
+                failures += 1
+                if failures == 1:
+                    logger.warning(f"[CLIP] Can't read the PC clipboard: {e}")
+            await asyncio.sleep(1 if failures < 5 else 15)
+
+    @asynccontextmanager
+    async def lifespan(_app):
+        task = asyncio.create_task(watch_clipboard()) if config.clipboard_history else None
+        yield
+        if task:
+            task.cancel()
+
+    app = FastAPI(title="Jarvis — God Station", version=__version__, docs_url=None, redoc_url=None,
+                  lifespan=lifespan)
     app.state.auth = auth
     app.state.memory = memory
 
@@ -211,8 +234,37 @@ def create_app(config: StationConfig, control: PCControl | None = None,
         return {"text": await call(control.get_clipboard)}
 
     @app.post("/api/clipboard")
-    async def set_clipboard(body: TextBody, _: str = Depends(device)):
-        return await call(control.set_clipboard, body.text)
+    async def set_clipboard(body: TextBody, device_id: str = Depends(device)):
+        result = await call(control.set_clipboard, body.text)
+        memory.add_clip(body.text, auth.devices.get(device_id, {}).get("name", "Phone"))
+        return result
+
+    @app.get("/api/clips")
+    def clips(limit: int = Query(50, ge=1, le=500), _: str = Depends(device)):
+        return memory.clips(limit)
+
+    @app.delete("/api/clips")
+    def clear_clips(_: str = Depends(device)):
+        memory.clear_clips()
+        return {"ok": True}
+
+    # ── Outbox: PC → phone (right-click a file → Send to → Jarvis phone) ────
+
+    @app.get("/api/outbox")
+    async def outbox(_: str = Depends(device)):
+        config.outbox_dir.mkdir(parents=True, exist_ok=True)
+        listing = await call(control.list_dir, str(config.outbox_dir))
+        files = [e for e in listing["entries"] if not e["is_dir"]]
+        files.sort(key=lambda e: e["modified"], reverse=True)
+        return {"folder": str(config.outbox_dir), "files": files}
+
+    @app.delete("/api/outbox")
+    def outbox_remove(name: str, _: str = Depends(device)):
+        target = config.outbox_dir / Path(name).name  # only files inside the outbox
+        if not target.is_file():
+            raise HTTPException(404, "Not in the outbox")
+        target.unlink()
+        return {"ok": True}
 
     # ── System, processes, terminal ──────────────────────────────────────────
 

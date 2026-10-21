@@ -102,6 +102,29 @@
     <ul class="files" id="fileList"></ul>
   </section>
 
+  <!-- CLIP: shared clipboard + send things between devices -->
+  <section class="tab" data-tab="clip">
+    <div class="card">
+      <h2 class="first">This device → PC</h2>
+      <textarea id="clipText" rows="3" placeholder="Type or paste here, then send it to the PC clipboard"></textarea>
+      <div class="row">
+        <button class="btn" id="clipPaste">📋 Paste</button>
+        <button class="btn primary grow" id="clipSet">Send to PC clipboard</button>
+      </div>
+      <label class="btn wide">📎 Send files or photos to PC <input type="file" id="clipFiles" multiple hidden></label>
+    </div>
+
+    <h2>Copied on the PC <button class="link" id="clipClear">clear</button></h2>
+    <p class="hint">Press Ctrl+C on the PC and it shows up here. Tap an item to copy it to this device.</p>
+    <ul class="clips" id="clipList"></ul>
+
+    <h2>Sent from the PC <button class="link" id="outboxRefresh">refresh</button></h2>
+    <p class="hint">On the PC: right-click any file → <b>Send to</b> → <b>Jarvis phone</b>.</p>
+    <ul class="files" id="outboxList"></ul>
+
+    <p class="hint" id="shareHint">Tip: install this app (see README, HTTPS) and “Jarvis” appears in your phone's <b>Share</b> menu — share any link, text or photo straight to the PC.</p>
+  </section>
+
   <!-- PC -->
   <section class="tab" data-tab="pc">
     <div class="stats" id="stats"></div>
@@ -138,13 +161,6 @@
       <button data-open="task manager">Task Manager</button>
     </div>
 
-    <h2>Clipboard</h2>
-    <textarea id="clipText" rows="3" placeholder="Text to send to the PC clipboard"></textarea>
-    <div class="row">
-      <button class="btn" id="clipGet">Get from PC</button>
-      <button class="btn primary" id="clipSet">Send to PC</button>
-    </div>
-
     <div id="shellBox">
       <h2>Terminal</h2>
       <form class="row" id="shellForm">
@@ -166,6 +182,7 @@
     <button data-go="screen" class="on"><span>🖥</span>Screen</button>
     <button data-go="jarvis"><span>✦</span>Jarvis</button>
     <button data-go="files"><span>🗂</span>Files</button>
+    <button data-go="clip"><span>📋</span>Clip</button>
     <button data-go="pc"><span>⚙</span>PC</button>
   </nav>
 </main>

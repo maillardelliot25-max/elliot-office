@@ -251,3 +251,55 @@ def test_parse_reply_is_forgiving():
     assert parse_reply('{"reply": "hi", "actions": [{"type": "open", "target": "x"}, {"type": "rm"}]}') == \
         {"reply": "hi", "actions": [{"type": "open", "target": "x"}]}
     assert parse_reply("plain text answer") == {"reply": "plain text answer", "actions": []}
+
+
+# ── Clip: shared clipboard & PC → phone outbox ──────────────────────────────
+
+def test_clipboard_history_from_phone(station):
+    client, _, control, *_ = station
+    client.post("/api/clipboard", json={"text": "https://example.com/recipe"})
+    client.post("/api/clipboard", json={"text": "https://example.com/recipe"})  # repeat ignored
+    clips = client.get("/api/clips").json()
+    assert len(clips) == 1 and clips[0]["source"] == "Test phone"
+    assert ("clip", "https://example.com/recipe") in control.calls
+    assert client.delete("/api/clips").json()["ok"] and client.get("/api/clips").json() == []
+
+
+def test_pc_copies_are_watched(tmp_path):
+    control = FakeControl(tmp_path)
+    copied = iter(["first copy", "first copy", "second copy"])
+    control.get_clipboard = lambda: next(copied, "second copy")
+    app = create_app(StationConfig(data_dir=tmp_path), control=control, brain=FakeBrain())
+    import time
+    with TestClient(app) as client:  # "with" runs startup, so the watcher runs
+        token = client.post("/api/pair", json={"pin": app.state.auth.pin}).json()["token"]
+        client.headers["Authorization"] = f"Bearer {token}"
+        for _ in range(40):
+            texts = [c["text"] for c in client.get("/api/clips").json()]
+            if len(texts) == 2:
+                break
+            time.sleep(0.1)
+    assert texts == ["second copy", "first copy"]
+    assert client.get("/api/clips").json()[0]["source"] == "PC"
+
+
+def test_clip_history_is_capped(tmp_path):
+    from station import memory as mem
+    m = StationMemory(tmp_path / "m.db")
+    for i in range(mem.MAX_CLIPS + 20):
+        m.add_clip(f"clip {i}", "PC")
+    clips = m.clips(limit=1000)
+    assert len(clips) == mem.MAX_CLIPS and clips[0]["text"] == f"clip {mem.MAX_CLIPS + 19}"
+    assert m.add_clip("   ", "PC") is False
+
+
+def test_outbox_lists_and_removes_files(station):
+    client, *_, tmp = station
+    outbox = tmp / "up" / "To phone"
+    assert client.get("/api/outbox").json()["files"] == []
+    (outbox / "song.mp3").write_bytes(b"x" * 10)
+    files = client.get("/api/outbox").json()["files"]
+    assert [f["name"] for f in files] == ["song.mp3"]
+    assert client.delete("/api/outbox", params={"name": "../../../etc/passwd"}).status_code == 404
+    assert client.delete("/api/outbox", params={"name": "song.mp3"}).json()["ok"]
+    assert not (outbox / "song.mp3").exists()

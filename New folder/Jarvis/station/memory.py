@@ -31,7 +31,16 @@ END;
 CREATE TRIGGER IF NOT EXISTS messages_ad AFTER DELETE ON messages BEGIN
     INSERT INTO messages_fts(messages_fts, rowid, text) VALUES ('delete', old.id, old.text);
 END;
+CREATE TABLE IF NOT EXISTS clips (
+    id     INTEGER PRIMARY KEY AUTOINCREMENT,
+    ts     TEXT NOT NULL,
+    source TEXT NOT NULL,
+    text   TEXT NOT NULL
+);
 """
+
+MAX_CLIPS = 500
+MAX_CLIP_CHARS = 20000
 
 
 class StationMemory:
@@ -76,6 +85,36 @@ class StationMemory:
             ).fetchall()
         results = [dict(r) for r in rows if r["id"] not in (exclude_ids or set())]
         return results[:limit]
+
+    # ── Shared clipboard history ─────────────────────────────────────────────
+
+    def add_clip(self, text: str, source: str) -> bool:
+        """Saves a copied text. Skips blanks and repeats of the latest clip."""
+        text = (text or "")[:MAX_CLIP_CHARS]
+        if not text.strip():
+            return False
+        with self._lock:
+            last = self.db.execute("SELECT text FROM clips ORDER BY id DESC LIMIT 1").fetchone()
+            if last and last["text"] == text:
+                return False
+            self.db.execute("INSERT INTO clips (ts, source, text) VALUES (?, ?, ?)",
+                            (datetime.now().isoformat(timespec="seconds"), source, text))
+            self.db.execute("DELETE FROM clips WHERE id <= (SELECT MAX(id) FROM clips) - ?", (MAX_CLIPS,))
+            self.db.commit()
+            return True
+
+    def clips(self, limit: int = 50) -> list[dict]:
+        """Newest first."""
+        with self._lock:
+            rows = self.db.execute(
+                "SELECT id, ts, source, text FROM clips ORDER BY id DESC LIMIT ?", (limit,)
+            ).fetchall()
+        return [dict(r) for r in rows]
+
+    def clear_clips(self):
+        with self._lock:
+            self.db.execute("DELETE FROM clips")
+            self.db.commit()
 
     def count(self) -> int:
         with self._lock:

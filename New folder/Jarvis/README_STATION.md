@@ -1,6 +1,7 @@
-# Jarvis God Station: control your PC from your phone
+# Jarvis God Station: control your PC from your phone and tablet
 
-Your HP laptop becomes the **God Station**. Your Android phone becomes the remote, and Jarvis lives on the PC.
+Your HP laptop becomes the **God Station**. Your Android phone and tablet become remotes, and Jarvis lives on the PC.
+Every device gets the same app and the same features. Tablets get a big-screen layout.
 **Everything here is free.** No API keys and no subscriptions.
 
 | On your phone you can… | |
@@ -8,7 +9,8 @@ Your HP laptop becomes the **God Station**. Your Android phone becomes the remot
 | 🖥 **Screen** | See your PC screen live. Tap = click, hold = right-click, swipe = scroll, **Drag** mode to drag. Type on the PC, plus shortcut keys (Enter, Alt+Tab, Copy/Paste, Win…) |
 | ✦ **Jarvis** | Chat or talk 🎙 to Jarvis. It remembers every conversation from every device, and you can search it all. Say *"open youtube"*, *"lock my pc"*, *"volume up"*, *"next song"* and it does it. |
 | 🗂 **Files** | Browse every drive on the PC, download any file to your phone, and upload photos and files to the PC |
-| ⚙ **PC** | CPU/RAM/battery/disk, lock/sleep/restart/shut down, volume and media, open apps and websites, shared clipboard, running apps (close them), PowerShell terminal |
+| 📋 **Clip** | **Shared clipboard**, like Phone Link. Copy on the PC (Ctrl+C) and it shows up on your phone/tablet; tap to copy it there. Paste on the phone and send it to the PC (Ctrl+V). Send files from the PC with right-click → **Send to → Jarvis phone**. |
+| ⚙ **PC** | CPU/RAM/battery/disk, lock/sleep/restart/shut down, volume and media, open apps and websites, running apps (close them), PowerShell terminal |
 
 Shut down, restart, sleep, terminal commands and closing apps **always ask before running**.
 
@@ -31,7 +33,9 @@ Shut down, restart, sleep, terminal commands and closing apps **always ask befor
 3. Chrome menu ⋮ → **Add to Home screen**. Now it's an app icon.
 
 The PIN works once. Paired devices stay paired, even after restarts.
-Each new device (tablet, another PC) needs the new PIN shown in the window.
+
+**Tablet:** do the same steps on the tablet. It needs the *new* PIN shown in the PC window (each PIN pairs one device).
+Turn the tablet sideways and the screen view goes big, with the controls on the right.
 
 ## 3. Use it from anywhere (free, with Tailscale)
 
@@ -45,7 +49,20 @@ Tailscale makes a private, encrypted network between your devices. Nothing is op
 2. On the PC, in Terminal: `tailscale serve --bg 8765`
 3. On the phone, open the `https://<your-pc-name>.<your-tailnet>.ts.net` address it prints. Chrome ⋮ → **Install app**.
 
-## 4. Give Jarvis its brain (free, local, offline)
+## 4. Copy & paste between PC, phone and tablet
+
+- **PC → phone/tablet:** copy anything on the PC. Open the **Clip** tab and tap the item; it's now on your phone's clipboard.
+  The last 500 copies are kept (turn this off with `STATION_CLIPBOARD_HISTORY=false`, and use **clear** to wipe it).
+- **Phone/tablet → PC:** in **Clip**, tap **Paste**, then **Send to PC clipboard**. Press Ctrl+V on the PC.
+- **Files PC → phone:** right-click files in File Explorer → **Send to → Jarvis phone** (the installer adds this).
+  They appear under *Sent from the PC*; tap to download.
+- **Files phone → PC:** **Clip → Send files or photos to PC**. They land in `Downloads\Jarvis` on the PC.
+- **Share menu:** after installing the app over HTTPS (step 3), *Jarvis* shows up in Android's **Share** menu.
+  Share a link, text or photo from any app (YouTube, Chrome, Gallery…) and it goes straight to the PC.
+
+Anything copied on the PC, including passwords, is saved to the history. Clear it, or turn history off if that bothers you.
+
+## 5. Give Jarvis its brain (free, local, offline)
 
 Without this, Jarvis still does instant commands (open, lock, volume, media, type…).
 With it, Jarvis can answer questions, remember things you told it, and follow normal sentences.
@@ -58,7 +75,7 @@ Your laptop has an Intel i7 with no graphics card, so Jarvis thinks on the CPU. 
 Want faster? Use `llama3.2:1b`. Want smarter? Try `qwen2.5:7b` if you have 16 GB RAM.
 To switch, set `OLLAMA_MODEL=` in `.env` (see below).
 
-## 5. Make it always-on (the God Station)
+## 6. Make it always-on (the God Station)
 
 - Double-click **`install_autostart.bat`**. The station starts every time you log in.
 - Settings → System → Power → **When plugged in, put my device to sleep after: Never**.
@@ -74,6 +91,7 @@ STATION_PORT=8765
 STATION_ALLOW_SHELL=true      # false = remove the terminal from the phone
 OLLAMA_MODEL=llama3.2:3b
 STATION_UPLOAD_DIR=C:\Users\Elliot\Downloads\Jarvis
+STATION_CLIPBOARD_HISTORY=true  # false = don't keep a history of PC copies
 ```
 
 ## Where things live

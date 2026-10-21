@@ -53,7 +53,9 @@ function logout() {
   showPair();
 }
 
-$("#deviceName").value = /Android/i.test(navigator.userAgent) ? "Android phone" : /iPad|Tablet/i.test(navigator.userAgent) ? "Tablet" : "PC browser";
+const UA = navigator.userAgent;
+$("#deviceName").value = /iPad|Tablet/i.test(UA) || (/Android/i.test(UA) && !/Mobile/i.test(UA)) ? "Tablet"
+  : /Android|iPhone/i.test(UA) ? "Phone" : "PC browser";
 
 $("#pairForm").addEventListener("submit", async (e) => {
   e.preventDefault();
@@ -81,6 +83,7 @@ function go(tab) {
   if (tab === "screen") screenLoop();
   if (tab === "jarvis") { loadHistory(); setTimeout(() => $("#chatInput").focus(), 50); }
   if (tab === "files" && !files.loaded) openDir("");
+  if (tab === "clip") { loadClips(); loadOutbox(); }
   if (tab === "pc") { loadStats(); loadProcs(); loadDevices(); }
 }
 $$(".tabs button").forEach((b) => b.addEventListener("click", () => go(b.dataset.go)));
@@ -101,6 +104,7 @@ async function start() {
   $("#connDot").className = "dot " + (info.ok ? "ok" : "bad");
   $("#shellBox").classList.toggle("hidden", !info.allow_shell);
   checkBrain();
+  if (new URLSearchParams(location.search).has("share")) { activeTab = "clip"; handleShared(); }
   go(activeTab);
 }
 
@@ -152,9 +156,13 @@ async function screenLoop() {
 }
 document.addEventListener("visibilitychange", () => { if (!document.hidden && activeTab === "screen") screenLoop(); });
 
+// Where on the PC screen a finger is, as 0..1 — correct even when the image is letterboxed
 function pos(touch) {
   const r = img.getBoundingClientRect();
-  return { x: (touch.clientX - r.left) / r.width, y: (touch.clientY - r.top) / r.height };
+  const nw = img.naturalWidth || r.width, nh = img.naturalHeight || r.height;
+  const scale = Math.min(r.width / nw, r.height / nh);
+  const w = nw * scale, h = nh * scale;
+  return { x: (touch.clientX - r.left - (r.width - w) / 2) / w, y: (touch.clientY - r.top - (r.height - h) / 2) / h };
 }
 const mouse = (body) => api("/api/mouse", { method: "POST", body }).catch((e) => toast(e.message, true));
 
@@ -411,6 +419,108 @@ $("#uploadInput").addEventListener("change", async (e) => {
   if (files.path) openDir(files.path);
 });
 
+// ── Clip: shared clipboard between PC, phone and tablet ───────────────────
+
+async function copyToDevice(text) {
+  try { await navigator.clipboard.writeText(text); return true; } catch {}
+  // Fallback that also works over plain http
+  const ta = Object.assign(document.createElement("textarea"), { value: text });
+  ta.style.cssText = "position:fixed;opacity:0";
+  document.body.append(ta);
+  ta.select();
+  const ok = document.execCommand("copy");
+  ta.remove();
+  return ok;
+}
+
+async function sendToPcClipboard(text) {
+  if (!text.trim()) return toast("Nothing to send", true);
+  const r = await act(() => api("/api/clipboard", { method: "POST", body: { text } }), "On the PC clipboard — Ctrl+V to paste");
+  if (r) loadClips();
+  return r;
+}
+
+async function uploadFiles(list, folder = "") {
+  for (const file of list) {
+    const form = new FormData();
+    form.append("file", file, file.name);
+    form.append("folder", folder);
+    toast(`Sending ${file.name}…`);
+    const res = await act(() => api("/api/files/upload", { method: "POST", form }));
+    if (res?.path) toast(`Saved on PC: ${res.path}`);
+  }
+}
+
+let clipsShown = "";
+async function loadClips() {
+  try {
+    const clips = await api("/api/clips?limit=60");
+    const key = clips.map((c) => c.id).join(",");
+    if (key === clipsShown) return;  // nothing new
+    clipsShown = key;
+    const list = $("#clipList");
+    list.innerHTML = clips.length ? "" : '<li class="muted">Nothing yet — copy something on the PC.</li>';
+    clips.forEach((c) => {
+      const li = document.createElement("li");
+      li.innerHTML = '<div class="text"></div><div class="meta"><span></span><button>→ PC</button></div>';
+      li.querySelector(".text").textContent = c.text;
+      li.querySelector(".meta span").textContent = `${c.source} · ${fmtTime(c.ts)}`;
+      li.onclick = async () => toast((await copyToDevice(c.text)) ? "Copied to this device" : "Couldn't copy", false);
+      li.querySelector("button").onclick = (e) => { e.stopPropagation(); sendToPcClipboard(c.text); };
+      list.append(li);
+    });
+  } catch (e) { toast(e.message, true); }
+}
+setInterval(() => activeTab === "clip" && !document.hidden && loadClips(), 3000);
+
+async function loadOutbox() {
+  try {
+    const box = await api("/api/outbox");
+    const list = $("#outboxList");
+    list.innerHTML = box.files.length ? "" : '<li class="muted">Nothing sent yet.</li>';
+    box.files.forEach((f) => {
+      const li = document.createElement("li");
+      li.innerHTML = '<span>📄</span><span class="name"></span><span class="size"></span><span class="dl">⬇</span>';
+      li.querySelector(".name").textContent = f.name;
+      li.querySelector(".size").textContent = fmtSize(f.size);
+      li.onclick = () => download(f);
+      list.append(li);
+    });
+  } catch (e) { toast(e.message, true); }
+}
+
+$("#clipPaste").addEventListener("click", async () => {
+  try { $("#clipText").value = await navigator.clipboard.readText(); }
+  catch { $("#clipText").focus(); toast("Long-press the box and tap Paste", true); }
+});
+$("#clipSet").addEventListener("click", async () => { if (await sendToPcClipboard($("#clipText").value)) $("#clipText").value = ""; });
+$("#clipFiles").addEventListener("change", async (e) => { await uploadFiles(e.target.files); e.target.value = ""; });
+$("#clipClear").addEventListener("click", async () => {
+  if (!confirm("Clear the clipboard history?")) return;
+  await act(() => api("/api/clips", { method: "DELETE" }), "Cleared");
+  clipsShown = ""; loadClips();
+});
+$("#outboxRefresh").addEventListener("click", loadOutbox);
+
+// Things shared from other apps (Android Share menu → Jarvis). The service worker parks them in a cache.
+async function handleShared() {
+  history.replaceState(null, "", "/");
+  if (!("caches" in window)) return;
+  const cache = await caches.open("share-inbox");
+  const meta = await cache.match("/share-inbox/meta");
+  if (!meta) return;
+  const { title, text, url, files: count } = await meta.json();
+  const words = [title, text, url].filter(Boolean).filter((v, i, a) => a.indexOf(v) === i).join("\n");
+  if (words) await sendToPcClipboard(words);
+  const shared = [];
+  for (let i = 0; i < count; i++) {
+    const r = await cache.match(`/share-inbox/file/${i}`);
+    if (r) shared.push(new File([await r.blob()], decodeURIComponent(r.headers.get("X-Name") || `shared-${i}`), { type: r.headers.get("Content-Type") || "" }));
+  }
+  if (shared.length) await uploadFiles(shared);
+  await caches.delete("share-inbox");
+}
+
 // ── PC ─────────────────────────────────────────────────────────────────────
 
 function stat(k, v, pct) {
@@ -441,11 +551,6 @@ const openTarget = (target) => act(() => api("/api/open", { method: "POST", body
 $("#openForm").addEventListener("submit", (e) => { e.preventDefault(); const v = $("#openInput").value.trim(); if (v) { openTarget(v); $("#openInput").value = ""; } });
 $$("[data-open]").forEach((b) => b.addEventListener("click", () => openTarget(b.dataset.open)));
 
-$("#clipGet").addEventListener("click", async () => {
-  const r = await act(() => api("/api/clipboard"));
-  if (r) { $("#clipText").value = r.text; try { await navigator.clipboard.writeText(r.text); toast("Copied to this phone too"); } catch {} }
-});
-$("#clipSet").addEventListener("click", () => act(() => api("/api/clipboard", { method: "POST", body: { text: $("#clipText").value } }), "Sent to PC clipboard"));
 
 $("#shellForm").addEventListener("submit", async (e) => {
   e.preventDefault();

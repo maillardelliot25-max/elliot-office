@@ -17,6 +17,7 @@ if errorlevel 1 (
   pause
   exit /b 1
 )
+call install_sendto.bat
 echo.
 echo  Done! Now double-click start_station.bat
 pause

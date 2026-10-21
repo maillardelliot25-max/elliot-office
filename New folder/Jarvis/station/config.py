@@ -30,6 +30,12 @@ class StationConfig:
     ollama_model: str  = "llama3.2:3b"              # Small enough for a CPU-only laptop
     owner_name:   str  = "Boss"
     upload_dir:   Path = field(default_factory=lambda: Path.home() / "Downloads" / "Jarvis")
+    clipboard_history: bool = True                  # remember what you copy on the PC
+
+    @property
+    def outbox_dir(self) -> Path:
+        """Files sent to your phone with right-click → Send to → Jarvis phone."""
+        return self.upload_dir / "To phone"
 
     @classmethod
     def from_env(cls) -> "StationConfig":
@@ -42,4 +48,5 @@ class StationConfig:
             ollama_model=os.getenv("OLLAMA_MODEL", "llama3.2:3b"),
             owner_name=os.getenv("OWNER_NAME", "Boss"),
             upload_dir=Path(os.getenv("STATION_UPLOAD_DIR", str(Path.home() / "Downloads" / "Jarvis"))),
+            clipboard_history=_bool("STATION_CLIPBOARD_HISTORY", True),
         )
