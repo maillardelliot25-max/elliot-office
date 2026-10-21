@@ -59,16 +59,16 @@ for d in (CHATS, PROJECTS, MEDIA, PLANS):
 
 DEFAULT_SETTINGS = {
     "name": "Elliot",
-    "assistant_name": "Jarvis",
+    "assistant_name": "Friday",
     "auto_memory": True,      # learn what you like from every conversation
     "appearance": {},         # colours, fonts, background video… (edited in Settings → Edit appearance)
-    "lens_swipe": True,       # Jarvis Lens: swipe up from the bottom of the screen to ask about it
+    "lens_swipe": True,       # Friday Lens: swipe up from the bottom of the screen to ask about it
     "lens_hotkey": "<ctrl>+<alt>+<space>",
     "lens_model": "auto",     # "auto" = best model you have that can see images
-    "phone_access": False,    # let the Jarvis Android app (and phone browsers) on your Wi-Fi connect
+    "phone_access": False,    # let the Friday Android app (and phone browsers) on your Wi-Fi connect
     "brains": [],             # AI services you added: OpenRouter, Groq, LM Studio… (🧠 AI brains)
     "persona": "butler",      # "butler": a friendly digital servant who calls you "sir"; "standard": plain assistant
-    "screen_memory": False,   # Jarvis Lens saves a screenshot when your screen changes, in 8-hour blocks
+    "screen_memory": False,   # Friday Lens saves a screenshot when your screen changes, in 8-hour blocks
     "screen_every": 60,       # seconds between screen-memory checks
     "screen_keep_blocks": 3,  # how many 8-hour blocks to keep (3 = the last 24 hours)
     "screen_watch": False,    # Lens watches the screen and offers help (forms, errors, being stuck)
@@ -108,6 +108,12 @@ def load_settings():
         s = {**DEFAULT_SETTINGS, **json.loads(SETTINGS_FILE.read_text("utf-8"))}
     except (OSError, ValueError):
         s = dict(DEFAULT_SETTINGS)
+    if not s.get("renamed_friday"):   # the assistant used to be called Jarvis
+        if s.get("assistant_name") in (None, "", "Jarvis"):
+            s["assistant_name"] = "Friday"
+        s["renamed_friday"] = True
+        if SETTINGS_FILE.exists():
+            save_settings(s)
     if not s.get("chrome_token") or s.get("memory"):
         # first run: make the Chrome pairing code; older versions kept memory here as plain strings
         MEMORY.migrate(s.get("memory"))
@@ -281,7 +287,7 @@ Reply with JSON only: {{"help": true or false, "kind": "form" | "error" | "stuck
 
 
 def autofill(b):
-    """Fill a web form from what Jarvis remembers about you. Never invents ID/financial details."""
+    """Fill a web form from what Friday remembers about you. Never invents ID/financial details."""
     s = load_settings()
     model = b.get("model") or "auto"
     if model == "auto":
@@ -354,7 +360,7 @@ def add_brain(b):
 
 
 def lens_model():
-    """The model Jarvis Lens uses to look at your screen: your choice, else the best one that can see images."""
+    """The model Friday Lens uses to look at your screen: your choice, else the best one that can see images."""
     choice = load_settings()["lens_model"]
     if choice and choice != "auto":
         return choice
@@ -736,7 +742,7 @@ def system_prompt(tools_on, chat, opts):
             "conversations. Do not ask for permission; the app asks the user for you.")
     if opts.get("browser"):
         parts.append(
-            "You are inside the user's Chrome browser (the Jarvis extension) and can operate it with the browser_* "
+            "You are inside the user's Chrome browser (the Friday extension) and can operate it with the browser_* "
             "tools: read the page first, then click, type, scroll or navigate step by step, reading the page again "
             "after each action to check the result. Never enter passwords or payment details and never submit "
             "purchases; ask the user to do those parts themselves.")
@@ -837,7 +843,7 @@ def converse(chat, model, opts, emit):
 def browser_action(cid, name, args, emit, stop):
     """Browser tools run inside the Chrome extension: send it the action, wait for its answer."""
     ev = threading.Event()
-    _browser[cid] = {"event": ev, "output": "The browser didn't answer (is the Jarvis side panel still open?)."}
+    _browser[cid] = {"event": ev, "output": "The browser didn't answer (is the Friday side panel still open?)."}
     emit({"type": "browser_action", "id": cid, "name": name, "args": args})
     started = time.time()
     while not ev.wait(0.5):
@@ -946,7 +952,7 @@ class Handler(BaseHTTPRequestHandler):
         # Every API call carries the pairing code: the app page has it built in, the Chrome extension
         # gets it when you paste it. Other websites and other extensions can't read it, so can't use the API.
         if self.path.startswith(("/api/", "/v1/")) and not hmac.compare_digest(self.presented_code(), load_settings()["chrome_token"]):
-            self.send_json({"error": "Jarvis isn't paired: paste the pairing code from Elliot AI → Settings."}, 401)
+            self.send_json({"error": "Friday isn't paired: paste the pairing code from Elliot AI → Settings."}, 401)
             return False
         if origin and origin.startswith("chrome-extension://"):
             self.cors = origin
@@ -966,19 +972,19 @@ class Handler(BaseHTTPRequestHandler):
         return self.headers.get("X-Jarvis-Token") or (auth[7:].strip() if auth.lower().startswith("bearer ") else "")
 
     def guard_remote(self):
-        """Another device on your Wi-Fi (the Jarvis phone app, or a phone browser): only with phone
+        """Another device on your Wi-Fi (the Friday phone app, or a phone browser): only with phone
         access switched on, and only with the pairing code (header, ?key= on the start page, or the
         cookie that page sets so its pictures and previews load)."""
         s = load_settings()
         if not s["phone_access"]:
-            self.send_json({"error": "Phone access is off. Turn it on in Jarvis → Settings on the PC."}, 403)
+            self.send_json({"error": "Phone access is off. Turn it on in Friday → Settings on the PC."}, 403)
             return False
         url = urllib.parse.urlparse(self.path)
         key = urllib.parse.parse_qs(url.query).get("key", [""])[0] if url.path in ("/", "/index.html") else ""
         cookie = SimpleCookie(self.headers.get("Cookie") or "")
         presented = self.presented_code() or key or (cookie["jarvis_key"].value if "jarvis_key" in cookie else "")
         if not hmac.compare_digest(presented, s["chrome_token"]):
-            self.send_json({"error": "Jarvis isn't paired: use the pairing code from Settings on the PC."}, 401)
+            self.send_json({"error": "Friday isn't paired: use the pairing code from Settings on the PC."}, 401)
             return False
         self.set_cookie = bool(key)
         return True
@@ -1260,8 +1266,8 @@ class Handler(BaseHTTPRequestHandler):
             self.wfile.write((json.dumps({"error": f"Can't reach Ollama at {OLLAMA}. Is it running?"}) + "\n").encode())
 
     def gateway_chat(self, b):
-        """OpenAI-style chat for your other systems (device manager, scripts, Jarvis…): any brain, plus
-        Jarvis's memory of you when they don't send their own system prompt."""
+        """OpenAI-style chat for your other systems (device manager, scripts, Friday…): any brain, plus
+        Friday's memory of you when they don't send their own system prompt."""
         model = b.get("model") or ""
         if model in ("", "auto", "default", "jarvis"):
             model = load_settings()["default_model"] or next((m["name"] for m in list_models()["models"]), "")

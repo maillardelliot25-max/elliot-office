@@ -13,7 +13,7 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 
-/** Talks to the Jarvis app on your PC (same API the Chrome extension uses). Call off the main thread. */
+/** Talks to the Friday app on your PC (same API the Chrome extension uses). Call off the main thread. */
 final class Api {
     interface LineHandler {
         void onLine(JSONObject event) throws Exception;

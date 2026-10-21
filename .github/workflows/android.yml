@@ -1,6 +1,6 @@
-# Builds the Jarvis Android app and publishes Jarvis.apk on the "jarvis-android" release,
+# Builds the Friday Android app and publishes Friday.apk on the "jarvis-android" release,
 # so you can download and install it straight from your phone.
-name: Build Jarvis Android app
+name: Build Friday Android app
 
 on:
   push:
@@ -36,12 +36,12 @@ jobs:
           name: jarvis-android
           path: New folder/LocalAI/android/app/build/outputs/apk/debug/app-debug.apk
 
-      - name: Publish Jarvis.apk
+      - name: Publish Friday.apk
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          cp "New folder/LocalAI/android/app/build/outputs/apk/debug/app-debug.apk" Jarvis.apk
+          cp "New folder/LocalAI/android/app/build/outputs/apk/debug/app-debug.apk" Friday.apk
           gh release view jarvis-android >/dev/null 2>&1 || gh release create jarvis-android --prerelease \
-            --title "Jarvis for Android" \
-            --notes "Latest build of the Jarvis Android app (branch ${GITHUB_REF_NAME}). On your phone, download Jarvis.apk, open it and allow installing from your browser."
-          gh release upload jarvis-android Jarvis.apk --clobber
+            --title "Friday for Android" \
+            --notes "Latest build of the Friday Android app (branch ${GITHUB_REF_NAME}). On your phone, download Friday.apk, open it and allow installing from your browser."
+          gh release upload jarvis-android Friday.apk --clobber

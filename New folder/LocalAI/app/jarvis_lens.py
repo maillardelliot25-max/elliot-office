@@ -1,9 +1,9 @@
 """
-Jarvis Lens: ask about whatever is on your screen, like Gemini's screen feature.
+Friday Lens: ask about whatever is on your screen, like Gemini's screen feature.
 
 Swipe up from the bottom edge of the screen (a quick upward flick of the mouse,
 touchpad or finger that starts at the very bottom), or press Ctrl+Alt+Space.
-Jarvis takes a screenshot of the screen you're on and a bar pops up at the
+Friday takes a screenshot of the screen you're on and a bar pops up at the
 bottom where you can ask about it. Esc hides it.
 
 Runs alongside the Elliot AI app (it talks to http://localhost:8765) and uses
@@ -181,7 +181,7 @@ class Lens:
     def __init__(self):
         self.root = tk.Tk()
         self.root.withdraw()
-        self.root.title("Jarvis Lens")
+        self.root.title("Friday Lens")
         self.events = queue.Queue()
         self.chat_id = None
         self.image_b64 = None
@@ -205,7 +205,7 @@ class Lens:
 
     def build(self):
         c = self.colours()
-        name = settings().get("assistant_name") or "Jarvis"
+        name = settings().get("assistant_name") or "Friday"
         w = self.win = tk.Toplevel(self.root)
         w.withdraw()
         w.overrideredirect(True)          # no title bar, like a system overlay
@@ -321,7 +321,7 @@ class Lens:
             return
         self.close_offer()
         c, (_, _, mon) = self.colours(), preset
-        name = settings().get("assistant_name") or "Jarvis"
+        name = settings().get("assistant_name") or "Friday"
         for gx, gy, gw, gh in ((0, 0, mon["width"], 6), (0, mon["height"] - 6, mon["width"], 6),
                                (0, 0, 6, mon["height"]), (mon["width"] - 6, 0, 6, mon["height"])):
             edge = tk.Toplevel(self.root)
@@ -441,7 +441,7 @@ def main():
         lock = socket.socket()
         lock.bind(("127.0.0.1", 8766))
     except OSError:
-        print("Jarvis Lens is already running.")
+        print("Friday Lens is already running.")
         return
     s = settings()
     lens = Lens()
@@ -452,7 +452,7 @@ def main():
         mouse.Listener(on_move=swipe.move).start()
     threading.Thread(target=screen_recorder, daemon=True).start()
     threading.Thread(target=screen_watcher, args=(lens,), daemon=True).start()
-    print(f"Jarvis Lens is running: swipe up from the bottom of the screen or press {hotkey}. Ctrl+C to quit.")
+    print(f"Friday Lens is running: swipe up from the bottom of the screen or press {hotkey}. Ctrl+C to quit.")
     if "--show" in sys.argv:
         lens.trigger()
     try:

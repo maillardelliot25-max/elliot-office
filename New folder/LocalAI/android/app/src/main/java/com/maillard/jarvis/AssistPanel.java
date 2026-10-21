@@ -33,8 +33,8 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 /**
- * The Jarvis bottom sheet: shows what was captured from the screen, lets you ask about it
- * (typing, quick questions or voice) and streams the answer from the Jarvis app on your PC.
+ * The Friday bottom sheet: shows what was captured from the screen, lets you ask about it
+ * (typing, quick questions or voice) and streams the answer from the Friday app on your PC.
  * Used by the assistant session (swipe / side key) and by AssistActivity.
  */
 final class AssistPanel {
@@ -118,7 +118,7 @@ final class AssistPanel {
         screenText = "";
         thumb.setImageDrawable(null);
         thumb.setVisibility(View.GONE);
-        screenNote.setText(Prefs.configured(ctx) ? "Reading your screen…" : "Open the Jarvis app to connect it to your PC first.");
+        screenNote.setText(Prefs.configured(ctx) ? "Reading your screen…" : "Open the Friday app to connect it to your PC first.");
         answer.setText("");
         answerScroll.setVisibility(View.GONE);
         input.setText("");
@@ -157,7 +157,7 @@ final class AssistPanel {
         io.execute(() -> {
             try {
                 JSONObject s = new Api(ctx).get("/api/settings");
-                String name = s.optString("assistant_name", "Jarvis");
+                String name = s.optString("assistant_name", "Friday");
                 JSONObject look = s.optJSONObject("appearance");
                 String accent = look != null ? look.optString("accent", "") : "";
                 String panel = look != null ? look.optString("panel", "") : "";
@@ -182,7 +182,7 @@ final class AssistPanel {
         String q = question.trim();
         if (q.isEmpty() || busy) return;
         if (!Prefs.configured(ctx)) {
-            show("Open the Jarvis app on your phone and connect it to your PC first.");
+            show("Open the Friday app on your phone and connect it to your PC first.");
             return;
         }
         busy = true;
@@ -215,7 +215,7 @@ final class AssistPanel {
                 });
                 api.post("/api/memory/learn", new JSONObject().put("chat_id", chatId).put("model", model));
             } catch (java.net.ConnectException | java.net.SocketTimeoutException | java.net.UnknownHostException e) {
-                post("\n⚠ Can't reach Jarvis on your PC. Is it running, with phone access on, and is your phone on the same Wi-Fi?");
+                post("\n⚠ Can't reach Friday on your PC. Is it running, with phone access on, and is your phone on the same Wi-Fi?");
             } catch (Exception e) {
                 post("\n⚠ " + e.getMessage());
             } finally {
@@ -250,7 +250,7 @@ final class AssistPanel {
 
     private void listen() {
         if (ctx.checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
-            show("To talk to Jarvis, open the Jarvis app and tap \"Allow microphone\".");
+            show("To talk to Friday, open the Friday app and tap \"Allow microphone\".");
             return;
         }
         if (recognizer == null) {

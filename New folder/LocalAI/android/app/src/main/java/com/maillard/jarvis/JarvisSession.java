@@ -13,7 +13,7 @@ import android.view.Window;
 import android.view.WindowManager;
 
 /**
- * Runs when you swipe up from a bottom corner (or hold the side key) with Jarvis set as the
+ * Runs when you swipe up from a bottom corner (or hold the side key) with Friday set as the
  * digital assistant. Android hands us a screenshot and the text on screen; the panel asks about them.
  */
 public class JarvisSession extends VoiceInteractionSession {

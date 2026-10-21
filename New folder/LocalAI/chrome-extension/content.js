@@ -1,4 +1,4 @@
-// Jarvis on every page: when you start filling in a form, offer to fill it for you.
+// Friday on every page: when you start filling in a form, offer to fill it for you.
 (() => {
   if (window.__jarvisForms) return;
   const esc = t => String(t).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -34,7 +34,7 @@
       .t{color:#c96442;font-weight:700;margin-bottom:4px} .b{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}
       button{font:inherit;border-radius:8px;border:1px solid #3e3e3a;background:#30302e;color:#ecebe6;padding:5px 11px;cursor:pointer}
       button.p{background:#c96442;border-color:#c96442;color:#fff} @keyframes in{from{transform:translateY(16px);opacity:0}}</style>
-      <div class="c"><div class="t">✦ Jarvis</div><div>${html}</div><div class="b"></div></div>`;
+      <div class="c"><div class="t">✦ Friday</div><div>${html}</div><div class="b"></div></div>`;
     const row = root.querySelector(".b");
     buttons.forEach(([label, primary, fn]) => {
       const b = document.createElement("button");
@@ -80,7 +80,7 @@
     }));
     card(`Right away${s.butler ? ", sir" : ""}. Filling it in…`, [], form);
     const r = await chrome.runtime.sendMessage({ type: "jarvis-autofill", fields: list, title: document.title, url: location.href });
-    if (!r || r.error) return card(`Sorry${s.butler ? ", sir" : ""}, I couldn't fill it: ${esc(r?.error || "Jarvis isn't reachable")}`, [["OK", true, () => close(form)]]);
+    if (!r || r.error) return card(`Sorry${s.butler ? ", sir" : ""}, I couldn't fill it: ${esc(r?.error || "Friday isn't reachable")}`, [["OK", true, () => close(form)]]);
     let n = 0;
     const missing = [];
     fields.forEach((f, i) => {

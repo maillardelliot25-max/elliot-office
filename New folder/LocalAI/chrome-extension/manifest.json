@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "Jarvis",
+  "name": "Friday",
   "version": "1.1.0",
-  "description": "Your Elliot AI assistant inside Chrome: chat about any page, summarise, explain, and let Jarvis browse for you.",
+  "description": "Your Elliot AI assistant inside Chrome: chat about any page, summarise, explain, and let Friday browse for you.",
   "permissions": [
     "sidePanel",
     "storage",
@@ -21,7 +21,7 @@
     "default_path": "sidepanel.html"
   },
   "action": {
-    "default_title": "Open Jarvis (Alt+J)",
+    "default_title": "Open Friday (Alt+J)",
     "default_icon": {
       "16": "icons/16.png",
       "48": "icons/48.png",
@@ -38,7 +38,7 @@
       "suggested_key": {
         "default": "Alt+J"
       },
-      "description": "Open Jarvis"
+      "description": "Open Friday"
     }
   },
   "content_scripts": [

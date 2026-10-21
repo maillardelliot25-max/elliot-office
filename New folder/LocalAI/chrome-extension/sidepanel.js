@@ -1,4 +1,4 @@
-// Jarvis side panel: talks to the Elliot AI app running on this computer.
+// Friday side panel: talks to the Elliot AI app running on this computer.
 const $ = id => document.getElementById(id);
 const esc = s => String(s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 let cfg = { server: "http://localhost:8765", token: "" };
@@ -22,7 +22,7 @@ async function start() {
   ({ chatId = null, usePage = true, proactive: formHelp = true } = await chrome.storage.local.get(["chatId", "usePage", "proactive"]));
   try {
     const s = await api("/api/settings");
-    $("name").textContent = s.assistant_name || "Jarvis";
+    $("name").textContent = s.assistant_name || "Friday";
     applyLook(s.appearance || {});
     showApp(true);
     await loadModels();
@@ -85,7 +85,7 @@ function md(text) {
 function scroll() { log.scrollTop = log.scrollHeight; }
 function add(cls, html) { const d = document.createElement("div"); d.className = cls; d.innerHTML = html; log.append(d); scroll(); return d; }
 function welcome(s) {
-  log.innerHTML = `<div class="welcome"><h2>Hi${s?.name ? ", " + esc(s.name) : ""} 👋</h2>Ask about this page, select text and right-click → <i>Ask Jarvis</i>, or turn on 🖱 to let me browse for you.</div>`;
+  log.innerHTML = `<div class="welcome"><h2>Hi${s?.name ? ", " + esc(s.name) : ""} 👋</h2>Ask about this page, select text and right-click → <i>Ask Friday</i>, or turn on 🖱 to let me browse for you.</div>`;
 }
 function userBubble(text, ctx) {
   const d = add("user", "");
@@ -291,7 +291,7 @@ async function send(text, { image } = {}) {
   } catch {}
 }
 function approval(id) {
-  const d = add("approve", `<div>Allow Jarvis to do this?</div><button class="primary">Allow</button> <button>Always allow</button> <button>Deny</button>`);
+  const d = add("approve", `<div>Allow Friday to do this?</div><button class="primary">Allow</button> <button>Always allow</button> <button>Deny</button>`);
   const [allow, always, deny] = d.querySelectorAll("button");
   const answer = (ok, all) => { d.innerHTML = ok ? "✔ Allowed" : "✖ Denied"; api("/api/approve", { method: "POST", body: { id, allow: ok, always: all } }); };
   allow.onclick = () => answer(true, false); always.onclick = () => answer(true, true); deny.onclick = () => answer(false, false);

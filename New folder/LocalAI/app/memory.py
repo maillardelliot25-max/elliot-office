@@ -1,5 +1,5 @@
 """
-Long-term memory: what Jarvis knows about the user (likes, dislikes, preferences,
+Long-term memory: what Friday knows about the user (likes, dislikes, preferences,
 people, projects, goals…). Facts come from three places:
 
   - the user adding them on the Memory screen

@@ -22,7 +22,7 @@ import org.json.JSONObject;
 
 import java.util.concurrent.Executors;
 
-/** Setup: connect to Jarvis on your PC, make Jarvis the phone's assistant, allow the microphone. */
+/** Setup: connect to Friday on your PC, make Friday the phone's assistant, allow the microphone. */
 public class MainActivity extends Activity {
     private EditText server, code;
     private TextView status, assistantStatus;
@@ -37,11 +37,11 @@ public class MainActivity extends Activity {
         int pad = (int) (22 * dp);
         col.setPadding(pad, pad, pad, pad);
 
-        col.addView(text("✦ Jarvis", 28, R.color.accent, true));
-        col.addView(text("Swipe up from a bottom corner (or hold the side button) in any app, and Jarvis looks at your screen so you can ask about it.", 15, R.color.dim, false));
+        col.addView(text("✦ Friday", 28, R.color.accent, true));
+        col.addView(text("Swipe up from a bottom corner (or hold the side button) in any app, and Friday looks at your screen so you can ask about it.", 15, R.color.dim, false));
 
-        col.addView(heading("1. Connect to Jarvis on your PC"));
-        col.addView(text("On the PC: open Jarvis → ⚙ Settings → \"Jarvis on your phone\", turn on phone access, restart the app, then copy the address and pairing code shown there. Phone and PC must be on the same Wi-Fi.", 14, R.color.dim, false));
+        col.addView(heading("1. Connect to Friday on your PC"));
+        col.addView(text("On the PC: open Friday → ⚙ Settings → \"Friday on your phone\", turn on phone access, restart the app, then copy the address and pairing code shown there. Phone and PC must be on the same Wi-Fi.", 14, R.color.dim, false));
         server = field("PC address, e.g. 192.168.1.20:8765", InputType.TYPE_TEXT_VARIATION_URI);
         code = field("Pairing code", InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD);
         server.setText(Prefs.server(this));
@@ -52,9 +52,9 @@ public class MainActivity extends Activity {
         status = text("", 14, R.color.dim, false);
         col.addView(status);
 
-        col.addView(heading("2. Make Jarvis your assistant"));
-        col.addView(text("Samsung: Settings → Apps → Choose default apps → Digital assistant app → Device assistance app → Jarvis.\n"
-                + "On that same screen, turn ON \"Use screenshot\" and \"Analyse text on screen\" (names vary a little by phone), so Jarvis can see what you're looking at.", 14, R.color.dim, false));
+        col.addView(heading("2. Make Friday your assistant"));
+        col.addView(text("Samsung: Settings → Apps → Choose default apps → Digital assistant app → Device assistance app → Friday.\n"
+                + "On that same screen, turn ON \"Use screenshot\" and \"Analyse text on screen\" (names vary a little by phone), so Friday can see what you're looking at.", 14, R.color.dim, false));
         col.addView(button("Open assistant settings", v -> openAssistantSettings()));
         assistantStatus = text("", 14, R.color.dim, false);
         col.addView(assistantStatus);
@@ -67,7 +67,7 @@ public class MainActivity extends Activity {
         col.addView(button("Allow microphone", v -> requestPermissions(new String[]{Manifest.permission.RECORD_AUDIO}, 1)));
 
         col.addView(heading("Try it"));
-        col.addView(button("Open Jarvis now", v -> startActivity(new Intent(this, AssistActivity.class))));
+        col.addView(button("Open Friday now", v -> startActivity(new Intent(this, AssistActivity.class))));
 
         ScrollView scroll = new ScrollView(this);
         scroll.addView(col);
@@ -79,7 +79,7 @@ public class MainActivity extends Activity {
         super.onResume();
         String current = Settings.Secure.getString(getContentResolver(), "assistant");
         boolean isUs = current != null && current.startsWith(getPackageName());
-        assistantStatus.setText(isUs ? "✓ Jarvis is your assistant." : current == null ? "" : "Jarvis isn't your assistant yet.");
+        assistantStatus.setText(isUs ? "✓ Friday is your assistant." : current == null ? "" : "Friday isn't your assistant yet.");
         if (Prefs.configured(this) && status.getText().length() == 0) connect();
     }
 
@@ -97,11 +97,11 @@ public class MainActivity extends Activity {
             try {
                 JSONObject s = new Api(this).get("/api/settings");
                 String model = new Api(this).get("/api/lens_model").optString("model", "");
-                msg = "✓ Connected to " + s.optString("assistant_name", "Jarvis") + " on your PC."
+                msg = "✓ Connected to " + s.optString("assistant_name", "Friday") + " on your PC."
                         + (model.isEmpty() ? "\n⚠ No model that can see images is set up on the PC yet." : "\nLooks at your screen with: " + model.replaceFirst("^cloud:[a-z]+:", ""));
             } catch (Exception e) {
                 msg = "✗ " + (e.getMessage() == null || e instanceof java.net.ConnectException || e instanceof java.net.SocketTimeoutException
-                        ? "Can't reach the PC. Check the address, that Jarvis is running with phone access on, and that you're on the same Wi-Fi."
+                        ? "Can't reach the PC. Check the address, that Friday is running with phone access on, and that you're on the same Wi-Fi."
                         : e.getMessage());
             }
             String finalMsg = msg;
@@ -122,7 +122,7 @@ public class MainActivity extends Activity {
     @Override
     public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] results) {
         boolean ok = results.length > 0 && results[0] == PackageManager.PERMISSION_GRANTED;
-        status.setText(ok ? "✓ Microphone allowed. Tap 🎤 in Jarvis to talk." : "Microphone not allowed. You can still type.");
+        status.setText(ok ? "✓ Microphone allowed. Tap 🎤 in Friday to talk." : "Microphone not allowed. You can still type.");
     }
 
     // ── Small view helpers ───────────────────────────────────────────────

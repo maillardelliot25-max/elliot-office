@@ -26,26 +26,26 @@ On top of that it creates images and videos with **Gemini Nano Banana / Veo**, b
 | 🎨 **Create & edit images** | **Gemini Nano Banana 2 / Pro**: top-quality images, text in images, edit your photos. Follow-ups like "make it bluer" edit the last image. Also works with a local Stable Diffusion server |
 | 🎬 **Create videos** | **Google Veo 3.1**: about 8-second clips with sound, from text or by animating an image |
 | 🎤 **Voice** | Speak your messages (🎤), and have answers read aloud (🔊) |
-| 🧠 **Memory that learns** | After each conversation Jarvis notes anything lasting it learned about you: likes, dislikes, preferences, people, work, goals. It shows "🧠 Remembered: …". It never stores passwords or card numbers. Say "remember…" or "forget…" anytime, ask "what did we decide about X last week?" (it searches past chats), or manage everything on the 🧠 Memory screen |
-| 📸 **Jarvis Lens: ask about your screen** | Like Gemini's screen feature: **swipe up from the bottom edge of your screen** (a quick upward flick of the mouse, touchpad or finger) or press **Ctrl+Alt+Space**. Jarvis takes a screenshot and a bar pops up at the bottom: ask "what's this error?", "summarise this", "translate", "what should I reply?". Follow-up questions work, and **Open in app** continues the chat |
+| 🧠 **Memory that learns** | After each conversation Friday notes anything lasting it learned about you: likes, dislikes, preferences, people, work, goals. It shows "🧠 Remembered: …". It never stores passwords or card numbers. Say "remember…" or "forget…" anytime, ask "what did we decide about X last week?" (it searches past chats), or manage everything on the 🧠 Memory screen |
+| 📸 **Friday Lens: ask about your screen** | Like Gemini's screen feature: **swipe up from the bottom edge of your screen** (a quick upward flick of the mouse, touchpad or finger) or press **Ctrl+Alt+Space**. Friday takes a screenshot and a bar pops up at the bottom: ask "what's this error?", "summarise this", "translate", "what should I reply?". Follow-up questions work, and **Open in app** continues the chat |
 | 🧠 **Any AI brain** | Tap the brain tab (top right) to switch brains. Each one has a one-line summary and badges: 👁 sees images, 🛠 uses tools, 💭 thinks, 🔒 offline, ☁ online. **＋ Add or download a brain**: download offline models in one click with a progress bar, or add any OpenAI-compatible service (OpenRouter, Groq, Mistral, DeepSeek, xAI Grok, Together, Perplexity) or offline app (LM Studio, Jan, llama.cpp) |
-| 🔌 **Brain hub for your other systems** | Your device-management AI, scripts or Jarvis can use every brain here, plus Jarvis's memory of you, through a standard OpenAI-style API (section 10) |
-| 📱 **Jarvis on your Samsung phone** | An Android app that becomes your phone's **digital assistant** (instead of Gemini). **Swipe up from a bottom corner** (or hold the side button) in any app: Jarvis gets a screenshot plus the text on screen, a sheet slides up, and you ask by typing, quick buttons or 🎤 voice. Answers come from Jarvis on your PC, with the same models, memory and chats |
-| 🎨 **Make it yours** | Settings → **Edit appearance**: themes (Claude, Midnight, Jarvis, Ocean, Forest, Rose, Mono), light/dark, your own colours, font, text size, roundness, chat width, and a **video or image background** with dim, blur and see-through panels. Chrome uses your colours too |
-| 🙋 **"I've got this, sir"** | Start filling in a form on any website (Google Forms, sign-ups, applications): Jarvis highlights it and offers to fill it from what it remembers about you. It never fills passwords or card details and never presses submit. Turn it off with 🙋 in the side panel, or tap *Not on this site* |
-| 👀 **Notices when you need help, anywhere on your PC** | Optional (Settings → Jarvis Lens). When the screen changes, Lens glances at it with an offline model. If you're filling in a form, an error appears, or you look stuck, the screen edges glow and a note pops up: *"Sir, I've got this…"* with **Help me**, **Not now** and **Stop watching**. At most once every 10 minutes |
-| 🎩 **Friendly digital butler** | Jarvis calls you "sir" and tells you what it's about to do. Switch to a plain assistant in Settings → Personality |
+| 🔌 **Brain hub for your other systems** | Your device-management AI, scripts or Friday can use every brain here, plus Friday's memory of you, through a standard OpenAI-style API (section 10) |
+| 📱 **Friday on your Samsung phone** | An Android app that becomes your phone's **digital assistant** (instead of Gemini). **Swipe up from a bottom corner** (or hold the side button) in any app: Friday gets a screenshot plus the text on screen, a sheet slides up, and you ask by typing, quick buttons or 🎤 voice. Answers come from Friday on your PC, with the same models, memory and chats |
+| 🎨 **Make it yours** | Settings → **Edit appearance**: themes (Claude, Midnight, Friday, Ocean, Forest, Rose, Mono), light/dark, your own colours, font, text size, roundness, chat width, and a **video or image background** with dim, blur and see-through panels. Chrome uses your colours too |
+| 🙋 **"I've got this, sir"** | Start filling in a form on any website (Google Forms, sign-ups, applications): Friday highlights it and offers to fill it from what it remembers about you. It never fills passwords or card details and never presses submit. Turn it off with 🙋 in the side panel, or tap *Not on this site* |
+| 👀 **Notices when you need help, anywhere on your PC** | Optional (Settings → Friday Lens). When the screen changes, Lens glances at it with an offline model. If you're filling in a form, an error appears, or you look stuck, the screen edges glow and a note pops up: *"Sir, I've got this…"* with **Help me**, **Not now** and **Stop watching**. At most once every 10 minutes |
+| 🎩 **Friendly digital butler** | Friday calls you "sir" and tells you what it's about to do. Switch to a plain assistant in Settings → Personality |
 | 🎞 **Screen memory** | Optional, off by default. Lens saves a screenshot when your screen changes, in 8-hour blocks on this PC, deleting old blocks automatically. Settings shows the storage used |
-| 🌐 **Jarvis in Chrome** | Side panel on any website: summarise or explain the page, right-click selected text or an image → *Ask Jarvis*, draft replies. With 🖱 *Browse for me* on, Jarvis clicks, types, scrolls and opens pages for you, asking before each action |
+| 🌐 **Friday in Chrome** | Side panel on any website: summarise or explain the page, right-click selected text or an image → *Ask Friday*, draft replies. With 🖱 *Browse for me* on, Friday clicks, types, scrolls and opens pages for you, asking before each action |
 | ⤓ **Export** | Save any chat as a Markdown file |
 
-Plus **Claude Code** itself in your terminal on the same local model (`start-claude-local`), and **Jarvis** running offline.
+Plus **Claude Code** itself in your terminal on the same local model (`start-claude-local`), and the repo's older **Jarvis** agent (`Jarvis/` folder) running offline too.
 
 > **Be realistic:** the app gives you what the Claude app does, but the chat "brain" is a free open-source model, not Claude itself. Claude can't be downloaded. Local models are good for everyday chat, writing and coding, but slower and weaker than Claude on hard problems. Images and videos come from Google's top models, so those *are* state of the art.
 
-Your assistant is called **Jarvis** (rename it in Settings). It works in two places:
+Your assistant is called **Friday** (rename it in Settings). It works in two places:
 - **The app**: a full Claude-style app in your browser at http://localhost:8765.
-- **Jarvis in Chrome**: a side panel that sits next to any website (step 6).
+- **Friday in Chrome**: a side panel that sits next to any website (step 6).
 
 Both share the same chats and the same memory.
 
@@ -117,31 +117,31 @@ All three are pay-as-you-go (charged per use by each company), separate from any
 
 **Add more models anytime:** run `ollama pull <name>`. Browse models at https://ollama.com/search.
 
-## 6. Add Jarvis to Chrome (2 minutes)
+## 6. Add Friday to Chrome (2 minutes)
 
 1. Start the app (`Start Elliot AI.bat`), open **⚙ Settings, keys & Chrome**, and copy the **pairing code**.
 2. In Chrome, go to `chrome://extensions` and switch on **Developer mode** (top right).
 3. Click **Load unpacked** and choose the `New folder/LocalAI/chrome-extension` folder.
-4. Pin Jarvis (🧩 puzzle icon → 📌), then click its **J** icon or press **Alt+J**. Paste the pairing code and click **Connect**.
+4. Pin Friday (🧩 puzzle icon → 📌), then click its **J** icon or press **Alt+J**. Paste the pairing code and click **Connect**.
 
 Then:
-- **📄 This page** (on by default): Jarvis reads the page you're on.
-- **🖱 Browse for me**: Jarvis can operate the page ("find the cheapest flight on this site", "fill this form with my details"). It asks before every click, type or page change, and never types passwords or card details.
-- **Right-click** selected text → *Ask Jarvis about…*, an image → *Ask Jarvis about this image*, or any page → *Summarise this page with Jarvis*.
+- **📄 This page** (on by default): Friday reads the page you're on.
+- **🖱 Browse for me**: Friday can operate the page ("find the cheapest flight on this site", "fill this form with my details"). It asks before every click, type or page change, and never types passwords or card details.
+- **Right-click** selected text → *Ask Friday about…*, an image → *Ask Friday about this image*, or any page → *Summarise this page with Friday*.
 - The **⤢** button opens the full app. Chats from Chrome show up there too.
 
-The app must be running for the extension to work. Chrome doesn't let extensions read its own pages (chrome://, the Web Store), so Jarvis can't help there.
+The app must be running for the extension to work. Chrome doesn't let extensions read its own pages (chrome://, the Web Store), so Friday can't help there.
 
-**Security:** every request to the app must carry the pairing code. Websites and other extensions can't use your Jarvis.
+**Security:** every request to the app must carry the pairing code. Websites and other extensions can't use your Friday.
 
-## 7. Jarvis Lens: ask about your screen
+## 7. Friday Lens: ask about your screen
 
 Lens starts automatically with **Start Elliot AI.bat** and runs quietly in the background.
 
 - **Swipe up:** move the pointer (or your finger on a touchscreen) to the very bottom edge of the screen, then flick it quickly upward. Slow movements, like going to the taskbar and back, don't trigger it.
 - **Or press Ctrl+Alt+Space.**
 - Ask your question, or tap a quick one (*What's this? · Explain the error · Summarise · Translate · What should I reply?*). **📸 New capture** takes a fresh screenshot, **Esc** hides the bar, and **Open in app** continues in the full app.
-- It needs a model that can see images. "Auto" picks the best one you have: Claude, then Gemini, then ChatGPT, then a local one like `qwen3-vl:8b`. Change it, the shortcut, or turn the swipe off in Settings → **Jarvis Lens**, then restart the app.
+- It needs a model that can see images. "Auto" picks the best one you have: Claude, then Gemini, then ChatGPT, then a local one like `qwen3-vl:8b`. Change it, the shortcut, or turn the swipe off in Settings → **Friday Lens**, then restart the app.
 - Screenshots go to the model you chose. With a ☁ model that means the company behind it, so close anything private first or use a local model.
 - On a Mac, allow Python under System Settings → Privacy & Security → **Accessibility** and **Screen Recording** the first time.
 
@@ -153,36 +153,36 @@ Settings → **🎨 Edit appearance**. Everything previews live. **Save** keeps 
 
 For a video background, use **⬆ Upload** (MP4 or WebM, up to 150 MB; short loops of 10 to 30 seconds look best) or paste a link to an .mp4. Turn **Darken** up and use **See-through panels** to keep text readable.
 
-## 9. Jarvis on your Samsung phone
+## 9. Friday on your Samsung phone
 
 **On the PC:**
-1. Open Jarvis → ⚙ **Settings** → **📱 Jarvis on your phone** → tick **Allow my phone to connect over Wi-Fi** → Save.
+1. Open Friday → ⚙ **Settings** → **📱 Friday on your phone** → tick **Allow my phone to connect over Wi-Fi** → Save.
 2. Close and restart the app (`Start Elliot AI.bat`). If Windows asks whether to allow Python on networks, choose **Private networks**.
 3. Back in Settings, note the **PC address** (like `192.168.1.20:8765`) and the **pairing code**.
 
 **On the phone:**
-1. Install the app: open `https://github.com/maillardelliot25-max/elliot-office/releases/tag/jarvis-android` in the phone's browser (sign in to GitHub if asked), download **Jarvis.apk**, open it, and allow installing from your browser when asked. GitHub rebuilds this file whenever the app's code changes.
-2. Open **Jarvis**, enter the PC address and pairing code, and tap **Connect**.
-3. Tap **Open assistant settings** and choose Jarvis as the **Digital assistant app / Device assistance app**. On the same screen, turn on **Use screenshot** and **Analyse text on screen** (wording varies by phone and One UI version).
+1. Install the app: open `https://github.com/maillardelliot25-max/elliot-office/releases/tag/jarvis-android` in the phone's browser (sign in to GitHub if asked), download **Friday.apk**, open it, and allow installing from your browser when asked. GitHub rebuilds this file whenever the app's code changes.
+2. Open **Friday**, enter the PC address and pairing code, and tap **Connect**.
+3. Tap **Open assistant settings** and choose Friday as the **Digital assistant app / Device assistance app**. On the same screen, turn on **Use screenshot** and **Analyse text on screen** (wording varies by phone and One UI version).
 4. Pick how to open it:
    - **Swipe gestures:** Settings → Display → Navigation bar → *Swipe gestures*, then swipe up diagonally from a bottom corner.
    - **Side button:** Settings → Advanced features → Side button → *Press and hold* → *Digital assistant*.
 5. Optional: tap **Allow microphone** to ask by voice with 🎤.
 
 **Good to know:**
-- The phone must be on the **same Wi-Fi as the PC**, and Jarvis must be running on the PC. To use it away from home, install [Tailscale](https://tailscale.com) on both devices and use the PC's Tailscale address instead.
-- Screenshots and screen text go to your PC and then to the model Jarvis Lens uses (Settings → Jarvis Lens). With a ☁ model that means the company behind it. Password fields are never read.
-- Android requires an assistant to include a voice service. Jarvis's simply passes voice typing through to Google's or Samsung's, so voice typing elsewhere keeps working.
+- The phone must be on the **same Wi-Fi as the PC**, and Friday must be running on the PC. To use it away from home, install [Tailscale](https://tailscale.com) on both devices and use the PC's Tailscale address instead.
+- Screenshots and screen text go to your PC and then to the model Friday Lens uses (Settings → Friday Lens). With a ☁ model that means the company behind it. Password fields are never read.
+- Android requires an assistant to include a voice service. Friday's simply passes voice typing through to Google's or Samsung's, so voice typing elsewhere keeps working.
 - To go back to Gemini, choose it again under Digital assistant app.
 
-## 10. Use Jarvis as the brain hub for your other systems
+## 10. Use Friday as the brain hub for your other systems
 
-Anything that can talk to an OpenAI-style API can use **every brain you've added**, with one address and one key. That includes your device-management AI, home-automation tools, scripts, and apps like n8n or Home Assistant. Your API keys stay inside Jarvis; other systems only ever see the pairing code.
+Anything that can talk to an OpenAI-style API can use **every brain you've added**, with one address and one key. That includes your device-management AI, home-automation tools, scripts, and apps like n8n or Home Assistant. Your API keys stay inside Friday; other systems only ever see the pairing code.
 
 | Setting | Value |
 |---|---|
 | Base URL | `http://localhost:8765/v1` (from another device: `http://<PC address>:8765/v1`, with phone access on) |
-| API key | Your **pairing code** (Settings → Jarvis in Chrome) |
+| API key | Your **pairing code** (Settings → Friday in Chrome) |
 | Model | Any brain ID from `GET /v1/models`, e.g. `qwen3:8b` or `cloud:anthropic:claude-opus-5-5`, or `auto` for your default brain |
 
 ```python
@@ -192,7 +192,7 @@ reply = jarvis.chat.completions.create(model="auto", messages=[{"role": "user", 
 print(reply.choices[0].message.content)
 ```
 
-If the request has no `system` message, Jarvis answers as itself, with your memory and custom instructions. Send your own `system` message to set a different role. Streaming (`stream=True`) and images (`image_url` data URLs) work. Tools and file actions are only available inside Jarvis's own apps.
+If the request has no `system` message, Friday answers as itself, with your memory and custom instructions. Send your own `system` message to set a different role. Streaming (`stream=True`) and images (`image_url` data URLs) work. Tools and file actions are only available inside Friday's own apps.
 
 ## What's next
 
@@ -207,9 +207,9 @@ See [NEXT_STEPS.md](NEXT_STEPS.md) for the hand-over: what's built, where everyt
 - **Gemini error 429 or "quota":** you've hit your limit. Check billing in Google AI Studio.
 - **React or diagram preview is blank:** those previews need internet, to load React or Mermaid. Web pages, SVGs and documents work offline.
 - **🎤 doesn't work:** use Chrome or Edge. Voice typing uses the browser's speech service, which needs internet.
-- **Chrome says "Jarvis isn't paired" or "can't reach Elliot AI":** make sure the app is running, then paste the pairing code again (the ⚙ Settings screen shows it).
+- **Chrome says "Friday isn't paired" or "can't reach Elliot AI":** make sure the app is running, then paste the pairing code again (the ⚙ Settings screen shows it).
 - **Phone says "Can't reach the PC":** check that phone access is ticked **and** the app was restarted, that both devices are on the same Wi-Fi (not guest Wi-Fi), and that Windows Firewall allows Python on Private networks.
-- **The phone assistant opens but has no screenshot:** turn on *Use screenshot* in the Digital assistant app settings. Some apps (banking, Netflix) block screenshots, but Jarvis still reads their text where allowed.
+- **The phone assistant opens but has no screenshot:** turn on *Use screenshot* in the Digital assistant app settings. Some apps (banking, Netflix) block screenshots, but Friday still reads their text where allowed.
 - **Swiping up does nothing:** check Lens is running (start the app with `Start Elliot AI.bat`), try Ctrl+Alt+Space, and make sure the swipe starts at the very last pixel row of the screen. If it triggers by accident, turn the swipe off in Settings and use the shortcut.
 - **Background video doesn't play:** use MP4 (H.264) or WebM. iPhone .mov files often won't play in browsers, so convert them first.
 - **A downloaded brain doesn't appear:** make sure the Ollama app is running, then reopen the brain tab. Big models (30 GB+) need a strong PC; start with something like `qwen3:8b`.

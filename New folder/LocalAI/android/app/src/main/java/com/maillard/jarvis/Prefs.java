@@ -3,7 +3,7 @@ package com.maillard.jarvis;
 import android.content.Context;
 import android.content.SharedPreferences;
 
-/** Where the Jarvis app on your PC lives, and the pairing code it showed you. */
+/** Where the Friday app on your PC lives, and the pairing code it showed you. */
 final class Prefs {
     private Prefs() {}
 

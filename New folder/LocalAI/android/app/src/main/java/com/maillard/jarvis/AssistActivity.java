@@ -3,7 +3,7 @@ package com.maillard.jarvis;
 import android.app.Activity;
 import android.os.Bundle;
 
-/** Jarvis without a screen capture: opened by phones that use the simple "assist" intent, or "Try it". */
+/** Friday without a screen capture: opened by phones that use the simple "assist" intent, or "Try it". */
 public class AssistActivity extends Activity {
     private AssistPanel panel;
 
