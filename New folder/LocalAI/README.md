@@ -32,6 +32,9 @@ On top of that it creates images and videos with **Gemini Nano Banana / Veo**, b
 | 🔌 **Brain hub for your other systems** | Your device-management AI, scripts or Jarvis can use every brain here, plus Jarvis's memory of you, through a standard OpenAI-style API (section 10) |
 | 📱 **Jarvis on your Samsung phone** | An Android app that becomes your phone's **digital assistant** (instead of Gemini). **Swipe up from a bottom corner** (or hold the side button) in any app: Jarvis gets a screenshot plus the text on screen, a sheet slides up, and you ask by typing, quick buttons or 🎤 voice. Answers come from Jarvis on your PC, with the same models, memory and chats |
 | 🎨 **Make it yours** | Settings → **Edit appearance**: themes (Claude, Midnight, Jarvis, Ocean, Forest, Rose, Mono), light/dark, your own colours, font, text size, roundness, chat width, and a **video or image background** with dim, blur and see-through panels. Chrome uses your colours too |
+| 🙋 **"I've got this, sir"** | Start filling in a form on any website (Google Forms, sign-ups, applications): Jarvis highlights it and offers to fill it from what it remembers about you. It never fills passwords or card details and never presses submit. Turn it off with 🙋 in the side panel, or tap *Not on this site* |
+| 🎩 **Friendly digital butler** | Jarvis calls you "sir" and tells you what it's about to do. Switch to a plain assistant in Settings → Personality |
+| 🎞 **Screen memory** | Optional, off by default. Lens saves a screenshot when your screen changes, in 8-hour blocks on this PC, deleting old blocks automatically. Settings shows the storage used |
 | 🌐 **Jarvis in Chrome** | Side panel on any website: summarise or explain the page, right-click selected text or an image → *Ask Jarvis*, draft replies. With 🖱 *Browse for me* on, Jarvis clicks, types, scrolls and opens pages for you, asking before each action |
 | ⤓ **Export** | Save any chat as a Markdown file |
 
@@ -189,6 +192,10 @@ print(reply.choices[0].message.content)
 ```
 
 If the request has no `system` message, Jarvis answers as itself, with your memory and custom instructions. Send your own `system` message to set a different role. Streaming (`stream=True`) and images (`image_url` data URLs) work. Tools and file actions are only available inside Jarvis's own apps.
+
+## What's next
+
+See [NEXT_STEPS.md](NEXT_STEPS.md) for the hand-over: what's built, where everything lives, the next tasks in order (whole-screen form watching, filling desktop apps, signing PDFs…), and how to keep building for free with Claude Code on a local model.
 
 ## Troubleshooting
 

@@ -108,6 +108,38 @@ class SwipeDetector:
             self.on_swipe(x, y)
 
 
+# ── Screen memory ────────────────────────────────────────────────────────
+
+def screen_recorder():
+    """When "Screen memory" is on (Settings), save a screenshot whenever the screen has changed, into
+    8-hour blocks (00-08, 08-16, 16-24) on this PC, keeping only the newest few blocks."""
+    from datetime import datetime
+    import shutil
+    last = None
+    while True:
+        s = settings()
+        every = max(10, int(s.get("screen_every") or 60))
+        if s.get("screen_memory"):
+            try:
+                with Screens() as sct:
+                    shot = sct.grab(sct.monitors[0])          # all screens together
+                img = Image.frombytes("RGB", shot.size, shot.rgb)
+                sig = img.resize((48, 27)).convert("L").tobytes()
+                if last is None or sum(abs(a - b) for a, b in zip(sig, last)) > 48 * 27 * 3:   # skip unchanged screens
+                    last = sig
+                    now = datetime.now()
+                    block = DATA / "screen_memory" / f"{now:%Y-%m-%d}_{now.hour // 8 * 8:02d}-{now.hour // 8 * 8 + 8:02d}h"
+                    block.mkdir(parents=True, exist_ok=True)
+                    img.thumbnail((1600, 1600))
+                    img.save(block / f"{now:%H%M%S}.jpg", "JPEG", quality=60)
+                    keep = max(1, int(s.get("screen_keep_blocks") or 3))
+                    for old in sorted((DATA / "screen_memory").glob("*"))[:-keep]:
+                        shutil.rmtree(old, ignore_errors=True)
+            except Exception as e:
+                print("screen memory:", e)
+        time.sleep(every)
+
+
 # ── The pop-up bar ───────────────────────────────────────────────────────
 
 class Lens:
@@ -300,6 +332,7 @@ def main():
     if s.get("lens_swipe", True):
         swipe = SwipeDetector(lens.trigger)
         mouse.Listener(on_move=swipe.move).start()
+    threading.Thread(target=screen_recorder, daemon=True).start()
     print(f"Jarvis Lens is running: swipe up from the bottom of the screen or press {hotkey}. Ctrl+C to quit.")
     if "--show" in sys.argv:
         lens.trigger()

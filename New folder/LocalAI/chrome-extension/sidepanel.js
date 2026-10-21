@@ -2,7 +2,7 @@
 const $ = id => document.getElementById(id);
 const esc = s => String(s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 let cfg = { server: "http://localhost:8765", token: "" };
-let chatId = null, busy = false, usePage = true, browse = false, controller = null;
+let chatId = null, busy = false, usePage = true, browse = false, autopilot = false, formHelp = true, controller = null;
 let lastPage = "";   // the page already attached to this chat, so it isn't sent again every message
 
 // ── Connection ────────────────────────────────────────────────────────
@@ -19,7 +19,7 @@ async function api(path, opts = {}) {
 
 async function start() {
   Object.assign(cfg, await chrome.storage.local.get(["server", "token"]));
-  ({ chatId = null, usePage = true } = await chrome.storage.local.get(["chatId", "usePage"]));
+  ({ chatId = null, usePage = true, proactive: formHelp = true } = await chrome.storage.local.get(["chatId", "usePage", "proactive"]));
   try {
     const s = await api("/api/settings");
     $("name").textContent = s.assistant_name || "Jarvis";
@@ -247,7 +247,7 @@ async function send(text, { image } = {}) {
     const r = await fetch(cfg.server + "/api/chat", {
       method: "POST", signal: controller.signal,
       headers: { "Content-Type": "application/json", "X-Jarvis-Token": cfg.token },
-      body: JSON.stringify({ chat_id: chatId, model, message: { content: text, files, images }, tools: true, browser: browse }),
+      body: JSON.stringify({ chat_id: chatId, model, message: { content: text, files, images }, tools: true, browser: browse, autopilot }),
     });
     if (!r.ok) throw new Error((await r.json()).error || r.statusText);
     const reader = r.body.getReader(), dec = new TextDecoder();
@@ -298,9 +298,14 @@ function approval(id) {
 }
 
 // ── Controls ──────────────────────────────────────────────────────────
-function drawToggles() { $("pageBtn").classList.toggle("on", usePage); $("browseBtn").classList.toggle("on", browse); }
+function drawToggles() {
+  $("pageBtn").classList.toggle("on", usePage); $("browseBtn").classList.toggle("on", browse);
+  $("autoBtn").classList.toggle("on", autopilot); $("formBtn").classList.toggle("on", formHelp);
+}
+$("autoBtn").onclick = () => { autopilot = !autopilot; if (autopilot) browse = true; drawToggles(); };
+$("formBtn").onclick = () => { formHelp = !formHelp; chrome.storage.local.set({ proactive: formHelp }); drawToggles(); };
 $("pageBtn").onclick = () => { usePage = !usePage; chrome.storage.local.set({ usePage }); drawToggles(); };
-$("browseBtn").onclick = () => { browse = !browse; drawToggles(); };
+$("browseBtn").onclick = () => { browse = !browse; if (!browse) autopilot = false; drawToggles(); };
 const input = $("input");
 input.oninput = () => { input.style.height = "auto"; input.style.height = input.scrollHeight + "px"; };
 input.onkeydown = e => { if (e.key === "Enter" && !e.shiftKey && !e.isComposing) { e.preventDefault(); $("send").click(); } };

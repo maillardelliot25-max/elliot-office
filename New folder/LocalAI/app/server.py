@@ -67,6 +67,10 @@ DEFAULT_SETTINGS = {
     "lens_model": "auto",     # "auto" = best model you have that can see images
     "phone_access": False,    # let the Jarvis Android app (and phone browsers) on your Wi-Fi connect
     "brains": [],             # AI services you added: OpenRouter, Groq, LM Studio… (🧠 AI brains)
+    "persona": "butler",      # "butler": a friendly digital servant who calls you "sir"; "standard": plain assistant
+    "screen_memory": False,   # Jarvis Lens saves a screenshot when your screen changes, in 8-hour blocks
+    "screen_every": 60,       # seconds between screen-memory checks
+    "screen_keep_blocks": 3,  # how many 8-hour blocks to keep (3 = the last 24 hours)
     "instructions": "",
     "workspace": str(Path.home() / "ElliotAI-Workspace"),
     "auto_approve": False,
@@ -223,6 +227,55 @@ def list_models():
         notes.append(f"Local models unavailable: can't reach Ollama at {OLLAMA}. Is it running?")
     cloud, cloud_notes = providers.cloud_models(load_settings())
     return {"models": local + cloud, "notes": notes + cloud_notes}
+
+
+SCREENS = DATA / "screen_memory"
+
+
+def screen_memory_stats():
+    blocks = []
+    for d in sorted(SCREENS.glob("*"), reverse=True) if SCREENS.is_dir() else []:
+        files = list(d.glob("*.jpg"))
+        blocks.append({"name": d.name, "count": len(files), "mb": round(sum(f.stat().st_size for f in files) / 1e6, 1)})
+    return {"blocks": blocks, "total_mb": round(sum(b["mb"] for b in blocks), 1), "folder": str(SCREENS)}
+
+
+def autofill(b):
+    """Fill a web form from what Jarvis remembers about you. Never invents ID/financial details."""
+    s = load_settings()
+    model = b.get("model") or "auto"
+    if model == "auto":
+        model = s["default_model"] or next((m["name"] for m in list_models()["models"]), "")
+    if not model:
+        raise ValueError("No AI brain is set up yet.")
+    fields = b.get("fields") or []
+    known = MEMORY.for_prompt(" ".join(f.get("label", "") for f in fields)) or "(nothing remembered yet)"
+    prompt = f"""You fill in web forms for {s['name']}, using ONLY facts you know about them.
+
+What you know about {s['name']}:
+{known}
+Their custom instructions: {s['instructions'] or '(none)'}
+
+The page: {b.get('title', '')} ({b.get('url', '')})
+The form fields (id, label, type, options for dropdowns):
+{json.dumps(fields, ensure_ascii=False)[:12000]}
+
+Rules:
+- Fill a field only when what you know clearly answers it. Otherwise leave it out. Never guess or invent
+  dates of birth, addresses, ID numbers, bank details or anything else personal.
+- For dropdowns use one of the listed options exactly. For checkboxes/radio use "yes" only if clearly true.
+- For open questions (e.g. "Tell us about yourself", "Why do you want to join?") you may write a short,
+  natural answer in their voice, based on what you know.
+- For a "signature" or "type your full name to sign" field, use their full name only if you know it.
+
+Reply with JSON only: {{"values": {{"<field id>": "<value>"}}}}"""
+    reply = providers.complete(model, prompt, (), s)
+    m = re.search(r"\{.*\}", reply or "", re.S)
+    try:
+        values = json.loads(m.group(0)).get("values", {}) if m else {}
+    except ValueError:
+        values = {}
+    return {"values": {str(k): v for k, v in values.items() if isinstance(v, (str, int, float, bool))}}
 
 
 def brains_info():
@@ -628,6 +681,11 @@ def system_prompt(tools_on, chat, opts):
         "```mermaid, ```markdown) so it opens as a live preview. React components must `export default` the main "
         "component, may import from 'react' and can use Tailwind classes.",
     ]
+    if s.get("persona") == "butler":
+        parts.append(
+            f"Your manner: you are {s['name']}'s warm, loyal, impeccably polite digital butler, like a trusted personal "
+            "assistant. Address them as \"sir\". Before doing a job, say briefly what you'll do (\"Right away, sir. I'll…\"); "
+            "after, report back modestly. Be attentive and helpful, never grovelling, and keep answers concise.")
     if tools_on:
         parts.append(
             f"You can use tools. The workspace folder is {workspace()}. To build software, write real files with "
@@ -717,7 +775,7 @@ def converse(chat, model, opts, emit):
                 output, is_error = "Stopped by the user.", True
             elif not valid_args(name, args):
                 output, is_error = json.dumps({"INVALID_JSON": json.dumps(args)[:2000]}), True
-            elif needs_ok(name) and not ask_user(call["id"], emit, stop):
+            elif needs_ok(name, opts) and not ask_user(call["id"], emit, stop):
                 output, is_error = "The user denied this action. Ask them what they would like instead.", True
             else:
                 try:
@@ -748,10 +806,10 @@ def browser_action(cid, name, args, emit, stop):
     return clip(_browser.pop(cid)["output"], 20000)
 
 
-def needs_ok(name):
+def needs_ok(name, opts=None):
     s = load_settings()
     if name in BROWSER_NEEDS_OK:
-        return not s["auto_approve"]
+        return not (s["auto_approve"] or (opts or {}).get("autopilot"))
     if name == "run_python" and s["auto_python"]:
         return False
     return name in NEEDS_APPROVAL and not s["auto_approve"]
@@ -942,6 +1000,8 @@ class Handler(BaseHTTPRequestHandler):
                 self.send_json(load_json(PROJECTS, url.path.rsplit("/", 1)[1]))
             elif url.path == "/api/settings":
                 self.send_json(public_settings())
+            elif url.path == "/api/screen_memory":
+                self.send_json(screen_memory_stats())
             elif url.path == "/api/brains":
                 self.send_json(brains_info())
             elif url.path == "/v1/models":   # OpenAI-style: every brain, for your other systems
@@ -1003,6 +1063,12 @@ class Handler(BaseHTTPRequestHandler):
                 return self.send_json({"moved": n, "folder": plan["folder"]})
             if path == "/v1/chat/completions":
                 return self.gateway_chat(b)
+            if path == "/api/autofill":
+                return self.send_json(autofill(b))
+            if path == "/api/screen_memory/clear":
+                import shutil
+                shutil.rmtree(SCREENS, ignore_errors=True)
+                return self.send_json(screen_memory_stats())
             if path == "/api/brains/add":
                 return self.send_json(add_brain(b))
             if path == "/api/brains/remove":
@@ -1126,7 +1192,7 @@ class Handler(BaseHTTPRequestHandler):
             emit({"type": "error", "message": msg})
 
     def run_chat(self, chat, b, emit):
-        opts = {k: bool(b.get(k)) for k in ("tools", "think", "research", "math", "build", "browser")}
+        opts = {k: bool(b.get(k)) for k in ("tools", "think", "research", "math", "build", "browser", "autopilot")}
         model = b["model"]
         if opts["math"]:
             model = math_model(model)
