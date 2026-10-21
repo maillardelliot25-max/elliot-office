@@ -25,3 +25,5 @@ echo
 echo "Done. Add 'export OLLAMA_CONTEXT_LENGTH=65536' to your shell profile, then run:"
 echo "  ./start-app.sh              (the full Elliot AI app in your browser)"
 echo "  ./start-claude-local.sh     (Claude Code in the terminal, offline)"
+echo
+echo "For Gemini image/video generation: get a key at https://aistudio.google.com/apikey and paste it in the app's Settings."

@@ -2,11 +2,11 @@
 JARVIS — Nanobanana Image & Video Generation
 =============================================
 Nanobanana = Google's Gemini native image generation
-  - Nano Banana 2 (latest): gemini-3.1-flash-image-preview
+  - Nano Banana 2 (latest): gemini-3.1-flash-image
   - Nano Banana:             gemini-2.5-flash-image
-  - Nano Banana Pro:         gemini-3-pro-image-preview
+  - Nano Banana Pro:         gemini-3-pro-image
 Video:
-  - Veo 3.1:                 veo-3.0-generate-preview ($0.75/sec)
+  - Veo 3.1:                 veo-3.1-generate-preview ($0.75/sec)
 
 One API key covers all of these.
 Get key FREE at: https://aistudio.google.com
@@ -28,10 +28,10 @@ from config.settings import settings
 logger = logging.getLogger("jarvis.image_gen")
 
 # Model identifiers
-NANOBANANA_2   = "gemini-3.1-flash-image-preview"   # latest, fastest
+NANOBANANA_2   = "gemini-3.1-flash-image"   # latest, fastest
 NANOBANANA     = "gemini-2.5-flash-image"            # original
-NANOBANANA_PRO = "gemini-3-pro-image-preview"        # highest quality
-VEO_31         = "veo-3.0-generate-preview"          # video
+NANOBANANA_PRO = "gemini-3-pro-image"        # highest quality
+VEO_31         = "veo-3.1-generate-preview"          # video
 
 
 class NanobananaGenerator:
@@ -53,7 +53,7 @@ class NanobananaGenerator:
             self.client = None
         else:
             self.client = genai.Client(api_key=key)
-            logger.info("[NANOBANANA] Initialized — Nano Banana 2 (gemini-3.1-flash-image-preview) + Veo 3.1")
+            logger.info("[NANOBANANA] Initialized — Nano Banana 2 (gemini-3.1-flash-image) + Veo 3.1")
 
         os.makedirs("./generated", exist_ok=True)
 
@@ -68,8 +68,8 @@ class NanobananaGenerator:
         """
         Generate an image from a text prompt using Nanobanana.
 
-        quality="fast" → Nano Banana 2 (gemini-3.1-flash-image-preview) — fastest
-        quality="pro"  → Nano Banana Pro (gemini-3-pro-image-preview) — best quality
+        quality="fast" → Nano Banana 2 (gemini-3.1-flash-image) — fastest
+        quality="pro"  → Nano Banana Pro (gemini-3-pro-image) — best quality
         """
         if not self.client:
             return {"success": False, "error": "No GOOGLE_API_KEY. Get one free at https://aistudio.google.com"}

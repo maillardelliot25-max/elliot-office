@@ -96,7 +96,7 @@ Claude is Jarvis's brain. Powers all reasoning, image analysis, and code repair.
 ## STEP 4 — GOOGLE API KEY (Nanobanana + Veo) (3 min)
 
 One key unlocks **all** of these:
-- **Nano Banana 2** — latest image generation model (gemini-3.1-flash-image-preview)
+- **Nano Banana 2** — latest image generation model (gemini-3.1-flash-image)
 - **Veo 3.1** — best video generation model in the world
 
 1. Go to: **https://aistudio.google.com**
@@ -303,15 +303,15 @@ Runs 24/7 in the cloud, free tier.
 
 | Model | ID | Speed | Quality | Cost |
 |-------|----|-------|---------|------|
-| Nano Banana 2 (latest) | `gemini-3.1-flash-image-preview` | Fast | Excellent | ~$0.045/image |
-| Nano Banana Pro | `gemini-3-pro-image-preview` | Slow | Best | ~$0.134/image |
+| Nano Banana 2 (latest) | `gemini-3.1-flash-image` | Fast | Excellent | ~$0.045/image |
+| Nano Banana Pro | `gemini-3-pro-image` | Slow | Best | ~$0.134/image |
 | Nano Banana | `gemini-2.5-flash-image` | Fastest | Good | ~$0.039/image |
 
 Jarvis uses **Nano Banana 2** by default (best balance).
 
 Say `"high quality"` or `"pro quality"` in your prompt to use Nano Banana Pro.
 
-**Video** uses **Veo 3.1** (`veo-3.0-generate-preview`) — $0.75/second of video.
+**Video** uses **Veo 3.1** (`veo-3.1-generate-preview`) — $0.75/second of video.
 
 ---
 
