@@ -26,3 +26,9 @@ Thumbs.db
 # Build output
 dist/
 build/
+
+# Jarvis God Station (local data — never commit)
+station_data/
+.venv/
+__pycache__/
+*.pyc

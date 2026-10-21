@@ -1,0 +1,45 @@
+"""
+God Station — Configuration
+============================
+Everything is read from environment variables (or Jarvis/.env).
+All defaults are free and local.
+"""
+
+import os
+from dataclasses import dataclass, field
+from pathlib import Path
+
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass
+
+
+def _bool(name: str, default: bool) -> bool:
+    return os.getenv(name, str(default)).strip().lower() in ("1", "true", "yes", "on")
+
+
+@dataclass
+class StationConfig:
+    host:         str  = "0.0.0.0"
+    port:         int  = 8765
+    data_dir:     Path = Path("station_data")
+    allow_shell:  bool = True                       # God mode terminal from your phone
+    ollama_url:   str  = "http://localhost:11434"   # Free local brain
+    ollama_model: str  = "llama3.2:3b"              # Small enough for a CPU-only laptop
+    owner_name:   str  = "Boss"
+    upload_dir:   Path = field(default_factory=lambda: Path.home() / "Downloads" / "Jarvis")
+
+    @classmethod
+    def from_env(cls) -> "StationConfig":
+        return cls(
+            host=os.getenv("STATION_HOST", "0.0.0.0"),
+            port=int(os.getenv("STATION_PORT", 8765)),
+            data_dir=Path(os.getenv("STATION_DATA_DIR", "station_data")),
+            allow_shell=_bool("STATION_ALLOW_SHELL", True),
+            ollama_url=os.getenv("OLLAMA_URL", "http://localhost:11434").rstrip("/"),
+            ollama_model=os.getenv("OLLAMA_MODEL", "llama3.2:3b"),
+            owner_name=os.getenv("OWNER_NAME", "Boss"),
+            upload_dir=Path(os.getenv("STATION_UPLOAD_DIR", str(Path.home() / "Downloads" / "Jarvis"))),
+        )
