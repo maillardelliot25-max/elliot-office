@@ -66,6 +66,7 @@ DEFAULT_SETTINGS = {
     "lens_hotkey": "<ctrl>+<alt>+<space>",
     "lens_model": "auto",     # "auto" = best model you have that can see images
     "phone_access": False,    # let the Jarvis Android app (and phone browsers) on your Wi-Fi connect
+    "brains": [],             # AI services you added: OpenRouter, Groq, LM Studio… (🧠 AI brains)
     "instructions": "",
     "workspace": str(Path.home() / "ElliotAI-Workspace"),
     "auto_approve": False,
@@ -118,7 +119,12 @@ def public_settings():
     s = load_settings()
     for k in SECRET_KEYS:
         s[k] = ("••••" + s[k][-4:]) if s[k] else ""
+    s["brains"] = [mask_brain(b) for b in s.get("brains") or []]
     return s
+
+
+def mask_brain(b):
+    return {**b, "api_key": ("••••" + b["api_key"][-4:]) if b.get("api_key") else ""}
 
 
 def check_id(i):
@@ -206,13 +212,52 @@ def model_caps(name):
 def list_models():
     notes = []
     try:
-        local = [{"name": m["name"], "label": m["name"], "provider": "ollama", "caps": model_caps(m["name"])}
-                 for m in ollama("/api/tags", timeout=10).get("models", [])]
+        local = []
+        for m in ollama("/api/tags", timeout=10).get("models", []):
+            caps = model_caps(m["name"])
+            local.append({"name": m["name"], "label": m["name"], "provider": "ollama", "provider_label": "On this PC",
+                          "caps": caps, "offline": True, "size": m.get("size", 0),
+                          "summary": providers.describe(m["name"], caps, True)})
     except (urllib.error.URLError, OSError):
         local = []
         notes.append(f"Local models unavailable: can't reach Ollama at {OLLAMA}. Is it running?")
     cloud, cloud_notes = providers.cloud_models(load_settings())
     return {"models": local + cloud, "notes": notes + cloud_notes}
+
+
+def brains_info():
+    s = load_settings()
+    try:
+        tags = ollama("/api/tags", timeout=5).get("models", [])
+        local = {"running": True, "models": [{"name": m["name"], "size": m.get("size", 0)} for m in tags]}
+    except (urllib.error.URLError, OSError):
+        local = {"running": False, "models": []}
+    return {"brains": [mask_brain(b) for b in s["brains"]], "presets": providers.BRAIN_PRESETS, "ollama": local,
+            "builtin": {"anthropic": bool(s["anthropic_api_key"]), "openai": bool(s["openai_api_key"]),
+                        "google": bool(s["google_api_key"])}}
+
+
+def add_brain(b):
+    """Add any OpenAI-compatible AI service. Checks it works (by listing its models) before saving."""
+    base = (b.get("base_url") or "").strip().rstrip("/")
+    if not re.match(r"https?://", base):
+        raise ValueError("Enter the service's API address, starting with http:// or https://")
+    brain = {"id": "x-" + uuid.uuid4().hex[:8], "name": (b.get("name") or "My AI").strip()[:40], "base_url": base,
+             "api_key": (b.get("api_key") or "").strip(), "vision": bool(b.get("vision")), "tools": b.get("tools", True) is not False,
+             "offline": bool(b.get("offline")) or bool(re.match(r"https?://(localhost|127\.|192\.168\.|10\.)", base)),
+             "models": [m.strip() for m in re.split(r"[,\n]", b.get("models") or "") if m.strip()]}
+    s = load_settings()
+    if not brain["models"]:
+        try:
+            brain["models"] = providers._list_custom({**s, "brains": [brain]}, brain)
+        except Exception as e:
+            raise ValueError(f"Couldn't connect to {brain['name']}: {providers.short_error(e)}. "
+                             "Check the address and key, or type the model names yourself.")
+        if not brain["models"]:
+            raise ValueError(f"{brain['name']} has no models. Type the model names yourself.")
+    s["brains"].append(brain)
+    save_settings(s)
+    return {"brain": mask_brain(brain), "models": len(brain["models"])}
 
 
 def lens_model():
@@ -802,7 +847,7 @@ class Handler(BaseHTTPRequestHandler):
         ok_host = host in ("localhost", "127.0.0.1")
         # Every API call carries the pairing code: the app page has it built in, the Chrome extension
         # gets it when you paste it. Other websites and other extensions can't read it, so can't use the API.
-        if self.path.startswith("/api/") and not hmac.compare_digest(self.headers.get("X-Jarvis-Token") or "", load_settings()["chrome_token"]):
+        if self.path.startswith(("/api/", "/v1/")) and not hmac.compare_digest(self.presented_code(), load_settings()["chrome_token"]):
             self.send_json({"error": "Jarvis isn't paired: paste the pairing code from Elliot AI → Settings."}, 401)
             return False
         if origin and origin.startswith("chrome-extension://"):
@@ -817,6 +862,11 @@ class Handler(BaseHTTPRequestHandler):
         self.send_json({"error": "forbidden"}, 403)
         return False
 
+    def presented_code(self):
+        """The pairing code: X-Jarvis-Token header, or "Authorization: Bearer <code>" for OpenAI-style clients."""
+        auth = self.headers.get("Authorization") or ""
+        return self.headers.get("X-Jarvis-Token") or (auth[7:].strip() if auth.lower().startswith("bearer ") else "")
+
     def guard_remote(self):
         """Another device on your Wi-Fi (the Jarvis phone app, or a phone browser): only with phone
         access switched on, and only with the pairing code (header, ?key= on the start page, or the
@@ -828,7 +878,7 @@ class Handler(BaseHTTPRequestHandler):
         url = urllib.parse.urlparse(self.path)
         key = urllib.parse.parse_qs(url.query).get("key", [""])[0] if url.path in ("/", "/index.html") else ""
         cookie = SimpleCookie(self.headers.get("Cookie") or "")
-        presented = self.headers.get("X-Jarvis-Token") or key or (cookie["jarvis_key"].value if "jarvis_key" in cookie else "")
+        presented = self.presented_code() or key or (cookie["jarvis_key"].value if "jarvis_key" in cookie else "")
         if not hmac.compare_digest(presented, s["chrome_token"]):
             self.send_json({"error": "Jarvis isn't paired: use the pairing code from Settings on the PC."}, 401)
             return False
@@ -892,6 +942,11 @@ class Handler(BaseHTTPRequestHandler):
                 self.send_json(load_json(PROJECTS, url.path.rsplit("/", 1)[1]))
             elif url.path == "/api/settings":
                 self.send_json(public_settings())
+            elif url.path == "/api/brains":
+                self.send_json(brains_info())
+            elif url.path == "/v1/models":   # OpenAI-style: every brain, for your other systems
+                self.send_json({"object": "list", "data": [{"id": m["name"], "object": "model", "owned_by": m["provider_label"],
+                                                            "description": m["summary"]} for m in list_models()["models"]]})
             elif url.path == "/api/lan_info":
                 self.send_json({"addresses": [f"{a}:{PORT}" for a in lan_addresses()],
                                 "phone_access": load_settings()["phone_access"], "listening_on_wifi": LISTEN != "127.0.0.1"})
@@ -946,6 +1001,21 @@ class Handler(BaseHTTPRequestHandler):
                     n = organizer.undo(plan)
                 save_json(PLANS, plan)
                 return self.send_json({"moved": n, "folder": plan["folder"]})
+            if path == "/v1/chat/completions":
+                return self.gateway_chat(b)
+            if path == "/api/brains/add":
+                return self.send_json(add_brain(b))
+            if path == "/api/brains/remove":
+                s = load_settings()
+                s["brains"] = [x for x in s["brains"] if x.get("id") != b.get("id")]
+                save_settings(s)
+                return self.send_json({"ok": True})
+            if path == "/api/ollama/pull":
+                return self.ollama_pull(b.get("name", "").strip())
+            if path == "/api/ollama/delete":
+                http_json(OLLAMA + "/api/delete", {"model": b["name"]}, method="DELETE", timeout=60)
+                _caps.pop(b["name"], None)
+                return self.send_json({"ok": True})
             if path == "/api/upload":     # background videos/images for the appearance editor
                 ext = Path(b.get("name", "")).suffix.lower().lstrip(".")
                 if ext not in {"mp4", "webm", "mov", "m4v", "jpg", "jpeg", "png", "webp", "gif"}:
@@ -979,7 +1049,7 @@ class Handler(BaseHTTPRequestHandler):
             if path == "/api/settings":
                 s = load_settings()
                 for k, v in b.items():
-                    if k in DEFAULT_SETTINGS and not (k in SECRET_KEYS and str(v).startswith("••••")):
+                    if k in DEFAULT_SETTINGS and k != "brains" and not (k in SECRET_KEYS and str(v).startswith("••••")):
                         s[k] = v
                 save_settings(s)
                 return self.send_json(public_settings())
@@ -1063,6 +1133,76 @@ class Handler(BaseHTTPRequestHandler):
             if model != b["model"]:
                 emit({"type": "notice", "text": f"Math mode is using {providers.model_id(model)}"})
         converse(chat, model, opts, emit)
+
+    def ollama_pull(self, name):
+        """Download an offline model through Ollama, streaming progress to the page."""
+        if not re.fullmatch(r"[\w.\-/:]+", name or ""):
+            return self.send_json({"error": "Type a model name like qwen3:8b or llama3.3"}, 400)
+        self.send_response(200)
+        self.send_header("Content-Type", "application/x-ndjson")
+        self.end_headers()
+        try:
+            with ollama("/api/pull", {"model": name, "stream": True}, stream=True, timeout=7200) as resp:
+                for line in resp:
+                    if line.strip():
+                        self.wfile.write(line if line.endswith(b"\n") else line + b"\n")
+                        self.wfile.flush()
+            _caps.pop(name, None)
+        except urllib.error.URLError:
+            self.wfile.write((json.dumps({"error": f"Can't reach Ollama at {OLLAMA}. Is it running?"}) + "\n").encode())
+
+    def gateway_chat(self, b):
+        """OpenAI-style chat for your other systems (device manager, scripts, Jarvis…): any brain, plus
+        Jarvis's memory of you when they don't send their own system prompt."""
+        model = b.get("model") or ""
+        if model in ("", "auto", "default", "jarvis"):
+            model = load_settings()["default_model"] or next((m["name"] for m in list_models()["models"]), "")
+        system, msgs = [], []
+        for m in b.get("messages") or []:
+            content = m.get("content")
+            text, images = content if isinstance(content, str) else "", []
+            if isinstance(content, list):
+                for part in content:
+                    if part.get("type") == "text":
+                        text += part.get("text", "")
+                    elif part.get("type") == "image_url":
+                        url = (part.get("image_url") or {}).get("url", "")
+                        if url.startswith("data:") and "," in url:
+                            images.append(url.split(",", 1)[1])
+            if m.get("role") == "system":
+                system.append(text)
+            elif m.get("role") in ("user", "assistant"):
+                msgs.append({"role": m["role"], "content": text, **({"images": images} if images else {})})
+        prompt = "\n\n".join(system) or system_prompt(False, {"messages": msgs}, {})
+        stream, cid, created = bool(b.get("stream")), "chatcmpl-" + uuid.uuid4().hex[:24], int(time.time())
+        chunk = lambda delta, finish=None: {"id": cid, "object": "chat.completion.chunk", "created": created, "model": model,
+                                            "choices": [{"index": 0, "delta": delta, "finish_reason": finish}]}
+        if stream:
+            self.send_response(200)
+            self.send_header("Content-Type", "text/event-stream")
+            self.send_header("Cache-Control", "no-cache")
+            self.end_headers()
+
+        def emit(ev):
+            if stream and ev.get("type") == "text":
+                self.wfile.write(f"data: {json.dumps(chunk({'content': ev['delta']}))}\n\n".encode())
+                self.wfile.flush()
+
+        try:
+            msg, _, _ = providers.run_round(model, prompt, msgs, [], {"caps": model_caps(model)}, load_settings(),
+                                            emit, threading.Event())
+        except Exception as e:
+            if stream:
+                self.wfile.write(f"data: {json.dumps({'error': {'message': str(e)}})}\n\n".encode())
+                return
+            return self.send_json({"error": {"message": str(e), "type": "brain_error"}}, 502)
+        if stream:
+            self.wfile.write(f"data: {json.dumps(chunk({}, 'stop'))}\n\ndata: [DONE]\n\n".encode())
+            return
+        self.send_json({"id": cid, "object": "chat.completion", "created": created, "model": model,
+                        "choices": [{"index": 0, "message": {"role": "assistant", "content": msg.get("content", "")},
+                                     "finish_reason": "stop"}],
+                        "usage": {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0}})
 
     def stream_organize(self, b):
         self.send_response(200)

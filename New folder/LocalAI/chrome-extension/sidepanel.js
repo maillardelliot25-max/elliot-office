@@ -52,11 +52,11 @@ $("pSave").onclick = async () => {
 
 async function loadModels() {
   const { models } = await api("/api/models");
-  const groups = { ollama: "💻 On this computer", anthropic: "Claude", openai: "ChatGPT", google: "Gemini" };
-  $("model").innerHTML = Object.entries(groups).map(([p, label]) => {
-    const list = models.filter(m => m.provider === p);
-    return list.length ? `<optgroup label="${label}">${list.map(m => `<option value="${esc(m.name)}">${esc(m.label)}</option>`).join("")}</optgroup>` : "";
-  }).join("");
+  const order = ["ollama", "anthropic", "openai", "google"], groups = {};
+  models.forEach(m => (groups[m.provider] ||= []).push(m));
+  $("model").innerHTML = Object.keys(groups).sort((a, b) => (order.indexOf(a) + 1 || 99) - (order.indexOf(b) + 1 || 99)).map(p =>
+    `<optgroup label="${esc(p === "ollama" ? "💻 On this PC" : groups[p][0].provider_label || p)}">` +
+    groups[p].map(m => `<option value="${esc(m.name)}" title="${esc(m.summary || "")}">${esc(m.label)}${m.offline ? " 🔒" : ""}</option>`).join("") + "</optgroup>").join("");
   const { model } = await chrome.storage.local.get("model");
   if (model && models.some(m => m.name === model)) $("model").value = model;
 }

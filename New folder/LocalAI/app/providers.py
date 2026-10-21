@@ -29,7 +29,66 @@ OPENAI_BASE = os.getenv("OPENAI_BASE_URL") or None
 CLOUD_CAPS = ["completion", "tools", "vision", "thinking"]
 CLAUDE_MODELS = ["claude-opus-5-5", "claude-fable-5-1", "claude-sonnet-5-5", "claude-haiku-5-5"]
 CLAUDE_FALLBACK_MODELS = {"claude-opus-5-5", "claude-fable-5-1", "claude-sonnet-5-5", "claude-opus-5"}
-PRETTY = {"anthropic": "Claude", "openai": "ChatGPT", "google": "Gemini"}
+PRETTY = {"anthropic": "Claude", "openai": "ChatGPT", "google": "Gemini", "ollama": "On this PC"}
+
+# Ready-made settings for services that speak the OpenAI API ("Add a brain" in the app)
+BRAIN_PRESETS = {
+    "OpenRouter": {"base_url": "https://openrouter.ai/api/v1", "note": "Hundreds of models (Llama, DeepSeek, Mistral, Qwen…) with one key"},
+    "Groq": {"base_url": "https://api.groq.com/openai/v1", "note": "Extremely fast open models"},
+    "Mistral": {"base_url": "https://api.mistral.ai/v1", "note": "Mistral's own models"},
+    "DeepSeek": {"base_url": "https://api.deepseek.com/v1", "note": "DeepSeek chat and reasoning models, low cost"},
+    "xAI Grok": {"base_url": "https://api.x.ai/v1", "note": "xAI's Grok models"},
+    "Together": {"base_url": "https://api.together.xyz/v1", "note": "Many open models"},
+    "Perplexity": {"base_url": "https://api.perplexity.ai", "note": "Answers with live web search"},
+    "LM Studio (offline)": {"base_url": "http://localhost:1234/v1", "note": "Models running in LM Studio on this PC", "offline": True},
+    "Jan (offline)": {"base_url": "http://localhost:1337/v1", "note": "Models running in Jan on this PC", "offline": True},
+    "llama.cpp server (offline)": {"base_url": "http://localhost:8080/v1", "note": "A llama.cpp server on this PC", "offline": True},
+    "Other OpenAI-compatible": {"base_url": "", "note": "Any service with an OpenAI-style API"},
+}
+
+# One-line summaries for the brain picker, matched against the model name (first match wins)
+SUMMARIES = [
+    (r"claude-fable", "Anthropic's most capable model, for the hardest problems (pricier)"),
+    (r"claude-opus", "Claude's top everyday model: deep reasoning, coding, long documents"),
+    (r"claude-sonnet", "Fast and smart Claude: a great balance for most work"),
+    (r"claude-haiku", "Fastest, cheapest Claude: quick answers and simple tasks"),
+    (r"^o[1-9]", "OpenAI reasoning model: maths, logic and planning"),
+    (r"gpt-.*(mini|nano)", "Cheaper, faster GPT for everyday questions"),
+    (r"gpt-", "OpenAI's flagship GPT: strong reasoning, writing and maths"),
+    (r"gemini-.*(argon|pro|ultra)", "Google's most capable Gemini: reasoning and big documents"),
+    (r"gemini-.*lite", "Cheapest, fastest Gemini"),
+    (r"gemini-", "Fast Gemini with great value, sees images"),
+    (r"grok", "xAI's Grok: direct, witty, up to date"),
+    (r"sonar|perplexity", "Answers with live web search and sources"),
+    (r"qwen.*coder|coder|codestral|devstral", "Coding specialist: writes, fixes and runs code"),
+    (r"qwen.*vl|llava|vision|-vl", "Sees images and screenshots"),
+    (r"deepseek-r1|r1|reason|qwq", "Reasoning model: thinks step by step before answering"),
+    (r"deepseek", "DeepSeek: strong general and coding model"),
+    (r"qwen", "Qwen all-rounder: chat, writing and tools"),
+    (r"llama", "Meta's Llama: solid general chat"),
+    (r"gemma", "Google's open Gemma: chat, sees images"),
+    (r"mistral|mixtral|ministral", "Mistral: fast general chat"),
+    (r"phi", "Small, quick Microsoft model for simple tasks"),
+    (r"gpt-oss", "OpenAI's open-weight model: reasoning and tools"),
+]
+
+
+def describe(name, caps, offline):
+    low = name.lower()
+    for pattern, text in SUMMARIES:
+        if re.search(pattern, low):
+            return text
+    return ("General model running on your own computer" if offline else "General cloud model") + \
+        (", sees images" if "vision" in caps else "")
+
+
+def custom_brain(settings, provider):
+    return next((b for b in settings.get("brains") or [] if b.get("id") == provider), None)
+
+
+def label_of(provider, settings=None):
+    brain = custom_brain(settings or {}, provider) if provider.startswith("x-") else None
+    return brain["name"] if brain else PRETTY.get(provider, provider)
 
 _model_cache = {}  # (provider, key) -> (time, [ids])
 
@@ -60,6 +119,11 @@ def claude_client(settings):
 
 def openai_client(settings, provider):
     import openai
+    if provider.startswith("x-"):   # a brain you added (OpenRouter, Groq, LM Studio…)
+        brain = custom_brain(settings, provider)
+        if not brain:
+            raise RuntimeError("That AI brain was removed. Pick another one.")
+        return openai.OpenAI(api_key=brain.get("api_key") or "not-needed", base_url=brain["base_url"], timeout=600)
     if provider == "google":
         if not settings.get("google_api_key"):
             raise RuntimeError("Add your Google AI Studio key in Settings to use Gemini.")
@@ -96,7 +160,7 @@ def cloud_models(settings):
         except ImportError:
             ids, _ = [], notes.append("Claude needs: pip install anthropic")
         except Exception as e:
-            ids, _ = [], notes.append(f"Claude: {short_error(e)}")
+            ids, _ = [], notes.append(f"Claude: {short_error(e)} (check the key in Settings)")
         out += [{"name": f"cloud:anthropic:{i}", "label": i, "provider": "anthropic", "caps": CLOUD_CAPS} for i in ids]
     for provider, key_name in (("openai", "openai_api_key"), ("google", "google_api_key")):
         if not settings.get(key_name):
@@ -106,9 +170,29 @@ def cloud_models(settings):
         except ImportError:
             ids, _ = [], notes.append(f"{PRETTY[provider]} needs: pip install openai")
         except Exception as e:
-            ids, _ = [], notes.append(f"{PRETTY[provider]}: {short_error(e)}")
+            ids, _ = [], notes.append(f"{PRETTY[provider]}: {short_error(e)} (check the key in Settings)")
         out += [{"name": f"cloud:{provider}:{i}", "label": i, "provider": provider, "caps": CLOUD_CAPS} for i in ids]
+    for brain in settings.get("brains") or []:
+        caps = ["completion"] + (["tools"] if brain.get("tools", True) else []) + (["vision"] if brain.get("vision") else [])
+        try:
+            ids = brain.get("models") or _cached(brain["id"], brain.get("api_key", "") + brain["base_url"],
+                                                 lambda b=brain: _list_custom(settings, b))
+        except ImportError:
+            ids, _ = [], notes.append(f"{brain['name']} needs: pip install openai")
+        except Exception as e:
+            ids, _ = [], notes.append(f"{brain['name']}: {short_error(e)}")
+        out += [{"name": f"cloud:{brain['id']}:{i}", "label": i, "provider": brain["id"], "caps": caps,
+                 "offline": bool(brain.get("offline"))} for i in ids]
+    for m in out:
+        m.setdefault("offline", False)
+        m["provider_label"] = label_of(m["provider"], settings)
+        m["summary"] = describe(m["label"], m["caps"], m["offline"])
     return out, notes
+
+
+def _list_custom(settings, brain):
+    ids = sorted(m.id for m in openai_client(settings, brain["id"]).models.list())
+    return ids[:400]   # big catalogues (OpenRouter) are searchable in the picker
 
 
 def _list_openai_style(settings, provider):
@@ -126,7 +210,7 @@ def short_error(e):
     msg = getattr(e, "message", None) or str(e)
     status = getattr(e, "status_code", None)
     if status == 401:
-        return "the API key was rejected. Check it in Settings."
+        return "the API key was rejected"
     if status == 429:
         return "rate limit or quota reached. Check your plan/billing, or wait a minute."
     return (f"error {status}: " if status else "") + msg[:300]
@@ -248,7 +332,7 @@ def run_round(model, system, messages, tools, opts, settings, emit, stop):
     provider = provider_of(model)
     if provider == "anthropic":
         return claude_round(model_id(model), system, messages, tools, opts, settings, emit, stop)
-    if provider in ("openai", "google"):
+    if provider in ("openai", "google") or provider.startswith("x-"):
         return openai_round(provider, model_id(model), system, messages, tools, opts, settings, emit, stop)
     return ollama_round(model, system, messages, tools, opts, emit, stop)
 
@@ -376,6 +460,8 @@ def claude_round(model, system, messages, tools, opts, settings, emit, stop):
 
 
 def _reasoning_ok(provider, model):
+    if provider.startswith("x-"):
+        return False   # unknown services may reject the parameter
     return provider == "google" or bool(re.match(r"(gpt-[5-9]|o[1-9])", model))
 
 
@@ -412,9 +498,10 @@ def openai_round(provider, model, system, messages, tools, opts, settings, emit,
                 if extra:
                     c["extra"] = extra
     except openai.APIStatusError as e:
-        raise RuntimeError(f"{PRETTY[provider]}: {short_error(e)}") from None
+        raise RuntimeError(f"{label_of(provider, settings)}: {short_error(e)}") from None
     except openai.APIConnectionError:
-        raise RuntimeError(f"Can't reach {PRETTY[provider]}. Check your internet connection.") from None
+        raise RuntimeError(f"Can't reach {label_of(provider, settings)}. Check your internet connection "
+                           "(or that the app serving it is running).") from None
 
     msg = {"role": "assistant", "content": text, "model": f"cloud:{provider}:{model}", "provider": provider}
     if stop.is_set():
@@ -458,7 +545,7 @@ def complete(model, prompt, images=(), settings=None):
         if r.stop_reason == "refusal":
             return ""
         return "".join(b.text for b in r.content if b.type == "text")
-    if provider in ("openai", "google"):
+    if provider in ("openai", "google") or provider.startswith("x-"):
         import openai
         parts = [{"type": "text", "text": prompt}] + \
             [{"type": "image_url", "image_url": {"url": f"data:{sniff_mime(b)};base64,{b}"}} for b in images]
@@ -466,7 +553,7 @@ def complete(model, prompt, images=(), settings=None):
             r = openai_client(settings, provider).chat.completions.create(
                 model=model_id(model), messages=[{"role": "user", "content": parts}])
         except openai.APIStatusError as e:
-            raise RuntimeError(f"{PRETTY[provider]}: {short_error(e)}") from None
+            raise RuntimeError(f"{label_of(provider, settings)}: {short_error(e)}") from None
         return r.choices[0].message.content or ""
     body = {"model": model, "stream": False, "format": "json",
             "messages": [{"role": "user", "content": prompt, **({"images": list(images)} if images else {})}]}

@@ -28,6 +28,8 @@ On top of that it creates images and videos with **Gemini Nano Banana / Veo**, b
 | 🎤 **Voice** | Speak your messages (🎤), and have answers read aloud (🔊) |
 | 🧠 **Memory that learns** | After each conversation Jarvis notes anything lasting it learned about you: likes, dislikes, preferences, people, work, goals. It shows "🧠 Remembered: …". It never stores passwords or card numbers. Say "remember…" or "forget…" anytime, ask "what did we decide about X last week?" (it searches past chats), or manage everything on the 🧠 Memory screen |
 | 📸 **Jarvis Lens: ask about your screen** | Like Gemini's screen feature: **swipe up from the bottom edge of your screen** (a quick upward flick of the mouse, touchpad or finger) or press **Ctrl+Alt+Space**. Jarvis takes a screenshot and a bar pops up at the bottom: ask "what's this error?", "summarise this", "translate", "what should I reply?". Follow-up questions work, and **Open in app** continues the chat |
+| 🧠 **Any AI brain** | Tap the brain tab (top right) to switch brains. Each one has a one-line summary and badges: 👁 sees images, 🛠 uses tools, 💭 thinks, 🔒 offline, ☁ online. **＋ Add or download a brain**: download offline models in one click with a progress bar, or add any OpenAI-compatible service (OpenRouter, Groq, Mistral, DeepSeek, xAI Grok, Together, Perplexity) or offline app (LM Studio, Jan, llama.cpp) |
+| 🔌 **Brain hub for your other systems** | Your device-management AI, scripts or Jarvis can use every brain here, plus Jarvis's memory of you, through a standard OpenAI-style API (section 10) |
 | 📱 **Jarvis on your Samsung phone** | An Android app that becomes your phone's **digital assistant** (instead of Gemini). **Swipe up from a bottom corner** (or hold the side button) in any app: Jarvis gets a screenshot plus the text on screen, a sheet slides up, and you ask by typing, quick buttons or 🎤 voice. Answers come from Jarvis on your PC, with the same models, memory and chats |
 | 🎨 **Make it yours** | Settings → **Edit appearance**: themes (Claude, Midnight, Jarvis, Ocean, Forest, Rose, Mono), light/dark, your own colours, font, text size, roundness, chat width, and a **video or image background** with dim, blur and see-through panels. Chrome uses your colours too |
 | 🌐 **Jarvis in Chrome** | Side panel on any website: summarise or explain the page, right-click selected text or an image → *Ask Jarvis*, draft replies. With 🖱 *Browse for me* on, Jarvis clicks, types, scrolls and opens pages for you, asking before each action |
@@ -169,6 +171,25 @@ For a video background, use **⬆ Upload** (MP4 or WebM, up to 150 MB; short loo
 - Android requires an assistant to include a voice service. Jarvis's simply passes voice typing through to Google's or Samsung's, so voice typing elsewhere keeps working.
 - To go back to Gemini, choose it again under Digital assistant app.
 
+## 10. Use Jarvis as the brain hub for your other systems
+
+Anything that can talk to an OpenAI-style API can use **every brain you've added**, with one address and one key. That includes your device-management AI, home-automation tools, scripts, and apps like n8n or Home Assistant. Your API keys stay inside Jarvis; other systems only ever see the pairing code.
+
+| Setting | Value |
+|---|---|
+| Base URL | `http://localhost:8765/v1` (from another device: `http://<PC address>:8765/v1`, with phone access on) |
+| API key | Your **pairing code** (Settings → Jarvis in Chrome) |
+| Model | Any brain ID from `GET /v1/models`, e.g. `qwen3:8b` or `cloud:anthropic:claude-opus-5-5`, or `auto` for your default brain |
+
+```python
+from openai import OpenAI
+jarvis = OpenAI(base_url="http://localhost:8765/v1", api_key="YOUR-PAIRING-CODE")
+reply = jarvis.chat.completions.create(model="auto", messages=[{"role": "user", "content": "Summarise today's device alerts"}])
+print(reply.choices[0].message.content)
+```
+
+If the request has no `system` message, Jarvis answers as itself, with your memory and custom instructions. Send your own `system` message to set a different role. Streaming (`stream=True`) and images (`image_url` data URLs) work. Tools and file actions are only available inside Jarvis's own apps.
+
 ## Troubleshooting
 
 - **"Can't reach Ollama":** open the Ollama app (or run `ollama serve`).
@@ -183,6 +204,8 @@ For a video background, use **⬆ Upload** (MP4 or WebM, up to 150 MB; short loo
 - **The phone assistant opens but has no screenshot:** turn on *Use screenshot* in the Digital assistant app settings. Some apps (banking, Netflix) block screenshots, but Jarvis still reads their text where allowed.
 - **Swiping up does nothing:** check Lens is running (start the app with `Start Elliot AI.bat`), try Ctrl+Alt+Space, and make sure the swipe starts at the very last pixel row of the screen. If it triggers by accident, turn the swipe off in Settings and use the shortcut.
 - **Background video doesn't play:** use MP4 (H.264) or WebM. iPhone .mov files often won't play in browsers, so convert them first.
+- **A downloaded brain doesn't appear:** make sure the Ollama app is running, then reopen the brain tab. Big models (30 GB+) need a strong PC; start with something like `qwen3:8b`.
+- **An added service says "Couldn't connect":** check the API address (it usually ends in `/v1`) and key. Some services don't list their models; type the model names in the "Model names" box instead.
 - **"PDF support needs pypdf":** run `python -m pip install pypdf`.
 
 **Privacy & safety:** with a 💻 local model, chat, documents and memory never leave your computer. With a ☁ model, your messages and attachments go to that company (Anthropic, OpenAI or Google) under your API account. File organizing with a ☁ model sends small previews of each photo and the start of each document. Image and video prompts, and any images you edit, are sent to Google when you use Gemini. Web search goes to DuckDuckGo. In Tools mode, file access is limited to the workspace folder. Commands, however, run with your user's full permissions, so keep the permission prompts on unless you trust what you're asking for.

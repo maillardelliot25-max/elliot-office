@@ -64,6 +64,29 @@
   #menuBtn { display:none; }
   #title { flex:1; font-weight:500; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
   #model { max-width:230px; }
+  .srOnly { position:absolute; width:1px; height:1px; opacity:0; pointer-events:none; overflow:hidden; }
+  .brainWrap { position:relative; }
+  .brainBtn { display:flex; align-items:center; gap:6px; border-radius:20px; padding:5px 12px; max-width:260px; background:var(--panel); }
+  .brainBtn #brainName { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; font-weight:500; }
+  .brainBtn .caret { color:var(--dim); font-size:11px; }
+  #brainMenu { position:absolute; right:0; top:calc(100% + 6px); width:min(390px, 92vw); max-height:72vh; overflow-y:auto; background:var(--panel);
+    border:1px solid var(--line); border-radius:var(--radius); box-shadow:0 12px 32px rgba(0,0,0,.18); z-index:20; padding:8px; }
+  #brainSearch { width:100%; border:1px solid var(--line); border-radius:8px; padding:7px 10px; background:var(--bg); margin-bottom:4px; }
+  .bGroup { margin-top:8px; }
+  .bGroup .gh { display:flex; justify-content:space-between; font-size:11px; text-transform:uppercase; letter-spacing:.5px; color:var(--dim); padding:4px 6px; }
+  .bItem { display:block; width:100%; text-align:left; border:1px solid transparent; border-radius:10px; padding:7px 9px; margin:1px 0; }
+  .bItem:hover { background:var(--user); }
+  .bItem.on { border-color:var(--accent); }
+  .bItem .top { display:flex; justify-content:space-between; gap:8px; font-weight:500; font-size:14px; }
+  .bItem .top span:first-child { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .bItem .badges { flex-shrink:0; font-size:12px; letter-spacing:1px; }
+  .bItem .sum { font-size:12px; color:var(--dim); line-height:1.4; }
+  #brainManage { width:100%; margin-top:8px; }
+  .olRow { display:flex; align-items:center; gap:8px; padding:5px 0; border-bottom:1px solid var(--line); font-size:14px; }
+  .olRow span:first-child { flex:1; }
+  .olRow button { border:none; color:var(--dim); }
+  .bar { height:6px; border-radius:3px; background:var(--line); overflow:hidden; margin-top:6px; }
+  .bar i { display:block; height:100%; background:var(--accent); width:0; transition:width .3s; }
   #log { flex:1; overflow-y:auto; }
   #log .inner { max-width:var(--chatw); margin:0 auto; padding:24px 16px 40px; }
   .welcome { text-align:center; margin-top:14vh; color:var(--dim); }
@@ -211,7 +234,15 @@
     <button id="menuBtn" class="icon">☰</button>
     <div id="title"></div>
     <button class="icon" id="export" title="Export chat as Markdown">⤓</button>
-    <select id="model" title="Model"></select>
+    <div class="brainWrap">
+      <button id="brainBtn" class="brainBtn" title="Choose the AI brain"><span id="brainIcon">🧠</span><span id="brainName">Choose a brain</span><span class="caret">▾</span></button>
+      <select id="model" class="srOnly" title="Model" tabindex="-1"></select>
+      <div id="brainMenu" hidden>
+        <input id="brainSearch" placeholder="Search brains…">
+        <div id="brainList"></div>
+        <button id="brainManage">＋ Add or download a brain</button>
+      </div>
+    </div>
   </div>
   <div id="log"><div class="inner" id="inner"></div></div>
   <div id="composer">
@@ -265,7 +296,7 @@
 
 <div class="modal" id="settings">
   <div class="card">
-    <div style="display:flex;align-items:center;gap:8px"><h2 style="margin:0;flex:1">Settings</h2><button id="openLook" class="primary">🎨 Edit appearance</button></div>
+    <div style="display:flex;align-items:center;gap:8px"><h2 style="margin:0;flex:1">Settings</h2><button id="openBrains">🧠 AI brains</button> <button id="openLook" class="primary">🎨 Edit appearance</button></div>
     <label>Your name</label>
     <input type="text" id="sName">
     <label>Assistant's name</label>
@@ -421,6 +452,34 @@
       <button id="lCancel">Cancel</button>
       <button class="primary" id="lSave">Save</button>
     </div>
+  </div>
+</div>
+<div class="modal" id="brainModal">
+  <div class="card" style="width:680px">
+    <h2 style="margin:0">🧠 AI brains</h2>
+    <div style="color:var(--dim);font-size:14px;margin-top:4px">Everything here appears in the brain tab at the top. 🔒 offline brains are free and private; ☁ online ones use your API keys.</div>
+    <h3>💻 Offline on this PC</h3>
+    <div id="olStatus" style="font-size:14px;margin-top:6px"></div>
+    <div id="olModels"></div>
+    <label>Download an offline brain (from ollama.com/search, any name works)</label>
+    <div style="display:flex;gap:6px"><input type="text" id="olName" placeholder="e.g. qwen3:8b, gemma3:12b, deepseek-r1:14b" style="flex:1"><button class="primary" id="olPull" style="flex:0 0 auto">Download</button></div>
+    <div class="presets" id="olSuggest"></div>
+    <div id="olProgress" style="font-size:13px;color:var(--dim);margin-top:8px"></div>
+    <h3>☁ Claude, ChatGPT &amp; Gemini</h3>
+    <div id="builtinStatus" style="font-size:14px;margin-top:6px"></div>
+    <h3>☁ More brains (any OpenAI-compatible service, or offline apps like LM Studio)</h3>
+    <div id="customList"></div>
+    <label>Add a brain</label>
+    <select id="bPreset"></select>
+    <div id="bNote" style="font-size:12px;color:var(--dim);margin-top:4px"></div>
+    <label>Name</label><input type="text" id="bName">
+    <label>API address</label><input type="text" id="bUrl" placeholder="https://…/v1">
+    <label>API key (offline apps don't need one)</label><input type="password" id="bKey" autocomplete="off">
+    <label>Model names (optional, comma separated; leave empty to fetch the full list)</label><input type="text" id="bModels" placeholder="e.g. meta-llama/llama-4-maverick, deepseek/deepseek-r1">
+    <label><input type="checkbox" id="bVision"> These models can see images</label>
+    <label><input type="checkbox" id="bTools" checked> These models can use tools (files, web search, apps…)</label>
+    <div style="display:flex;gap:8px;align-items:center;margin-top:10px"><button class="primary" id="bAdd">Add brain</button><span id="bMsg" style="font-size:13px"></span></div>
+    <div class="actions"><button id="bClose">Close</button></div>
   </div>
 </div>
 <div id="lightbox"><img alt=""></div>
@@ -921,22 +980,147 @@ async function loadModels() {
     models = r.models;
     r.notes.forEach(n => welcomeError(n));
     if (!models.length) { welcomeError("No AI models yet. Install a local one (ollama pull qwen3-coder:30b) or add an API key in Settings."); return; }
-    const GROUPS = { ollama: "💻 On this computer (free, private)", anthropic: "Claude", openai: "ChatGPT", google: "Gemini" };
-    $("model").innerHTML = Object.entries(GROUPS).map(([p, label]) => {
-      const list = models.filter(m => m.provider === p);
-      if (!list.length) return "";
-      return `<optgroup label="${label}">` + list.map(m => {
-        const tags = p !== "ollama" ? "☁" : [m.caps.includes("vision") && "👁", m.caps.includes("tools") && "🛠", m.caps.includes("thinking") && "💭"].filter(Boolean).join("");
-        return `<option value="${esc(m.name)}">${esc(m.label)} ${tags}</option>`;
-      }).join("") + "</optgroup>";
-    }).join("");
+    $("model").innerHTML = brainGroups(models).map(([, label, list]) =>
+      `<optgroup label="${esc(label)}">` + list.map(m => `<option value="${esc(m.name)}">${esc(m.label)} ${badges(m)}</option>`).join("") + "</optgroup>").join("");
     $("sMath").innerHTML = `<option value="auto">Auto: best ChatGPT model, else Claude, else Gemini</option>` +
       models.filter(m => m.provider !== "ollama").map(m => `<option value="${esc(m.name)}">${esc(m.label)}</option>`).join("");
     $("oModel").innerHTML = $("model").innerHTML;
     const want = pref("model", settings.default_model);
     if (models.some(m => m.name === want)) $("model").value = want;
+    renderBrainBtn();
   } catch (e) { welcomeError(e.message); }
 }
+
+// ── The brain tab ─────────────────────────────────────────────────────
+const ORDER = ["ollama", "anthropic", "openai", "google"];
+function brainGroups(list) {
+  const groups = {};
+  list.forEach(m => (groups[m.provider] ||= []).push(m));
+  return Object.keys(groups).sort((a, b) => (ORDER.indexOf(a) + 1 || 99) - (ORDER.indexOf(b) + 1 || 99))
+    .map(p => [p, p === "ollama" ? "💻 On this PC" : (groups[p][0].provider_label || p), groups[p]]);
+}
+function badges(m) {
+  return [m.caps.includes("vision") && "👁", m.caps.includes("tools") && "🛠", m.caps.includes("thinking") && "💭", m.offline ? "🔒" : "☁"].filter(Boolean).join("");
+}
+function renderBrainBtn() {
+  const m = models.find(x => x.name === $("model").value);
+  $("brainName").textContent = m ? m.label : "Choose a brain";
+  $("brainIcon").textContent = !m ? "🧠" : m.offline ? "💻" : "☁";
+  $("brainBtn").title = m ? `${m.provider_label}: ${m.summary}` : "Choose the AI brain";
+}
+function renderBrainMenu() {
+  const q = $("brainSearch").value.trim().toLowerCase();
+  const current = $("model").value;
+  const list = models.filter(m => !q || `${m.label} ${m.provider_label} ${m.summary}`.toLowerCase().includes(q));
+  $("brainSearch").hidden = models.length < 8;
+  $("brainList").innerHTML = brainGroups(list).map(([p, label, items]) =>
+    `<div class="bGroup"><div class="gh"><span>${esc(label)}</span><span>${p === "ollama" || items[0].offline ? "free · private" : "API key"}</span></div>` +
+    items.slice(0, q ? 80 : 25).map(m => `<button class="bItem${m.name === current ? " on" : ""}" data-brain="${esc(m.name)}">
+      <div class="top"><span>${esc(m.label)}</span><span class="badges">${badges(m)}</span></div>
+      <div class="sum">${esc(m.summary || "")}${m.size > 5e7 ? ` · ${(m.size / 1e9).toFixed(1)} GB` : ""}</div></button>`).join("") +
+    (!q && items.length > 25 ? `<div class="sum" style="padding:4px 9px">…${items.length - 25} more: search to find them</div>` : "") + "</div>").join("")
+    || `<div class="sum" style="padding:10px">No brains match.</div>`;
+  $("brainList").querySelectorAll("[data-brain]").forEach(b => b.onclick = () => {
+    $("model").value = b.dataset.brain;
+    $("model").dispatchEvent(new Event("change"));
+    $("brainMenu").hidden = true;
+  });
+}
+$("brainBtn").onclick = e => {
+  e.stopPropagation();
+  $("brainMenu").hidden = !$("brainMenu").hidden;
+  if (!$("brainMenu").hidden) { $("brainSearch").value = ""; renderBrainMenu(); if (!$("brainSearch").hidden) $("brainSearch").focus(); }
+};
+$("brainSearch").oninput = renderBrainMenu;
+$("brainMenu").onclick = e => e.stopPropagation();
+document.addEventListener("click", () => { $("brainMenu").hidden = true; });
+document.addEventListener("keydown", e => { if (e.key === "Escape") $("brainMenu").hidden = true; });
+$("model").addEventListener("change", renderBrainBtn);
+
+// ── 🧠 AI brains screen ───────────────────────────────────────────────
+const SUGGEST = [["qwen3:8b", "all-rounder · ~5 GB"], ["qwen3-vl:8b", "sees images · ~6 GB"], ["gemma3:12b", "Google · sees images · ~8 GB"],
+  ["deepseek-r1:14b", "reasoning · ~9 GB"], ["qwen3-coder:30b", "coding · ~19 GB"], ["phi4-mini", "small & quick · ~2.5 GB"], ["llama3.2:3b", "tiny · ~2 GB"]];
+let brainData = null;
+async function openBrains() {
+  $("brainMenu").hidden = true; $("settings").classList.remove("open");
+  $("brainModal").classList.add("open");
+  brainData = await api("/api/brains");
+  const ol = brainData.ollama;
+  $("olStatus").innerHTML = ol.running ? `✓ Ollama is running. ${ol.models.length} offline brain${ol.models.length === 1 ? "" : "s"} installed.`
+    : `<span class="err">Ollama isn't running. Start the Ollama app to use or download offline brains.</span>`;
+  $("olModels").innerHTML = ol.models.map(m => `<div class="olRow"><span>💻 ${esc(m.name)}</span><span style="color:var(--dim)">${(m.size / 1e9).toFixed(1)} GB</span><button data-del="${esc(m.name)}" title="Delete from this PC">🗑</button></div>`).join("");
+  $("olModels").querySelectorAll("[data-del]").forEach(b => b.onclick = async () => {
+    if (!confirm(`Delete ${b.dataset.del} from this PC? You can download it again later.`)) return;
+    try { await api("/api/ollama/delete", { method: "POST", body: { name: b.dataset.del } }); toast("Deleted"); openBrains(); loadModels(); } catch (e) { toast(e.message); }
+  });
+  $("olSuggest").innerHTML = SUGGEST.map(([n, d]) => `<button data-pull="${n}"><b>${n}</b>&nbsp;<span style="color:var(--dim);font-size:12px">${d}</span></button>`).join("");
+  $("olSuggest").querySelectorAll("[data-pull]").forEach(b => b.onclick = () => { $("olName").value = b.dataset.pull; });
+  const bi = brainData.builtin;
+  $("builtinStatus").innerHTML = [["anthropic", "Claude"], ["openai", "ChatGPT"], ["google", "Gemini"]]
+    .map(([k, n]) => `${bi[k] ? "✓" : "○"} ${n}${bi[k] ? "" : ' <span style="color:var(--dim)">(add the key in Settings)</span>'}`).join(" &nbsp; ")
+    + ` &nbsp; <button id="toKeys">Edit keys</button>`;
+  $("toKeys").onclick = () => { $("brainModal").classList.remove("open"); $("openSettings").click(); };
+  $("customList").innerHTML = brainData.brains.map(b => `<div class="olRow"><span>${b.offline ? "🔒" : "☁"} <b>${esc(b.name)}</b> <span style="color:var(--dim);font-size:12px">${esc(b.base_url)} · ${b.models.length} models</span></span><button data-rm="${b.id}" title="Remove">✕</button></div>`).join("")
+    || `<div style="color:var(--dim);font-size:14px;margin-top:6px">None yet.</div>`;
+  $("customList").querySelectorAll("[data-rm]").forEach(b => b.onclick = async () => {
+    await api("/api/brains/remove", { method: "POST", body: { id: b.dataset.rm } }); openBrains(); loadModels();
+  });
+  $("bPreset").innerHTML = Object.keys(brainData.presets).map(n => `<option>${esc(n)}</option>`).join("");
+  $("bPreset").onchange();
+}
+$("bPreset").onchange = () => {
+  const name = $("bPreset").value, p = (brainData?.presets || {})[name] || {};
+  $("bName").value = name.replace(/ \(offline\)$/, ""); $("bUrl").value = p.base_url || ""; $("bNote").textContent = p.note || "";
+  $("bKey").placeholder = p.offline ? "Not needed" : "Paste the API key from the service's website";
+};
+$("bAdd").onclick = async () => {
+  $("bMsg").textContent = "Connecting…"; $("bAdd").disabled = true;
+  try {
+    const p = brainData.presets[$("bPreset").value] || {};
+    const r = await api("/api/brains/add", { method: "POST", body: { name: $("bName").value, base_url: $("bUrl").value, api_key: $("bKey").value,
+      models: $("bModels").value, vision: $("bVision").checked, tools: $("bTools").checked, offline: !!p.offline } });
+    $("bMsg").textContent = `✓ Added ${r.brain.name} with ${r.models} models.`;
+    $("bKey").value = ""; $("bModels").value = "";
+    openBrains(); loadModels();
+  } catch (e) { $("bMsg").innerHTML = `<span class="err">${esc(e.message)}</span>`; }
+  $("bAdd").disabled = false;
+};
+$("olPull").onclick = async () => {
+  const name = $("olName").value.trim();
+  if (!name) return toast("Type a model name, or tap a suggestion");
+  $("olPull").disabled = true;
+  $("olProgress").innerHTML = `<span id="olText"></span><div class="bar"><i id="olBar"></i></div>`;
+  $("olText").textContent = `Starting download of ${name}…`;
+  try {
+    const r = await fetch("/api/ollama/pull", { method: "POST", headers: HEADERS, body: JSON.stringify({ name }) });
+    if (!r.ok) throw new Error((await r.json()).error);
+    const reader = r.body.getReader(), dec = new TextDecoder();
+    let buf = "", failed = "";
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buf += dec.decode(value, { stream: true });
+      const lines = buf.split("\n"); buf = lines.pop();
+      for (const line of lines) {
+        if (!line.trim()) continue;
+        const ev = JSON.parse(line);
+        if (ev.error) { failed = ev.error; continue; }
+        const pct = ev.total ? Math.round(100 * (ev.completed || 0) / ev.total) : null;
+        $("olText").textContent = pct !== null
+          ? `Downloading ${name}: ${pct}% (${((ev.completed || 0) / 1e9).toFixed(1)} of ${(ev.total / 1e9).toFixed(1)} GB) `
+          : `${name}: ${ev.status} `;
+        if (pct !== null && $("olBar")) $("olBar").style.width = pct + "%";
+      }
+    }
+    if (failed) throw new Error(failed);
+    $("olProgress").textContent = `✓ ${name} is ready. Pick it from the brain tab.`;
+    openBrains(); loadModels();
+  } catch (e) { $("olProgress").innerHTML = `<span class="err">Download failed: ${esc(e.message)}</span>`; }
+  $("olPull").disabled = false;
+};
+$("brainManage").onclick = openBrains;
+$("openBrains").onclick = openBrains;
+$("bClose").onclick = () => $("brainModal").classList.remove("open");
 function welcomeError(msg) { inner.insertAdjacentHTML("beforeend", `<p class="err" style="text-align:center">${esc(msg)}</p>`); }
 $("model").onchange = () => setPref("model", $("model").value);
 
