@@ -4,6 +4,7 @@
 #        ./setup.sh qwen2.5-coder:7b   (smaller machines)
 set -euo pipefail
 MODEL="${1:-qwen3-coder:30b}"
+VISION_MODEL="${2:-qwen3-vl:8b}"
 cd "$(dirname "$0")"
 
 if ! command -v ollama >/dev/null; then
@@ -16,9 +17,11 @@ command -v claude >/dev/null || curl -fsSL https://claude.ai/install.sh | bash
 export OLLAMA_CONTEXT_LENGTH=65536
 pgrep -x ollama >/dev/null || (nohup ollama serve >/tmp/ollama.log 2>&1 &) ; sleep 2
 ollama pull "$MODEL"
+ollama pull "$VISION_MODEL"   # lets the app read images
+python3 -m pip install --quiet --user pypdf || true   # PDF reading in the app (optional)
 echo "$MODEL" > .model
 
 echo
 echo "Done. Add 'export OLLAMA_CONTEXT_LENGTH=65536' to your shell profile, then run:"
-echo "  ./start-claude-local.sh     (offline coding agent)"
-echo "  open chat.html              (offline chat in your browser)"
+echo "  ./start-app.sh              (the full Elliot AI app in your browser)"
+echo "  ./start-claude-local.sh     (Claude Code in the terminal, offline)"

@@ -26,3 +26,7 @@ Thumbs.db
 # Build output
 dist/
 build/
+
+# Local AI app: your private chats, memory and model choice
+LocalAI/app/data/
+LocalAI/.model
