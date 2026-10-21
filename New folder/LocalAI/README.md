@@ -1,6 +1,11 @@
-# Elliot AI: your own private AI app
+# Elliot AI: your own all-round AI app
 
-A Claude-style app that runs on your own computer. Chat, coding, documents, memory and projects run **locally and free**, with no API key. Image and video generation can use **Google Gemini (Nano Banana / Veo)**, which needs a free Google key, or a free image generator running on your own PC.
+A Claude-style app that runs on your own computer. Choose the "brain" per chat:
+
+- **💻 Free local models** (Ollama): private, offline, no key.
+- **☁ Claude** (real Claude Opus / Sonnet / Haiku), **ChatGPT** models, and **Gemini**: add your own API keys in Settings.
+
+On top of that it creates images and videos with **Gemini Nano Banana / Veo**, builds apps from a prompt, solves maths, and organizes your files and photos.
 
 ## Everything it can do
 
@@ -12,7 +17,11 @@ A Claude-style app that runs on your own computer. Chat, coding, documents, memo
 | 📄 **Read documents** | PDF, Word, PowerPoint, Excel, text, code, CSV |
 | ▶ **Artifacts**: live previews | Web pages, React apps (with Tailwind), SVGs, Mermaid diagrams and documents open in a side panel. Copy, download or save them |
 | 🛠 **Tools / agent mode** (like Claude Code) | Writes and edits real files, runs code, analyses data, fixes its own errors, searches the web. It asks your permission first |
-| 🔎 **Research mode** | Runs many web searches, reads the sources, and writes a report with citations |
+| 🔎 **Research mode** | Runs many web searches, reads the sources, and writes a report with citations (Claude uses its own built-in web search) |
+| 🧮 **Math mode** | Step-by-step solutions with properly typeset formulas, every calculation checked by running Python. Uses your strongest reasoning model automatically (ChatGPT first, then Claude, then Gemini) |
+| 🚀 **Build app** | Describe an app and it writes a complete project in your workspace (`apps/…`), opens it running in the side panel, and lets you download it as a .zip. Ask for changes and it edits the files |
+| 🗂 **Organize files & photos** | Point it at a folder (Downloads, Pictures…). The AI looks at each photo and reads each document, then sorts them into folders like Receipts, Screenshots, Family, Invoices. Or sort by type or month. You review the plan, rename folders, untick files, then Apply. **Undo** puts everything back |
+| 🐍 **Python tool** | The AI can run Python for exact maths, data analysis and charts (it asks first, or you can allow it permanently) |
 | 💭 **Thinking mode** | Step-by-step reasoning for hard questions |
 | 🎨 **Create & edit images** | **Gemini Nano Banana 2 / Pro**: top-quality images, text in images, edit your photos. Follow-ups like "make it bluer" edit the last image. Also works with a local Stable Diffusion server |
 | 🎬 **Create videos** | **Google Veo 3.1**: about 8-second clips with sound, from text or by animating an image |
@@ -48,7 +57,19 @@ cd "New folder/LocalAI"
 ./setup.sh                          # or: ./setup.sh qwen3:8b qwen3-vl:4b
 ```
 
-## 3. Turn on image & video generation (optional, 2 minutes)
+## 3. Add cloud AI keys (optional)
+
+Open **⚙ Settings, memory & keys** and paste any of these. Keys stay in `LocalAI/app/data/settings.json` on your computer. The app shows them only as `••••1234` and sends each one only to its own provider.
+
+| Key | Unlocks | Get it at |
+|---|---|---|
+| Anthropic | **Claude** (Opus 5.5, Sonnet 5.5, Haiku 5.5…): the real Claude, with its own web search | https://console.anthropic.com/settings/keys |
+| OpenAI | **ChatGPT** models (the newest GPT models your account has) and Math mode | https://platform.openai.com/api-keys |
+| Google AI Studio | **Gemini** chat models, plus image and video generation (next step) | https://aistudio.google.com/apikey |
+
+All three are pay-as-you-go (charged per use by each company), separate from any ChatGPT Plus or Claude Pro subscription. Set spending limits in each provider's billing page. Once a key is added, its models appear in the model dropdown, marked ☁. Local models stay free.
+
+## 4. Turn on image & video generation (optional, 2 minutes)
 
 1. Go to **https://aistudio.google.com/apikey**, sign in with Google, and click **Create API key**.
 2. In the app, open **⚙ Settings, memory & keys** and paste the key. It stays in `LocalAI/app/data/settings.json` on your computer only.
@@ -58,11 +79,13 @@ cd "New folder/LocalAI"
 
 **Fully free, offline images instead:** install [Stable Diffusion WebUI Forge](https://github.com/lllyasviel/stable-diffusion-webui-forge), which needs a decent NVIDIA GPU. Start it with `--api`, then set **Image generator → Local** in Settings. The quality is lower than Nano Banana, but it's free and private.
 
-## 4. Use it
+## 5. Use it
 
 **Start the app:** on Windows, double-click **`Start Elliot AI.bat`**. On Mac/Linux, run `./start-app.sh`. Your browser opens at http://localhost:8765.
 
-- **💬 Chat / 🎨 Create image / 🎬 Create video:** the tabs above the message box. In image and video mode, pick the shape (square, wide, tall).
+- **💬 Chat / 🎨 Create image / 🎬 Create video / 🚀 Build app:** the tabs above the message box. In image and video mode, pick the shape (square, wide, tall).
+- **🧮 Math:** turn it on next to Tools for homework, finance or engineering questions.
+- **🗂 Organize files & photos:** in the sidebar. Paste a folder path, click **Scan folder**, check the plan, then **Apply**. It only sorts files directly in that folder (not sub-folders), and refuses whole drives and system folders.
 - **🛠 Tools on:** ask *"Build me a landing page for Maillard AI and run it"* or *"Make me a logo"*. Files land in your workspace folder (by default `ElliotAI-Workspace` in your home folder). Generated images are also saved there, in `generated/`.
 - **Projects:** use the dropdown at the top of the sidebar, then **＋ New project**.
 - The model dropdown shows what each model can do: 👁 images, 🛠 tools, 💭 thinking.
@@ -89,4 +112,4 @@ cd "New folder/LocalAI"
 - **🎤 doesn't work:** use Chrome or Edge. Voice typing uses the browser's speech service, which needs internet.
 - **"PDF support needs pypdf":** run `python -m pip install pypdf`.
 
-**Privacy & safety:** chat, documents and memory never leave your computer. Image and video prompts, and any images you edit, are sent to Google when you use Gemini. Web search goes to DuckDuckGo. In Tools mode, file access is limited to the workspace folder. Commands, however, run with your user's full permissions, so keep the permission prompts on unless you trust what you're asking for.
+**Privacy & safety:** with a 💻 local model, chat, documents and memory never leave your computer. With a ☁ model, your messages and attachments go to that company (Anthropic, OpenAI or Google) under your API account. File organizing with a ☁ model sends small previews of each photo and the start of each document. Image and video prompts, and any images you edit, are sent to Google when you use Gemini. Web search goes to DuckDuckGo. In Tools mode, file access is limited to the workspace folder. Commands, however, run with your user's full permissions, so keep the permission prompts on unless you trust what you're asking for.

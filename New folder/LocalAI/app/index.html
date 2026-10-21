@@ -137,6 +137,16 @@
   .modal .actions { display:flex; gap:8px; justify-content:flex-end; margin-top:18px; }
   .fileList .chip { cursor:default; }
   .fileList .chip button { border:none; padding:0 0 0 4px; font-size:11px; }
+  .mathBlock { overflow-x:auto; margin:0 0 12px; }
+  .srvtool { font-size:13px; color:var(--dim); margin:0 0 8px; }
+  .appBtns { display:flex; gap:8px; margin:0 0 12px; flex-wrap:wrap; }
+  #orgList { max-height:46vh; overflow-y:auto; border:1px solid var(--line); border-radius:10px; margin-top:12px; }
+  #orgList .grp { border-bottom:1px solid var(--line); padding:8px 10px; }
+  #orgList .grp:last-child { border-bottom:none; }
+  #orgList .grp input[type=text] { width:auto; font-weight:600; padding:3px 6px; }
+  #orgList .file { font-size:13px; color:var(--dim); display:flex; gap:6px; align-items:baseline; margin:2px 0 0 4px; }
+  #orgList .file span { color:var(--text); }
+  #orgProgress { font-size:13px; color:var(--dim); margin-top:10px; }
   #lightbox { position:fixed; inset:0; background:rgba(0,0,0,.85); display:none; align-items:center; justify-content:center; z-index:30; cursor:zoom-out; }
   #lightbox img { max-width:95vw; max-height:95vh; }
   #toast { position:fixed; bottom:100px; left:50%; transform:translateX(-50%); background:var(--text); color:var(--bg); padding:8px 14px; border-radius:8px; font-size:14px; display:none; z-index:40; max-width:90vw; }
@@ -158,6 +168,7 @@
     <button id="projectSettings" title="Project settings" style="flex:0">⚙</button>
   </div>
   <div class="sidePad"><button id="newChat">＋ New chat</button></div>
+  <div class="sidePad"><button id="openOrganize" style="text-align:left">🗂 Organize files &amp; photos</button></div>
   <div class="sidePad"><input id="search" placeholder="Search chats"></div>
   <div id="chatList"></div>
   <div class="bottom"><button id="openSettings" style="width:100%">⚙ Settings, memory &amp; keys</button></div>
@@ -176,6 +187,7 @@
       <button data-mode="chat" class="on">💬 Chat</button>
       <button data-mode="image">🎨 Create image</button>
       <button data-mode="video">🎬 Create video</button>
+      <button data-mode="build">🚀 Build app</button>
     </div>
     <div id="box">
       <div id="attachments"></div>
@@ -188,6 +200,7 @@
           <button class="toggle" id="toolsBtn" title="Let the AI read/write files, run code, search the web and make images">🛠 Tools</button>
           <button class="toggle" id="thinkBtn" title="Think step by step before answering (thinking models)">💭 Think</button>
           <button class="toggle" id="researchBtn" title="Deep research: many web searches, then a cited report">🔎 Research</button>
+          <button class="toggle" id="mathBtn" title="Math mode: step-by-step solutions checked with Python, using your best reasoning model">🧮 Math</button>
         </span>
         <select id="aspect" title="Shape" hidden>
           <option value="1:1">Square 1:1</option><option value="16:9">Wide 16:9</option><option value="9:16">Tall 9:16</option>
@@ -209,6 +222,8 @@
     <button id="artCopy">Copy</button>
     <button id="artDownload">Download</button>
     <button id="artSave">Save to workspace</button>
+    <button id="artTab" hidden>Open in new tab</button>
+    <button id="artZip" hidden>⤓ Download .zip</button>
     <button class="icon" id="artClose">✕</button>
   </div>
   <iframe id="artFrame" sandbox="allow-scripts allow-forms allow-modals allow-popups"></iframe>
@@ -224,8 +239,15 @@
     <textarea id="sInstr" placeholder="e.g. Keep answers short. I run Maillard AI, a freelance AI agency."></textarea>
     <label>Memory (one fact per line; the AI also adds to this itself)</label>
     <textarea id="sMem"></textarea>
+    <h3>Cloud AI brains (optional): add keys to use Claude, ChatGPT and Gemini</h3>
+    <label>Anthropic API key, for <b>Claude</b>: <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener">console.anthropic.com</a></label>
+    <input type="password" id="sAnthropic" placeholder="sk-ant-…" autocomplete="off">
+    <label>OpenAI API key, for <b>ChatGPT</b> models: <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener">platform.openai.com</a></label>
+    <input type="password" id="sOpenAI" placeholder="sk-…" autocomplete="off">
+    <label>Math mode uses</label>
+    <select id="sMath"><option value="auto">Auto: best ChatGPT model, else Claude, else Gemini</option></select>
     <h3>Image &amp; video generation</h3>
-    <label>Google AI Studio key: free at <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">aistudio.google.com/apikey</a></label>
+    <label>Google AI Studio key, for <b>Gemini</b> chat, images and video: free at <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">aistudio.google.com/apikey</a></label>
     <input type="password" id="sKey" placeholder="AIza…" autocomplete="off">
     <label>Image generator</label>
     <select id="sProvider">
@@ -247,6 +269,7 @@
     <label>Workspace folder (where Tools mode reads, writes and runs files)</label>
     <input type="text" id="sWs">
     <label><input type="checkbox" id="sAuto"> Auto-approve file writes, commands and videos (no permission prompts)</label>
+    <label><input type="checkbox" id="sPy"> Let the Python calculator run without asking each time</label>
     <div class="actions">
       <button id="sCancel">Cancel</button>
       <button class="primary" id="sSave">Save</button>
@@ -272,6 +295,34 @@
     </div>
   </div>
 </div>
+<div class="modal" id="orgModal">
+  <div class="card" style="width:680px">
+    <h2 style="margin:0">🗂 Organize files &amp; photos</h2>
+    <div style="color:var(--dim);font-size:14px;margin-top:4px">Sorts the files in a folder into sub-folders. You see the plan first, nothing moves until you click Apply, and you can undo it.</div>
+    <label>Folder to organize (paste its path, e.g. C:\Users\Elliot\Downloads or ~/Pictures)</label>
+    <input type="text" id="oFolder" placeholder="C:\Users\you\Downloads">
+    <label>How to sort</label>
+    <select id="oMethod">
+      <option value="ai">By what's in them: the AI looks at each photo and reads each document</option>
+      <option value="type">By file type: Images, Videos, Documents…</option>
+      <option value="date">By month</option>
+    </select>
+    <div id="oAiOpts">
+      <label>Folders to use (optional, comma separated; leave empty and the AI invents good ones)</label>
+      <input type="text" id="oCats" placeholder="e.g. Receipts, Screenshots, Family, Work, Memes">
+      <label>AI model (needs one that can see images, 👁)</label>
+      <select id="oModel"></select>
+    </div>
+    <div id="orgProgress"></div>
+    <div id="orgList" hidden></div>
+    <div class="actions">
+      <button id="oUndo" hidden>↶ Undo</button>
+      <button id="oClose" style="margin-right:auto">Close</button>
+      <button id="oScan" class="primary">Scan folder</button>
+      <button id="oApply" class="primary" hidden>Apply: move files</button>
+    </div>
+  </div>
+</div>
 <div id="lightbox"><img alt=""></div>
 <div id="toast"></div>
 
@@ -281,7 +332,7 @@ const esc = s => String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">"
 const PREVIEW = ["html", "svg", "xml", "jsx", "tsx", "react", "mermaid", "markdown", "md"];
 let chatId = null, models = [], busy = false, controller = null, pending = [], settings = {}, projects = [], allChats = [];
 let mode = "chat";
-let tools = pref("tools", true), think = pref("think", false), research = false, speak = pref("speak", false);
+let tools = pref("tools", true), think = pref("think", false), research = false, math = false, speak = pref("speak", false);
 let projectId = pref("project", "");
 
 function pref(k, d) { try { const v = localStorage.getItem(k); return v === null ? d : JSON.parse(v); } catch { return d; } }
@@ -321,6 +372,13 @@ function blocks(text) {
       while (i < lines.length && /^\s*!\[[^\]]*\]\(\/media\//.test(lines[i])) urls.push(...[...lines[i++].matchAll(MEDIA_RE)].map(x => x[1]));
       out.push(mediaHtml(urls)); continue;
     }
+    if (/^\s*(\$\$|\\\[)/.test(raw)) {
+      const close = raw.trim().startsWith("$$") ? "$$" : "\\]", buf = [raw.trim()];
+      i++;
+      if (!(buf[0].length > 2 && buf[0].endsWith(close)))
+        while (i < lines.length) { const t = lines[i++].trim(); buf.push(t); if (t.endsWith(close)) break; }
+      out.push(`<div class="mathBlock">${esc(buf.join(" "))}</div>`); continue;
+    }
     if ((m = l.match(/^(#{1,4})\s+(.*)/))) { out.push(`<h${m[1].length + 1}>${inline(m[2])}</h${m[1].length + 1}>`); i++; continue; }
     if (/^(-{3,}|\*{3,})$/.test(raw.trim())) { out.push("<hr>"); i++; continue; }
     if (/^\s*([-*+]|\d+[.)])\s/.test(raw)) {
@@ -344,7 +402,7 @@ function blocks(text) {
       continue;
     }
     const p = [];
-    while (i < lines.length && lines[i].trim() && !/^(#{1,4}\s|\s*([-*+]|\d+[.)])\s|>|\s*!\[[^\]]*\]\(\/media\/)/.test(lines[i])) p.push(esc(lines[i++]));
+    while (i < lines.length && lines[i].trim() && !/^(#{1,4}\s|\s*([-*+]|\d+[.)])\s|>|\s*!\[[^\]]*\]\(\/media\/|\s*(\$\$|\\\[))/.test(lines[i])) p.push(esc(lines[i++]));
     if (p.length) out.push(`<p>${inline(p.join("<br>")).replace(MEDIA_RE, (_, u) => mediaHtml([u]))}</p>`); else i++;
   }
   return out.join("");
@@ -366,6 +424,35 @@ function markdown(text) {
       <button data-copy="${id}">Copy</button></div><pre><code>${esc(code)}</code></pre></div>`;
   });
   return html;
+}
+
+// ── Math (KaTeX loads from a CDN on first use; offline, formulas stay as LaTeX text) ──
+let katexReady = null;
+function loadKatex() {
+  if (katexReady) return katexReady;
+  katexReady = new Promise(ok => {
+    const css = document.createElement("link");
+    css.rel = "stylesheet"; css.href = "https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css";
+    document.head.append(css);
+    const js = document.createElement("script");
+    js.src = "https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js";
+    js.onload = () => {
+      const ar = document.createElement("script");
+      ar.src = "https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js";
+      ar.onload = () => ok(true); ar.onerror = () => ok(false);
+      document.head.append(ar);
+    };
+    js.onerror = () => ok(false);
+    document.head.append(js);
+  });
+  return katexReady;
+}
+async function renderMath(el) {
+  if (!/\$\$|\\\(|\\\[/.test(el.textContent)) return;
+  if (!(await loadKatex()) || !window.renderMathInElement) return;
+  renderMathInElement(el, { throwOnError: false, delimiters: [
+    { left: "$$", right: "$$", display: true }, { left: "\\[", right: "\\]", display: true },
+    { left: "\\(", right: "\\)", display: false } ] });
 }
 
 // ── Artifacts ─────────────────────────────────────────────────────────
@@ -401,9 +488,28 @@ function artifactDoc(a) {
   return a.code;
 }
 let art = null;
+function setUrlMode(on) {
+  ["artCopy", "artDownload", "artSave"].forEach(b => $(b).hidden = on);
+  $("artTab").hidden = $("artZip").hidden = !on;
+}
+let artUrl = "";
+function openApp(url) {
+  artUrl = url;
+  art = null;
+  $("art").classList.add("open");
+  $("artName").textContent = "App: " + decodeURIComponent(url.replace(/^\/ws\//, "").replace(/\/index\.html$/, ""));
+  $("artFrame").removeAttribute("srcdoc");
+  $("artFrame").src = url + (url.includes("?") ? "&" : "?") + "t=" + Date.now();
+  showCode(false); $("artToggle").style.display = "none";
+  setUrlMode(true);
+}
+$("artTab").onclick = () => window.open(artUrl, "_blank");
+$("artZip").onclick = () => { location.href = "/api/zip?path=" + encodeURIComponent(decodeURIComponent(artUrl.replace(/^\/ws\//, ""))); };
 function openArtifact(id) {
   art = codeStore[id];
   if (!art) return;
+  setUrlMode(false);
+  $("artFrame").removeAttribute("src");
   const preview = canPreview(art);
   $("art").classList.add("open");
   $("artName").textContent = { html: "Web page", svg: "Image (SVG)", jsx: "React app", tsx: "React app", react: "React app", mermaid: "Diagram", markdown: "Document", md: "Document" }[art.lang] || (art.lang || "Code");
@@ -470,6 +576,7 @@ const IDEAS = {
   chat: ["Build me a landing page for Maillard AI", "Explain this screenshot", "Write a cold email for my AI agency", "Make a React to-do app"],
   image: ["A sleek logo for 'Maillard AI', terracotta and cream, minimal", "Photo of a modern home office at golden hour", "Instagram ad: AI automation for small businesses"],
   video: ["Slow drone shot over a misty forest at sunrise", "A barista making latte art, close-up, cinematic", "Product reveal of a glowing laptop on a desk"],
+  build: ["A booking page for my consulting calls", "An invoice generator that saves to PDF", "A habit tracker with streaks and charts", "A quiz game about AI"],
 };
 function welcome() {
   const hour = new Date().getHours();
@@ -511,7 +618,7 @@ function editMessage(bubble, m, index) {
   cancel.onclick = () => openChat(chatId);
   save.onclick = () => run({ content: ta.value.trim(), images: m.images || [], files: m.file_data || [] }, { editIndex: index });
 }
-const TOOL_LABEL = { list_files: "Listed files", read_file: "Read", write_file: "Wrote", edit_file: "Edited", run_command: "Ran", web_search: "Searched", fetch_url: "Read page", remember: "Remembered", generate_image: "Creating image", generate_video: "Creating video" };
+const TOOL_LABEL = { run_python: "Ran Python", preview_app: "Opened app", list_files: "Listed files", read_file: "Read", write_file: "Wrote", edit_file: "Edited", run_command: "Ran", web_search: "Searched", fetch_url: "Read page", remember: "Remembered", generate_image: "Creating image", generate_video: "Creating video" };
 function toolCard(name, args) {
   const d = document.createElement("details");
   d.className = "tool";
@@ -527,6 +634,22 @@ function setResult(card, output) {
   card.append(pre);
   const urls = [...output.matchAll(MEDIA_RE)].map(m => m[1]);
   if (urls.length) card.insertAdjacentHTML("afterend", mediaHtml(urls));   // show pictures/videos right in the chat
+  const app = output.match(/\]\((\/ws\/[^)\s]+)\)/);
+  if (app) {
+    const d = document.createElement("div");
+    d.className = "appBtns";
+    d.innerHTML = `<button class="primary">▶ Open app</button><button>⤓ Download .zip</button>`;
+    d.children[0].onclick = () => openApp(app[1]);
+    d.children[1].onclick = () => { location.href = "/api/zip?path=" + encodeURIComponent(decodeURIComponent(app[1].slice(4))); };
+    card.after(d);
+  }
+  return app && app[1];
+}
+function serverToolLine(name, input) {
+  const d = document.createElement("div");
+  d.className = "srvtool";
+  d.textContent = name === "web_fetch" ? `🌐 Read ${input.url || "a page"}` : name === "web_search" ? `🔎 Searched the web: ${input.query || ""}` : `🛠 ${name}`;
+  inner.append(d);
 }
 function aiBlock() { const d = document.createElement("div"); d.className = "ai"; inner.append(d); return d; }
 function thinkBlock(text, open) {
@@ -556,7 +679,8 @@ function renderChat(chat) {
     else if (m.error) inner.insertAdjacentHTML("beforeend", `<p class="err">⚠ ${esc(m.error)}</p>`);
     else if (m.role === "assistant") {
       if (m.thinking) thinkBlock(m.thinking);
-      if (m.content) aiBlock().innerHTML = markdown(m.content);
+      (m.server_tools || []).forEach(t => serverToolLine(t.name, t.input || {}));
+      if (m.content) renderMath(Object.assign(aiBlock(), { innerHTML: markdown(m.content) }));
       (m.tool_calls || []).forEach(c => cards.push(toolCard(c.function.name, c.function.arguments || {})));
       if (m.content && !(m.tool_calls || []).length) msgActions(m.content, i === lastAi && m.model !== "generator");
     } else if (m.role === "tool") {
@@ -684,12 +808,22 @@ $("pDelete").onclick = async () => {
 const caps = name => (models.find(m => m.name === name) || {}).caps || [];
 async function loadModels() {
   try {
-    models = await api("/api/models");
-    if (!models.length) { welcomeError("No models installed yet. Run:  ollama pull qwen3-coder:30b"); return; }
-    $("model").innerHTML = models.map(m => {
-      const tags = [m.caps.includes("vision") && "👁", m.caps.includes("tools") && "🛠", m.caps.includes("thinking") && "💭"].filter(Boolean).join("");
-      return `<option value="${esc(m.name)}">${esc(m.name)} ${tags}</option>`;
+    const r = await api("/api/models");
+    models = r.models;
+    r.notes.forEach(n => welcomeError(n));
+    if (!models.length) { welcomeError("No AI models yet. Install a local one (ollama pull qwen3-coder:30b) or add an API key in Settings."); return; }
+    const GROUPS = { ollama: "💻 On this computer (free, private)", anthropic: "Claude", openai: "ChatGPT", google: "Gemini" };
+    $("model").innerHTML = Object.entries(GROUPS).map(([p, label]) => {
+      const list = models.filter(m => m.provider === p);
+      if (!list.length) return "";
+      return `<optgroup label="${label}">` + list.map(m => {
+        const tags = p !== "ollama" ? "☁" : [m.caps.includes("vision") && "👁", m.caps.includes("tools") && "🛠", m.caps.includes("thinking") && "💭"].filter(Boolean).join("");
+        return `<option value="${esc(m.name)}">${esc(m.label)} ${tags}</option>`;
+      }).join("") + "</optgroup>";
     }).join("");
+    $("sMath").innerHTML = `<option value="auto">Auto: best ChatGPT model, else Claude, else Gemini</option>` +
+      models.filter(m => m.provider !== "ollama").map(m => `<option value="${esc(m.name)}">${esc(m.label)}</option>`).join("");
+    $("oModel").innerHTML = $("model").innerHTML;
     const want = pref("model", settings.default_model);
     if (models.some(m => m.name === want)) $("model").value = want;
   } catch (e) { welcomeError(e.message); }
@@ -742,13 +876,13 @@ box.ondragleave = () => box.classList.remove("drag");
 box.ondrop = e => { e.preventDefault(); box.classList.remove("drag"); addFiles([...e.dataTransfer.files]); };
 
 // ── Modes, toggles & input ────────────────────────────────────────────
-const PLACEHOLDER = { chat: "How can I help you today?", image: "Describe the image to create, or attach one and say how to change it…", video: "Describe the video: scene, motion, camera, sound… (attach an image to animate it)" };
-const HINT = { chat: "Chat runs 100% on your computer. Local models can make mistakes.", image: "Images are made by your chosen generator (Settings). Attach a photo to edit it; follow-ups edit the last image.", video: "Videos are made with Google Veo (needs a key; paid per second). Takes 1-5 minutes." };
+const PLACEHOLDER = { build: "Describe the app to build: what it does, who it's for, how it should look…", chat: "How can I help you today?", image: "Describe the image to create, or attach one and say how to change it…", video: "Describe the video: scene, motion, camera, sound… (attach an image to animate it)" };
+const HINT = { build: "Builds a complete app in your workspace (apps/…) and shows it running. Ask for changes anytime. Works best with Claude.", chat: "Local models run 100% on your computer; ☁ models use your API keys. AI can make mistakes.", image: "Images are made by your chosen generator (Settings). Attach a photo to edit it; follow-ups edit the last image.", video: "Videos are made with Google Veo (needs a key; paid per second). Takes 1-5 minutes." };
 function setMode(m) {
   mode = m;
   document.querySelectorAll("#modes button").forEach(b => b.classList.toggle("on", b.dataset.mode === m));
   $("chatOpts").hidden = m !== "chat";
-  $("aspect").hidden = m === "chat";
+  $("aspect").hidden = !["image", "video"].includes(m);
   if (m === "video" && !["16:9", "9:16"].includes($("aspect").value)) $("aspect").value = "16:9";
   [...$("aspect").options].forEach(o => o.hidden = m === "video" && !["16:9", "9:16"].includes(o.value));
   $("input").placeholder = PLACEHOLDER[m];
@@ -759,10 +893,12 @@ document.querySelectorAll("#modes button").forEach(b => b.onclick = () => setMod
 function drawToggles() {
   $("toolsBtn").classList.toggle("on", tools); $("thinkBtn").classList.toggle("on", think);
   $("researchBtn").classList.toggle("on", research); $("speakBtn").classList.toggle("on", speak);
+  $("mathBtn").classList.toggle("on", math);
 }
 $("toolsBtn").onclick = () => { tools = !tools; setPref("tools", tools); drawToggles(); };
 $("thinkBtn").onclick = () => { think = !think; setPref("think", think); drawToggles(); };
 $("researchBtn").onclick = () => { research = !research; drawToggles(); if (research) toast("Research mode: the AI will search the web many times and write a cited report"); };
+$("mathBtn").onclick = () => { math = !math; drawToggles(); if (math) toast("Math mode: step-by-step, checked with Python, on your best reasoning model"); };
 $("speakBtn").onclick = () => { speak = !speak; setPref("speak", speak); drawToggles(); if (!speak) window.speechSynthesis?.cancel(); };
 const input = $("input");
 input.oninput = () => { input.style.height = "auto"; input.style.height = input.scrollHeight + "px"; };
@@ -789,7 +925,7 @@ async function stop() {
 function setBusy(on) { busy = on; $("send").textContent = on ? "■ Stop" : "Send"; }
 
 async function run(message, { retry = false, editIndex } = {}) {
-  const gen = mode !== "chat" && !retry;
+  const gen = (mode === "image" || mode === "video") && !retry;
   let model = $("model").value;
   if (!gen && !model) { toast("No model selected. Install one with: ollama pull qwen3-coder:30b"); return; }
 
@@ -806,7 +942,7 @@ async function run(message, { retry = false, editIndex } = {}) {
       if (v) { model = v.name; toast(`Using ${v.name} to look at your image`); }
       else toast("This model can't see images. Install one: ollama pull qwen3-vl:8b");
     }
-    if ((tools || research) && !caps(model).includes("tools")) toast(`${model} doesn't support tools, so answering without them`);
+    if ((tools || research || mode === "build") && !caps(model).includes("tools")) toast(`${model} doesn't support tools, so answering without them`);
   }
 
   if (chat) renderChat(chat); else if (!chatId) inner.innerHTML = "";
@@ -827,7 +963,7 @@ async function run(message, { retry = false, editIndex } = {}) {
   try {
     const body = gen
       ? { chat_id: chatId, project_id: projectId || null, message, kind: mode, aspect_ratio: $("aspect").value, edit_index: editIndex }
-      : { chat_id: chatId, project_id: projectId || null, model, message, tools, think, research, retry, edit_index: editIndex };
+      : { chat_id: chatId, project_id: projectId || null, model, message, tools, think, research, math, build: mode === "build", retry, edit_index: editIndex };
     const r = await fetch(gen ? "/api/generate" : "/api/chat", {
       method: "POST", signal: controller.signal, headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
     });
@@ -862,12 +998,17 @@ async function run(message, { retry = false, editIndex } = {}) {
           let s = c.querySelector(".status");
           if (!s) { s = document.createElement("div"); s.className = "status"; c.append(s); }
           s.textContent = ev.text;
+        } else if (ev.type === "server_tool") {
+          endSeg(); serverToolLine(ev.name, ev.input || {}); scrollDown();
+        } else if (ev.type === "notice") {
+          toast(ev.text);
         } else if (ev.type === "approval") {
           approvalBar(ev.id, cards[ev.id]);
         } else if (ev.type === "tool_result") {
           const c = cards[ev.id];
           c.querySelector(".approve")?.remove();
-          setResult(c, ev.output); c.open = false; scrollDown(true);
+          const app = setResult(c, ev.output); c.open = false; scrollDown(true);
+          if (app) openApp(app);
         } else if (ev.type === "error") {
           endSeg(); inner.insertAdjacentHTML("beforeend", `<p class="err">⚠ ${esc(ev.message)}</p>`);
         }
@@ -880,12 +1021,13 @@ async function run(message, { retry = false, editIndex } = {}) {
   endSeg();
   setBusy(false);
   // Re-render from what was saved so edit/retry buttons line up with the stored messages
+  const appOpen = $("art").classList.contains("open") && !$("artTab").hidden;
   if (chatId) { try { renderChat(await api(`/api/chats/${chatId}`)); } catch {} }
   scrollDown(true);
   if (speak && spoken.trim() && !gen) say(spoken);
   // Like Claude: pop open the newest web page / app / diagram the AI just made
   const last = Object.keys(codeStore).reverse().find(id => canPreview(codeStore[id]) && lastText.includes(codeStore[id].code));
-  if (last && codeStore[last].code.length > 200) openArtifact(last);
+  if (last && codeStore[last].code.length > 200 && !appOpen) openArtifact(last);
 }
 
 function approvalBar(id, card) {
@@ -905,6 +1047,10 @@ function fillSettings(s) {
   $("sName").value = s.name || ""; $("sInstr").value = s.instructions || "";
   $("sMem").value = (s.memory || []).join("\n"); $("sWs").value = s.workspace || "";
   $("sAuto").checked = !!s.auto_approve; $("sKey").value = s.google_api_key || "";
+  $("sAnthropic").value = s.anthropic_api_key || ""; $("sOpenAI").value = s.openai_api_key || "";
+  $("sPy").checked = !!s.auto_python;
+  if (s.math_model && ![...$("sMath").options].some(o => o.value === s.math_model)) $("sMath").add(new Option(s.math_model, s.math_model));
+  $("sMath").value = s.math_model || "auto";
   $("sProvider").value = s.image_provider || "gemini"; $("sVidModel").value = s.video_model || ""; $("sLocal").value = s.local_image_url || "";
   if (s.image_model && ![...$("sImgModel").options].some(o => o.value === s.image_model)) $("sImgModel").add(new Option(s.image_model, s.image_model));
   if (s.image_model) $("sImgModel").value = s.image_model;
@@ -924,11 +1070,79 @@ $("sSave").onclick = async () => {
       google_api_key: $("sKey").value.trim(), image_provider: $("sProvider").value,
       image_model: $("sImgModel").value, video_model: $("sVidModel").value.trim() || "veo-3.1-generate-preview",
       local_image_url: $("sLocal").value.trim() || "http://127.0.0.1:7860",
+      anthropic_api_key: $("sAnthropic").value.trim(), openai_api_key: $("sOpenAI").value.trim(),
+      math_model: $("sMath").value, auto_python: $("sPy").checked,
     }});
     $("settings").classList.remove("open"); toast("Settings saved");
+    loadModels();
     if (!chatId) welcome();
   } catch (e) { toast(e.message); }
 };
+// ── File organizer ────────────────────────────────────────────────────
+let plan = null, orgCtl = null;
+$("openOrganize").onclick = () => {
+  $("orgModal").classList.add("open");
+  $("oFolder").value = pref("orgFolder", "");
+  const vision = models.find(m => m.name === $("model").value && m.caps.includes("vision")) || models.find(m => m.caps.includes("vision"));
+  if (vision) $("oModel").value = vision.name;
+  $("oAiOpts").hidden = $("oMethod").value !== "ai";
+};
+$("oMethod").onchange = () => $("oAiOpts").hidden = $("oMethod").value !== "ai";
+$("oClose").onclick = () => { orgCtl?.abort(); $("orgModal").classList.remove("open"); };
+$("oScan").onclick = async () => {
+  const folder = $("oFolder").value.trim();
+  if (!folder) return toast("Paste the path of a folder first");
+  setPref("orgFolder", folder);
+  plan = { items: [] };
+  $("orgList").hidden = false; $("orgList").innerHTML = ""; $("oApply").hidden = true; $("oUndo").hidden = true;
+  $("oScan").disabled = true; $("orgProgress").textContent = "Scanning…";
+  orgCtl = new AbortController();
+  try {
+    const r = await fetch("/api/organize/scan", { method: "POST", signal: orgCtl.signal, headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ folder, method: $("oMethod").value, model: $("oModel").value, categories: $("oCats").value.split(",").map(s => s.trim()).filter(Boolean) }) });
+    const reader = r.body.getReader(), dec = new TextDecoder();
+    let buf = "";
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buf += dec.decode(value, { stream: true });
+      const lines = buf.split("\n"); buf = lines.pop();
+      for (const line of lines) {
+        if (!line.trim()) continue;
+        const ev = JSON.parse(line);
+        if (ev.type === "start") $("orgProgress").textContent = ev.total ? `Found ${ev.total} files in ${ev.folder}` : "That folder has no files to sort.";
+        else if (ev.type === "item") { plan.items.push(ev); $("orgProgress").textContent = `Sorted ${ev.done} of ${ev.total}…`; drawPlan(); }
+        else if (ev.type === "done") { plan.id = ev.plan_id; $("orgProgress").textContent = `Plan ready: ${plan.items.length} files into ${new Set(plan.items.map(i => i.category)).size} folders. Rename folders or untick files, then Apply.`; $("oApply").hidden = !plan.items.length; }
+        else if (ev.type === "error") $("orgProgress").innerHTML = `<span class="err">⚠ ${esc(ev.message)}</span>`;
+      }
+    }
+  } catch (e) { if (e.name !== "AbortError") $("orgProgress").innerHTML = `<span class="err">⚠ ${esc(e.message)}</span>`; }
+  $("oScan").disabled = false;
+};
+function drawPlan() {
+  const groups = {};
+  plan.items.forEach(i => (groups[i.category] ||= []).push(i));
+  $("orgList").innerHTML = Object.entries(groups).sort((a, b) => b[1].length - a[1].length).map(([cat, items]) =>
+    `<div class="grp">📁 <input type="text" data-cat="${esc(cat)}" value="${esc(cat)}"> <span style="color:var(--dim);font-size:13px">${items.length} file${items.length > 1 ? "s" : ""}</span>
+      ${items.map(i => `<label class="file"><input type="checkbox" checked data-file="${esc(i.file)}"><span>${esc(i.file)}</span>${i.note ? "· " + esc(i.note) : ""}</label>`).join("")}</div>`).join("");
+}
+$("oApply").onclick = async () => {
+  const renames = {}, exclude = [];
+  $("orgList").querySelectorAll("input[data-cat]").forEach(i => { if (i.value.trim() && i.value.trim() !== i.dataset.cat) renames[i.dataset.cat] = i.value.trim(); });
+  $("orgList").querySelectorAll("input[data-file]").forEach(i => { if (!i.checked) exclude.push(i.dataset.file); });
+  try {
+    const r = await api("/api/organize/apply", { method: "POST", body: { plan_id: plan.id, renames, exclude } });
+    $("orgProgress").textContent = `✅ Moved ${r.moved} files into folders inside ${r.folder}.`;
+    $("oApply").hidden = true; $("oUndo").hidden = false; $("orgList").hidden = true;
+  } catch (e) { toast(e.message); }
+};
+$("oUndo").onclick = async () => {
+  try {
+    const r = await api("/api/organize/undo", { method: "POST", body: { plan_id: plan.id } });
+    $("orgProgress").textContent = `↶ Put ${r.moved} files back where they were.`; $("oUndo").hidden = true;
+  } catch (e) { toast(e.message); }
+};
+
 document.querySelectorAll(".modal").forEach(m => m.addEventListener("click", e => { if (e.target === m) m.classList.remove("open"); }));
 
 (async () => {

@@ -2,18 +2,23 @@
 Elliot AI: a local, Claude-style app on top of Ollama.
 
 Chats and Projects with history, image understanding, file/PDF reading, live
-artifact previews (HTML, React, SVG, Mermaid), memory, thinking, research mode,
-an agent mode that can read/write files, run commands and search the web
-(asking permission first, like Claude Code), plus image and video generation
-with Google Gemini (Nano Banana / Veo) or a local Stable Diffusion server.
+artifact previews (HTML, React, SVG, Mermaid), memory, thinking, research and
+math modes, an agent mode that can read/write files, run code and commands and
+search the web (asking permission first, like Claude Code), an app builder,
+a file organizer, and image/video generation with Google Gemini (Nano Banana /
+Veo) or a local Stable Diffusion server.
 
-Python standard library only. Run:  python server.py   then open http://localhost:8765
+The brain is a free local model by default, or Claude / ChatGPT / Gemini when
+you add their API keys in Settings (see providers.py).
+
+Run:  python server.py   then open http://localhost:8765
 """
 
 import base64
 import html
 import io
 import json
+import zipfile
 import mimetypes
 import os
 import re
@@ -30,6 +35,10 @@ from datetime import datetime
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import organizer  # noqa: E402
+import providers  # noqa: E402
+
 OLLAMA = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434").rstrip("/")
 GEMINI = os.getenv("GEMINI_BASE_URL", "https://generativelanguage.googleapis.com/v1beta").rstrip("/")
 PORT = int(os.getenv("PORT", 8765))
@@ -38,8 +47,9 @@ DATA = Path(os.getenv("ELLIOT_AI_DATA", APP_DIR / "data"))
 CHATS = DATA / "chats"
 PROJECTS = DATA / "projects"
 MEDIA = DATA / "media"
+PLANS = DATA / "organize"
 SETTINGS_FILE = DATA / "settings.json"
-for d in (CHATS, PROJECTS, MEDIA):
+for d in (CHATS, PROJECTS, MEDIA, PLANS):
     d.mkdir(parents=True, exist_ok=True)
 
 DEFAULT_SETTINGS = {
@@ -50,15 +60,19 @@ DEFAULT_SETTINGS = {
     "default_model": "",
     "memory": [],
     "google_api_key": os.getenv("GOOGLE_API_KEY", ""),
+    "anthropic_api_key": os.getenv("ANTHROPIC_API_KEY", ""),
+    "openai_api_key": os.getenv("OPENAI_API_KEY", ""),
+    "math_model": "auto",     # "auto" = the strongest cloud model you have a key for
+    "auto_python": False,     # run the Python calculator without asking each time
     "image_provider": "gemini",              # "gemini" or "local"
     "image_model": "gemini-3.1-flash-image",  # Nano Banana 2; "gemini-3-pro-image" = Nano Banana Pro
     "video_model": "veo-3.1-generate-preview",
     "local_image_url": "http://127.0.0.1:7860",  # AUTOMATIC1111 / Forge / SD.Next with --api
 }
-SECRET_KEYS = {"google_api_key"}
+SECRET_KEYS = {"google_api_key", "anthropic_api_key", "openai_api_key"}
 
 MAX_TOOL_ROUNDS = 30
-NEEDS_APPROVAL = {"write_file", "edit_file", "run_command", "generate_video"}
+NEEDS_APPROVAL = {"write_file", "edit_file", "run_command", "run_python", "generate_video"}
 
 _lock = threading.Lock()
 _approvals = {}   # approval id -> {"event": Event, "allow": bool}
@@ -157,6 +171,8 @@ def ollama(path, body=None, stream=False, timeout=600):
 
 
 def model_caps(name):
+    if name.startswith("cloud:"):
+        return providers.CLOUD_CAPS
     if name not in _caps:
         try:
             _caps[name] = ollama("/api/show", {"model": name}, timeout=30).get("capabilities", ["completion"])
@@ -166,8 +182,27 @@ def model_caps(name):
 
 
 def list_models():
-    models = ollama("/api/tags", timeout=10).get("models", [])
-    return [{"name": m["name"], "size": m.get("size", 0), "caps": model_caps(m["name"])} for m in models]
+    notes = []
+    try:
+        local = [{"name": m["name"], "label": m["name"], "provider": "ollama", "caps": model_caps(m["name"])}
+                 for m in ollama("/api/tags", timeout=10).get("models", [])]
+    except (urllib.error.URLError, OSError):
+        local = []
+        notes.append(f"Local models unavailable: can't reach Ollama at {OLLAMA}. Is it running?")
+    cloud, cloud_notes = providers.cloud_models(load_settings())
+    return {"models": local + cloud, "notes": notes + cloud_notes}
+
+
+def math_model(fallback):
+    choice = load_settings()["math_model"]
+    if choice and choice != "auto":
+        return choice
+    cloud, _ = providers.cloud_models(load_settings())
+    for provider in ("openai", "anthropic", "google"):   # ChatGPT's reasoning models first, as asked
+        found = [m["name"] for m in cloud if m["provider"] == provider]
+        if found:
+            return found[0]
+    return fallback
 
 
 # ── Image & video generation ─────────────────────────────────────────────
@@ -277,6 +312,13 @@ TOOLS = [
      "params": {"path": "File path", "old_text": "Exact text to find", "new_text": "Replacement text"}, "required": ["path", "old_text", "new_text"]},
     {"name": "run_command", "description": "Run a shell command in the workspace folder (run code, analyse data, install packages, git). Returns output.",
      "params": {"command": "The shell command"}, "required": ["command"]},
+    {"name": "run_python", "description": "Run Python 3 code and return what it prints. Use it for exact maths, "
+     "statistics, unit conversions, data analysis of workspace files and charts (save charts with matplotlib to a "
+     "PNG file in the workspace). sympy/numpy may be installed; print() the results you need.",
+     "params": {"code": "Complete Python program"}, "required": ["code"]},
+    {"name": "preview_app", "description": "Open a web app you built in the workspace in the user's live preview panel. "
+     "Call it after writing the app's files.",
+     "params": {"path": "The app's folder or its HTML entry file, relative to the workspace (e.g. apps/todo)"}, "required": ["path"]},
     {"name": "web_search", "description": "Search the web (needs internet). Returns titles, links and snippets.",
      "params": {"query": "Search query"}, "required": ["query"]},
     {"name": "fetch_url", "description": "Download a web page and return its readable text (needs internet).",
@@ -294,18 +336,13 @@ TOOLS = [
      "params": {"fact": "The fact to remember"}, "required": ["fact"]},
 ]
 
-OLLAMA_TOOLS = [{
-    "type": "function",
-    "function": {
-        "name": t["name"],
-        "description": t["description"],
-        "parameters": {
-            "type": "object",
-            "properties": {k: {"type": "string", "description": v} for k, v in t["params"].items()},
-            "required": t["required"],
-        },
-    },
-} for t in TOOLS]
+TOOL_SCHEMAS = {t["name"]: t for t in TOOLS}
+
+
+def valid_args(name, args):
+    t = TOOL_SCHEMAS.get(name)
+    return bool(t) and isinstance(args, dict) and "__invalid__" not in args and \
+        all(isinstance(args.get(k), str) for k in t["required"])
 
 
 def workspace():
@@ -381,6 +418,24 @@ def run_tool(name, args, chat=None, progress=lambda msg: None):
         r = subprocess.run(a["command"], shell=True, cwd=workspace(), capture_output=True,
                            text=True, timeout=180, encoding="utf-8", errors="replace")
         return clip(f"exit code {r.returncode}\n{r.stdout}{r.stderr}")
+    if name == "run_python":
+        script = workspace() / ".elliot" / "run.py"
+        script.parent.mkdir(exist_ok=True)
+        script.write_text(a["code"], "utf-8")
+        r = subprocess.run([sys.executable, str(script)], cwd=workspace(), capture_output=True,
+                           text=True, timeout=180, encoding="utf-8", errors="replace")
+        out = (r.stdout + r.stderr).strip() or "(no output: print() what you need)"
+        images = [p for p in workspace().glob("*.png") if p.stat().st_mtime > time.time() - 200]
+        shown = " ".join(f"![chart]({save_media(p.read_bytes(), 'png')})" for p in images[:4])
+        return clip(f"exit code {r.returncode}\n{out}") + (f"\nCharts shown to the user: {shown}" if shown else "")
+    if name == "preview_app":
+        p = safe_path(a["path"])
+        if p.is_dir():
+            p = next((p / n for n in ("index.html", "dist/index.html", "public/index.html") if (p / n).is_file()), p)
+        if not p.is_file() or p.suffix.lower() not in (".html", ".htm"):
+            return f"Error: no index.html found at {a['path']}. Write the app's index.html first."
+        rel = p.relative_to(workspace()).as_posix()
+        return f"App is open in the preview panel: [Open app](/ws/{urllib.parse.quote(rel)})"
     if name == "web_search":
         page = http_get("https://html.duckduckgo.com/html/?q=" + urllib.parse.quote(a["query"]))
         results = []
@@ -429,7 +484,8 @@ def extract_text(name, data):
 
 # ── The conversation loop ────────────────────────────────────────────────
 
-def system_prompt(tools_on, chat, research=False):
+def system_prompt(tools_on, chat, opts):
+    research = opts.get("research")
     s = load_settings()
     parts = [
         f"You are {s['name']} AI, a helpful, capable assistant running privately on the user's own computer.",
@@ -446,6 +502,21 @@ def system_prompt(tools_on, chat, research=False):
             "current information and cite sources. Use generate_image when the user wants a picture, logo, design or "
             "photo (or to edit an attached image), and generate_video when they ask for a video. Use remember when the "
             "user tells you something worth keeping long-term. Do not ask for permission; the app asks the user for you.")
+    if opts.get("math"):
+        parts.append(
+            "MATH MODE: solve step by step and explain each step clearly. Write maths in LaTeX: \\( ... \\) inline "
+            "and $$ ... $$ on their own lines for displayed equations (never single $ signs). Check every calculation with run_python when you have tools (exact "
+            "arithmetic, sympy for algebra/calculus, numpy for numerics). End with the final answer in its own line as "
+            "$$\\boxed{...}$$. For graphs, plot with matplotlib and save a PNG.")
+    if opts.get("build"):
+        parts.append(
+            "APP BUILDER MODE: build the complete, working app the user describes. Unless they ask for another "
+            "technology, make a polished single-page web app in its own folder apps/<short-name>/ with index.html "
+            "(plus style.css / app.js if useful). It must run by opening index.html: no build step; you may load "
+            "React, Tailwind, Chart.js etc. from a CDN. Make it look professional and modern, responsive on phones, "
+            "and save data in localStorage when it helps. Write every file in full with write_file, then call "
+            "preview_app. Then summarise what you built in 3-5 bullet points and suggest next improvements. If the "
+            "user asks for changes, edit the files and call preview_app again.")
     if research:
         parts.append(
             "RESEARCH MODE: investigate thoroughly before answering. Run at least 5 different web_search queries from "
@@ -474,98 +545,65 @@ def system_prompt(tools_on, chat, research=False):
     return "\n\n".join(parts)
 
 
-def to_ollama(messages):
-    out = []
-    for m in messages:
-        if m.get("error"):
-            continue
-        msg = {"role": m["role"], "content": m.get("content", "")}
-        for k in ("images", "tool_calls", "tool_name"):
-            if m.get(k):
-                msg[k] = m[k]
-        out.append(msg)
-    return out
-
-
-def converse(chat, model, tools_on, think, research, emit):
+def converse(chat, model, opts, emit):
+    settings = load_settings()
     caps = model_caps(model)
-    tools_on = (tools_on or research) and "tools" in caps
+    wants_tools = opts.get("tools") or opts.get("research") or opts.get("math") or opts.get("build")
+    tools = TOOLS if wants_tools and "tools" in caps else []
+    opts = {**opts, "caps": caps}
+    if opts.get("think") or opts.get("research") or opts.get("math") or opts.get("build"):
+        opts["effort"] = "high"
     stop = _stops.setdefault(chat["id"], threading.Event())
     stop.clear()
 
     for _ in range(MAX_TOOL_ROUNDS):
-        body = {
-            "model": model,
-            "messages": [{"role": "system", "content": system_prompt(tools_on, chat, research)}] + to_ollama(chat["messages"]),
-            "stream": True,
-        }
-        if tools_on:
-            body["tools"] = OLLAMA_TOOLS
-        if "thinking" in caps:
-            body["think"] = bool(think or research)
-
-        msg = {"role": "assistant", "content": "", "model": model}
-        thinking, calls = "", []
-        with ollama("/api/chat", body, stream=True) as resp:
-            for line in resp:
-                if stop.is_set():
-                    break
-                if not line.strip():
-                    continue
-                j = json.loads(line)
-                if j.get("error"):
-                    raise RuntimeError(j["error"])
-                m = j.get("message", {})
-                if m.get("thinking"):
-                    thinking += m["thinking"]
-                    emit({"type": "thinking", "delta": m["thinking"]})
-                if m.get("content"):
-                    msg["content"] += m["content"]
-                    emit({"type": "text", "delta": m["content"]})
-                calls += m.get("tool_calls") or []
-        if thinking:
-            msg["thinking"] = thinking
-        if calls:
-            msg["tool_calls"] = calls
+        msg, calls, again = providers.run_round(model, system_prompt(bool(tools), chat, opts), chat["messages"],
+                                                tools, opts, settings, emit, stop)
         chat["messages"].append(msg)
         save_json(CHATS, chat)
-
-        if not calls or stop.is_set():
+        if again and not stop.is_set():
+            continue
+        if not calls:
             return
 
         for call in calls:
-            fn = call.get("function", {})
-            name, args = fn.get("name", ""), fn.get("arguments") or {}
-            if isinstance(args, str):
-                try:
-                    args = json.loads(args)
-                except ValueError:
-                    args = {}
-            cid = uuid.uuid4().hex
-            emit({"type": "tool_call", "id": cid, "name": name, "args": args})
-
-            allowed = True
-            if name in NEEDS_APPROVAL and not load_settings()["auto_approve"]:
-                ev = threading.Event()
-                _approvals[cid] = {"event": ev, "allow": False}
-                emit({"type": "approval", "id": cid})
-                while not ev.wait(0.5):
-                    if stop.is_set():
-                        break
-                allowed = _approvals.pop(cid)["allow"]
-
-            if not allowed:
-                output = "The user denied this action. Ask them what they would like instead."
+            name, args = call["name"], call["args"]
+            emit({"type": "tool_call", "id": call["id"], "name": name, "args": args if isinstance(args, dict) else {}})
+            if stop.is_set():
+                output, is_error = "Stopped by the user.", True
+            elif not valid_args(name, args):
+                output, is_error = json.dumps({"INVALID_JSON": json.dumps(args)[:2000]}), True
+            elif needs_ok(name) and not ask_user(call["id"], emit, stop):
+                output, is_error = "The user denied this action. Ask them what they would like instead.", True
             else:
                 try:
-                    output = run_tool(name, args, chat, lambda s: emit({"type": "status", "id": cid, "text": s}))
+                    output, is_error = run_tool(name, args, chat, lambda t: emit({"type": "status", "id": call["id"], "text": t})), False
                 except Exception as e:
-                    output = f"Error: {e}"
-            emit({"type": "tool_result", "id": cid, "output": output})
-            chat["messages"].append({"role": "tool", "tool_name": name, "content": output})
-            save_json(CHATS, chat)
-            if stop.is_set():
-                return
+                    output, is_error = f"Error: {e}", True
+            emit({"type": "tool_result", "id": call["id"], "output": output})
+            # every tool call gets a result, even after Stop, so the conversation stays valid
+            chat["messages"].append({"role": "tool", "tool_name": name, "tool_call_id": call["id"],
+                                     "content": output, **({"is_error": True} if is_error else {})})
+        save_json(CHATS, chat)
+        if stop.is_set():
+            return
+
+
+def needs_ok(name):
+    s = load_settings()
+    if name == "run_python" and s["auto_python"]:
+        return False
+    return name in NEEDS_APPROVAL and not s["auto_approve"]
+
+
+def ask_user(cid, emit, stop):
+    ev = threading.Event()
+    _approvals[cid] = {"event": ev, "allow": False}
+    emit({"type": "approval", "id": cid})
+    while not ev.wait(0.5):
+        if stop.is_set():
+            break
+    return _approvals.pop(cid)["allow"]
 
 
 # ── HTTP ─────────────────────────────────────────────────────────────────
@@ -589,7 +627,8 @@ class Handler(BaseHTTPRequestHandler):
         host = (self.headers.get("Host") or "").split(":")[0]
         origin = self.headers.get("Origin")
         ok_host = host in ("localhost", "127.0.0.1")
-        ok_origin = origin is None or origin in (f"http://localhost:{PORT}", f"http://127.0.0.1:{PORT}")
+        ok_origin = origin is None or origin in (f"http://localhost:{PORT}", f"http://127.0.0.1:{PORT}") or \
+            (origin == "null" and self.command == "GET" and self.path.startswith("/ws/"))
         ok_type = self.command == "GET" or self.command == "DELETE" or \
             (self.headers.get("Content-Type") or "").startswith("application/json")
         if ok_host and ok_origin and ok_type:
@@ -614,6 +653,33 @@ class Handler(BaseHTTPRequestHandler):
                 if not p.is_file():
                     return self.send_json({"error": "not found"}, 404)
                 self.send_bytes(p.read_bytes(), mimetypes.guess_type(name)[0] or "application/octet-stream")
+            elif url.path.startswith("/ws/"):     # files in the workspace, for live app previews
+                p = safe_path(urllib.parse.unquote(url.path[4:]))
+                if p.is_dir():
+                    p = p / "index.html"
+                if not p.is_file():
+                    return self.send_json({"error": "not found"}, 404)
+                ctype = mimetypes.guess_type(p.name)[0] or "application/octet-stream"
+                if ctype.startswith("text/") or ctype in ("application/javascript", "application/json"):
+                    ctype += "; charset=utf-8"
+                self.send_bytes(p.read_bytes(), ctype)
+            elif url.path == "/api/zip":
+                root = safe_path(urllib.parse.parse_qs(url.query).get("path", [""])[0])
+                if root.is_file():
+                    root = root.parent
+                if root == workspace():
+                    raise ValueError("Pick an app folder to download")
+                buf = io.BytesIO()
+                with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as z:
+                    for f in root.rglob("*"):
+                        if f.is_file() and "node_modules" not in f.parts:
+                            z.write(f, f"{root.name}/{f.relative_to(root).as_posix()}")
+                self.send_response(200)
+                self.send_header("Content-Type", "application/zip")
+                self.send_header("Content-Disposition", f'attachment; filename="{root.name}.zip"')
+                self.send_header("Content-Length", str(buf.tell()))
+                self.end_headers()
+                self.wfile.write(buf.getvalue())
             elif url.path == "/api/models":
                 self.send_json(list_models())
             elif url.path == "/api/chats":
@@ -660,6 +726,16 @@ class Handler(BaseHTTPRequestHandler):
                 return self.stream(b, self.run_chat)
             if path == "/api/generate":
                 return self.stream(b, self.run_generate)
+            if path == "/api/organize/scan":
+                return self.stream_organize(b)
+            if path in ("/api/organize/apply", "/api/organize/undo"):
+                plan = load_json(PLANS, b["plan_id"])
+                if path.endswith("apply"):
+                    n = organizer.apply(plan, b.get("renames") or {}, set(b.get("exclude") or []))
+                else:
+                    n = organizer.undo(plan)
+                save_json(PLANS, plan)
+                return self.send_json({"moved": n, "folder": plan["folder"]})
             if path == "/api/approve":
                 if b.get("id") in _approvals:
                     _approvals[b["id"]]["allow"] = bool(b.get("allow"))
@@ -752,7 +828,38 @@ class Handler(BaseHTTPRequestHandler):
             emit({"type": "error", "message": msg})
 
     def run_chat(self, chat, b, emit):
-        converse(chat, b["model"], b.get("tools", False), b.get("think", False), b.get("research", False), emit)
+        opts = {k: bool(b.get(k)) for k in ("tools", "think", "research", "math", "build")}
+        model = b["model"]
+        if opts["math"]:
+            model = math_model(model)
+            if model != b["model"]:
+                emit({"type": "notice", "text": f"Math mode is using {providers.model_id(model)}"})
+        converse(chat, model, opts, emit)
+
+    def stream_organize(self, b):
+        self.send_response(200)
+        self.send_header("Content-Type", "application/x-ndjson")
+        self.end_headers()
+
+        def emit(ev):
+            self.wfile.write((json.dumps(ev) + "\n").encode())
+            self.wfile.flush()
+
+        stop = _stops.setdefault("organize", threading.Event())
+        stop.clear()
+        settings = load_settings()
+        model = b.get("model", "")
+        try:
+            plan = organizer.scan(
+                b["folder"], b.get("method", "ai"), b.get("categories") or [], model,
+                lambda m, prompt, images: providers.complete(m, prompt, images, settings),
+                extract_text, emit, stop, parallel=4 if model.startswith("cloud:") else 1)
+            save_json(PLANS, plan)
+            emit({"type": "done", "plan_id": plan["id"]})
+        except (BrokenPipeError, ConnectionResetError):
+            stop.set()
+        except Exception as e:
+            emit({"type": "error", "message": str(e)})
 
     def run_generate(self, chat, b, emit):
         """Image/Video mode: straight to the generator, no chat model in between."""

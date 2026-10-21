@@ -29,7 +29,7 @@ if (-not (Get-Command python -ErrorAction SilentlyContinue)) {
     Write-Host "Installing Python (needed for the Elliot AI app)..."
     winget install --id Python.Python.3.12 -e --accept-source-agreements --accept-package-agreements
 }
-try { python -m pip install --quiet pypdf } catch { Write-Host "Open a new PowerShell and run: python -m pip install pypdf  (for PDF reading)" }
+try { python -m pip install --quiet --upgrade anthropic openai pypdf pillow } catch { Write-Host "Open a new PowerShell and run: python -m pip install anthropic openai pypdf pillow" }
 
 Set-Content -Path "$PSScriptRoot\.model" -Value $Model
 Write-Host ""
@@ -37,4 +37,4 @@ Write-Host "Done. Restart Ollama from the tray icon so the new context size appl
 Write-Host "  Double-click 'Start Elliot AI.bat'   (the full app in your browser)"
 Write-Host "  .\start-claude-local.ps1            (Claude Code in the terminal, offline)"
 Write-Host ""
-Write-Host "For Gemini image/video generation: get a key at https://aistudio.google.com/apikey and paste it in the app's Settings."
+Write-Host "Optional: paste API keys in the app's Settings to use Claude (console.anthropic.com), ChatGPT (platform.openai.com) and Gemini images/video (aistudio.google.com/apikey)."

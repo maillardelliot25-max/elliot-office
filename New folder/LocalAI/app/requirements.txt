@@ -1,0 +1,4 @@
+anthropic>=1.17
+openai>=3.35
+pypdf
+pillow

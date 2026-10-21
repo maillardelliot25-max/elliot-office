@@ -18,7 +18,7 @@ export OLLAMA_CONTEXT_LENGTH=65536
 pgrep -x ollama >/dev/null || (nohup ollama serve >/tmp/ollama.log 2>&1 &) ; sleep 2
 ollama pull "$MODEL"
 ollama pull "$VISION_MODEL"   # lets the app read images
-python3 -m pip install --quiet --user pypdf || true   # PDF reading in the app (optional)
+python3 -m pip install --quiet --user --upgrade anthropic openai pypdf pillow || true   # cloud AI, PDFs, photo sorting
 echo "$MODEL" > .model
 
 echo
@@ -26,4 +26,4 @@ echo "Done. Add 'export OLLAMA_CONTEXT_LENGTH=65536' to your shell profile, then
 echo "  ./start-app.sh              (the full Elliot AI app in your browser)"
 echo "  ./start-claude-local.sh     (Claude Code in the terminal, offline)"
 echo
-echo "For Gemini image/video generation: get a key at https://aistudio.google.com/apikey and paste it in the app's Settings."
+echo "Optional: paste API keys in the app's Settings to use Claude (console.anthropic.com), ChatGPT (platform.openai.com) and Gemini images/video (aistudio.google.com/apikey)."
