@@ -1,5 +1,5 @@
 /* Caches the app shell so it opens instantly. Live data (/api) always comes from the PC. */
-const CACHE = "jarvis-station-v4";
+const CACHE = "jarvis-station-v5";
 const SHELL = ["/", "/index.html", "/style.css", "/app.js", "/manifest.json", "/icon-192.png", "/icon-512.png"];
 
 self.addEventListener("install", (e) => {

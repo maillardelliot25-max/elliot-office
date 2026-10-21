@@ -84,7 +84,7 @@ function go(tab) {
   if (tab === "jarvis") { loadHistory(); setTimeout(() => $("#chatInput").focus(), 50); }
   if (tab === "files" && !files.loaded) openDir("");
   if (tab === "clip") { loadClips(); loadOutbox(); }
-  if (tab === "pc") { loadStats(); loadSwitches(); loadProcs(); loadDevices(); loadProfile(); loadSignature(); }
+  if (tab === "pc") { loadSetup(); loadStats(); loadSwitches(); loadProcs(); loadDevices(); loadProfile(); loadSignature(); }
   if (tab === "recall") loadRecall();
 }
 $$(".tabs button").forEach((b) => b.addEventListener("click", () => go(b.dataset.go)));
@@ -623,6 +623,32 @@ $("#unpairBtn").addEventListener("click", async () => {
   try { await api(`/api/devices/${info.device_id}`, { method: "DELETE" }); } catch {}
   logout();
 });
+
+// ── Setup checklist ────────────────────────────────────────────────────────
+
+let setupShowAll = false;
+async function loadSetup() {
+  const card = $("#setupCard");
+  try {
+    const s = await api("/api/setup");
+    const todo = s.items.filter((i) => !i.ok);
+    card.className = "card setup" + (todo.length ? "" : " done");
+    card.innerHTML = `<div class="top"><b></b><button class="link"></button></div><div class="meter"><i></i></div><ul></ul>`;
+    card.querySelector("b").textContent = todo.length ? `Setup: ${s.ready} of ${s.total} ready` : "All set, sir. Everything is ready.";
+    card.querySelector(".meter i").style.width = `${(100 * s.ready) / s.total}%`;
+    const btn = card.querySelector("button");
+    btn.textContent = setupShowAll ? "show what's left" : "show all";
+    btn.onclick = () => { setupShowAll = !setupShowAll; loadSetup(); };
+    (setupShowAll ? s.items : todo).forEach((i) => {
+      const li = document.createElement("li");
+      li.className = i.ok ? "ok" : "todo";
+      li.innerHTML = `<span class="mark">${i.ok ? "✓" : "○"}</span><span></span><small></small>`;
+      li.children[1].textContent = `${i.label} — ${i.detail}`;
+      li.children[2].textContent = i.ok ? "" : i.fix;
+      card.querySelector("ul").append(li);
+    });
+  } catch (e) { card.textContent = e.message; }
+}
 
 // ── Switches ───────────────────────────────────────────────────────────────
 

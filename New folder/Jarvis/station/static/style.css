@@ -162,6 +162,19 @@ input:focus, textarea:focus { border-color: var(--accent); }
 .files li .dl { color: var(--accent); }
 #shareHint { margin-top: 14px; }
 
+/* ── Setup checklist ─────────────────── */
+.setup { margin-bottom: 12px; }
+.setup .top { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.setup .top b { font-size: 15px; }
+.setup ul { list-style: none; margin: 10px 0 0; padding: 0; display: grid; gap: 8px; }
+.setup li { display: grid; grid-template-columns: 22px 1fr; gap: 2px 8px; }
+.setup li .mark { grid-row: span 2; font-weight: 800; }
+.setup li.ok .mark { color: var(--ok); }
+.setup li.todo .mark { color: var(--warn); }
+.setup li small { color: var(--muted); font-size: 12px; }
+.setup li.todo small { color: var(--text); opacity: .8; }
+.setup.done { border-color: color-mix(in srgb, var(--ok) 40%, var(--line)); }
+
 /* ── Switches ─────────────────────────── */
 .switches { list-style: none; margin: 0; padding: 0; border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; }
 .switches li { display: flex; align-items: center; gap: 12px; padding: 12px; background: var(--panel); border-bottom: 1px solid var(--line); }

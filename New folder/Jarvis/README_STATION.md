@@ -1,5 +1,7 @@
 # Jarvis God Station: control your PC from your phone and tablet
 
+> New here? **[START_HERE.md](START_HERE.md)** is the 6-step version. In the app, **PC → Setup** shows what's left.
+
 Your HP laptop becomes the **God Station**. Your Android phone and tablet become remotes, and Jarvis lives on the PC.
 Every device gets the same app and the same features. Tablets get a big-screen layout.
 **Everything here is free.** No API keys and no subscriptions.
@@ -28,6 +30,7 @@ Shut down, restart, sleep, terminal commands and closing apps **always ask befor
 1. **Python:** open *Terminal* and run `winget install Python.Python.3.12`
    (or download it from python.org and tick **"Add python.exe to PATH"**).
 2. Open this `Jarvis` folder and double-click **`install_station.bat`**.
+   Then double-click **`install_extras.bat`** to add the free extras (Ollama brain, Tailscale, Syncthing, Claude app). It asks before each one.
 3. Double-click **`start_station.bat`**. A window opens showing:
    - the address to open on your phone, e.g. `http://192.168.1.20:8765`
    - a **6-digit PIN**

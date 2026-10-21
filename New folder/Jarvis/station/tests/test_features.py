@@ -410,3 +410,21 @@ def test_notifications_also_go_to_telegram(tmp_path):
                      push_sender=lambda *a: None)
     assert paired(app).post("/api/notify", json={"body": "Form filled, sir"}).json()["sent"] == 1
     assert tg.sent[-1][1]["text"] == "🔔 Jarvis\nForm filled, sir"
+
+
+# ── Setup checklist ─────────────────────────────────────────────────────────
+
+def test_setup_checklist_tracks_progress(station):
+    client, app, _ = station
+    s = client.get("/api/setup").json()
+    items = {i["key"]: i for i in s["items"]}
+    assert items["devices"]["ok"]                     # the test client is a paired tablet
+    assert not items["details"]["ok"] and "My details" in items["details"]["fix"]
+    assert not items["signature"]["ok"] and not items["telegram"]["ok"] and not items["notify"]["ok"]
+    before = s["ready"]
+
+    client.put("/api/profile", json={"full_name": "Elliot Maillard", "email": "e@example.com"})
+    client.post("/api/signature", files={"file": ("s.png", _signature_png(), "image/png")})
+    client.post("/api/push/subscribe", json={"subscription": SUB})
+    after = client.get("/api/setup").json()
+    assert after["ready"] == before + 3 and after["total"] == s["total"]

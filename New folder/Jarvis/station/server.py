@@ -403,6 +403,74 @@ def create_app(config: StationConfig, control: PCControl | None = None,
     app.state.telegram = telegram
     notifier.telegram = telegram
 
+    # ── Setup checklist ──────────────────────────────────────────────────────
+
+    @app.get("/api/setup")
+    async def setup(_: str = Depends(device)):
+        """What's ready and what's missing, with the fix for each."""
+        import json as _json
+        import os
+        import platform
+        from station.__main__ import local_addresses
+        from station.setup_claude import config_path
+
+        names = [d["name"] for d in auth.list()]
+        b = await brain.status()
+        vals = profile.values()
+        try:
+            claude_ok = "jarvis" in _json.loads(config_path().read_text(encoding="utf-8")).get("mcpServers", {})
+        except Exception:
+            claude_ok = False
+        sync_ok, sync_detail = False, "not connected"
+        if settings["syncthing_api_key"]:
+            try:
+                n = len(await syncthing().folders())
+                sync_ok, sync_detail = True, f"{n} folder{'s' if n != 1 else ''}"
+            except SyncthingError as e:
+                sync_detail = str(e)
+        windows = platform.system() == "Windows"
+        autostart = None
+        if windows:
+            autostart = (Path(os.environ.get("APPDATA", "")) / "Microsoft" / "Windows" / "Start Menu" / "Programs"
+                         / "Startup" / "Jarvis God Station.lnk").exists()
+        tailscale = [ip for label, ip in local_addresses() if ip.startswith("100.")]
+        has_tg = bool(config.telegram_token and config.telegram_chat_id)
+
+        checks = [
+            ("devices", "Phone / tablet paired", any(not n.startswith(("Claude", "Chrome")) for n in names),
+             f"{len(names)} paired", "Open the app on the device and enter the PIN from the station window."),
+            ("brain", "Jarvis's brain (Ollama)", b["online"] and b.get("installed", False),
+             f"{b['model']} ready" if b["online"] and b.get("installed") else ("Ollama running, model missing" if b["online"] else "Ollama not running"),
+             f"Run install_extras.bat, or install Ollama from ollama.com and run: ollama pull {b['model']}"),
+            ("remote", "Reach the PC from anywhere (Tailscale)", bool(tailscale),
+             f"Tailscale {tailscale[0]}" if tailscale else "only on home Wi-Fi",
+             "Install Tailscale on the PC and phone (install_extras.bat), sign in with the same account."),
+            ("notify", "Notifications on phone/tablet", bool(notifier.subs),
+             f"{len(notifier.subs)} device(s)", "Open the app via the https:// Tailscale address → PC → Switches → Notifications on this device."),
+            ("details", "My details (for forms)", bool(vals["full_name"] and vals["email"]),
+             vals["full_name"] or "empty", "PC → My details → fill in at least your name and email."),
+            ("signature", "Signature (for PDFs)", signature_path.exists(), "saved" if signature_path.exists() else "none",
+             "PC → Signature → draw it → Save signature."),
+            ("extension", "Chrome form helper", any(n.startswith("Chrome") for n in names),
+             "paired" if any(n.startswith("Chrome") for n in names) else "not paired",
+             "chrome://extensions → Developer mode → Load unpacked → Jarvis/extension → click its icon → enter the PIN."),
+            ("claude", "Claude link", claude_ok, "connected" if claude_ok else "not set up",
+             "Install the Claude desktop app, then double-click setup_claude_link.bat and restart Claude."),
+            ("telegram", "Telegram", has_tg, telegram.status if telegram else "not set up",
+             "@BotFather → /newbot → put TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID in Jarvis/.env (README §10)."),
+            ("sync", "Photo / music / file sync (Syncthing)", sync_ok, sync_detail,
+             "Install Syncthing (install_extras.bat), share folders, paste its API key under PC → Photos, music & files sync."),
+        ]
+        if windows:
+            checks += [
+                ("ocr", "Screen text reading (OCR)", recorder.ocr is not None, "on" if recorder.ocr else "not installed",
+                 "In the Jarvis folder run: .venv\\Scripts\\python -m pip install winocr  — then restart the station."),
+                ("autostart", "Starts with Windows", bool(autostart), "yes" if autostart else "no",
+                 "Double-click install_autostart.bat."),
+            ]
+        items = [{"key": k, "label": l, "ok": bool(ok), "detail": d, "fix": f} for k, l, ok, d, f in checks]
+        return {"ready": sum(i["ok"] for i in items), "total": len(items), "items": items}
+
     # ── Notifications ────────────────────────────────────────────────────────
 
     @app.get("/api/push/key")
