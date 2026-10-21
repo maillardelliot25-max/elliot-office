@@ -23,7 +23,9 @@ class Settings:
     IDLE_POLL_SECONDS:      int = int(os.getenv("IDLE_POLL_SECONDS", 15))
 
     # ── AI Models ────────────────────────────────────────────────
-    ANTHROPIC_API_KEY:      str = os.getenv("ANTHROPIC_API_KEY", "")   # Claude brain
+    ANTHROPIC_API_KEY:      str = os.getenv("ANTHROPIC_API_KEY", "")   # Claude brain (blank = use local Ollama)
+    OLLAMA_BASE_URL:        str = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
+    OLLAMA_MODEL:           str = os.getenv("OLLAMA_MODEL", "qwen3-coder:30b")  # offline brain, $0
     GOOGLE_API_KEY:         str = os.getenv("GOOGLE_API_KEY", "")      # Nanobanana + Veo (images/video)
 
     # ── Memory (local Chroma — free) ─────────────────────────────

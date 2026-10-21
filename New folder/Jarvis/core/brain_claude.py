@@ -53,9 +53,14 @@ class ClaudeBrain:
     """
 
     def __init__(self):
-        self.client = anthropic.Anthropic(api_key=settings.ANTHROPIC_API_KEY)
-        self.model  = "claude-sonnet-4-6"
-        logger.info(f"[BRAIN] Claude {self.model} initialized")
+        if settings.ANTHROPIC_API_KEY:
+            self.client = anthropic.Anthropic(api_key=settings.ANTHROPIC_API_KEY)
+            self.model  = "claude-sonnet-4-6"
+        else:
+            # No key → local Ollama, which speaks the same Messages API (key is ignored)
+            self.client = anthropic.Anthropic(api_key="ollama", base_url=settings.OLLAMA_BASE_URL)
+            self.model  = settings.OLLAMA_MODEL
+        logger.info(f"[BRAIN] {self.model} initialized")
 
     async def think(
         self,
@@ -114,7 +119,7 @@ class ClaudeBrain:
                 system=system,
                 messages=messages
             )
-            result = response.content[0].text
+            result = next(b.text for b in response.content if b.type == "text")
             logger.info(f"[BRAIN] Response: {result[:100]}...")
             return result
 
