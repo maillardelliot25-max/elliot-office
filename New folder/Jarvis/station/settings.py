@@ -25,6 +25,7 @@ DEFAULTS = {
     "recall_exclude": DEFAULT_EXCLUDE,  # never record windows whose title contains these
     "assist": True,                # Chrome form helper
     "telegram": True,              # answer you on Telegram
+    "notify": True,                # notifications on phone/tablet/Telegram when Jarvis does a job
     "syncthing_url": "http://127.0.0.1:8384",
     "syncthing_api_key": "",
 }

@@ -659,6 +659,7 @@ async function loadSwitches() {
         if (key === "recall") loadRecallStatus();
       }));
     });
+    list.append(await notifyRow());
     list.append(switchRow("Auto-copy on this device", "When the app is open, new copies from other devices go straight to this device's clipboard",
       localGet("station_autocopy", "1") === "1", async (on) => localSet("station_autocopy", on ? "1" : "0")));
     loadSync(s);
@@ -689,6 +690,41 @@ async function loadSync(s) {
   r.folders.forEach((f) => ul.append(switchRow(f.label, `${f.path} · with ${f.devices.join(", ") || "no devices"}`, !f.paused,
     async (on) => { await api(`/api/sync/folders/${encodeURIComponent(f.id)}`, { method: "POST", body: { paused: !on } }); toast(`${f.label} sync ${on ? "on" : "paused"}`); })));
   box.append(ul);
+}
+
+// Notifications on this device (Web Push — works with the app closed; needs HTTPS)
+function b64ToBytes(b64) {
+  const s = atob((b64 + "=".repeat((4 - (b64.length % 4)) % 4)).replace(/-/g, "+").replace(/_/g, "/"));
+  return Uint8Array.from(s, (c) => c.charCodeAt(0));
+}
+
+async function notifyRow() {
+  const supported = window.isSecureContext && "serviceWorker" in navigator && "PushManager" in window && "Notification" in window;
+  let on = false;
+  if (supported) {
+    try { on = (await api("/api/push/key")).subscribed && Notification.permission === "granted"; } catch {}
+  }
+  const desc = supported ? "Jarvis tells you here when it finishes a job — even with the app closed"
+    : "Needs the secure https:// address (Tailscale step in the README)";
+  const row = switchRow("Notifications on this device", desc, on, async (want) => {
+    const reg = await navigator.serviceWorker.ready;
+    if (!want) {
+      const sub = await reg.pushManager.getSubscription();
+      if (sub) await sub.unsubscribe();
+      await api("/api/push/subscribe", { method: "DELETE" });
+      return toast("Notifications off");
+    }
+    if ((await Notification.requestPermission()) !== "granted") throw new Error("Notifications are blocked — allow them in Chrome's site settings");
+    const { key } = await api("/api/push/key");
+    let sub = await reg.pushManager.getSubscription();
+    if (sub) await sub.unsubscribe();  // re-subscribe with this PC's key
+    sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64ToBytes(key) });
+    await api("/api/push/subscribe", { method: "POST", body: { subscription: sub.toJSON() } });
+    await api("/api/notify", { method: "POST", body: { title: "Jarvis", body: "Notifications are on, sir. I'll keep you posted." } });
+    toast("Notifications on");
+  });
+  if (!supported) row.querySelector("input").disabled = true;
+  return row;
 }
 
 // Auto-copy: newest clip from another device goes to this device's clipboard while the app is open

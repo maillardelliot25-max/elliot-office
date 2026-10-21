@@ -169,6 +169,13 @@ def fill_pdf_form(path: str) -> str:
 
 
 @mcp.tool()
+def notify_me(message: str, title: str = "Jarvis") -> str:
+    """Send the user a notification on their phone/tablet (and Telegram), e.g. when a job is done."""
+    r = _post("/api/notify", {"title": title, "body": message})
+    return "Notified, sir." if r.get("sent") else "Nobody to notify yet (turn on notifications in the Jarvis app)."
+
+
+@mcp.tool()
 def open_on_pc(target: str) -> str:
     """Open an app, file or website on the user's PC."""
     return _post("/api/open", {"target": target}).get("message", "Opened.")

@@ -92,6 +92,8 @@ App → **PC** → **Switches**. Changes apply instantly and are saved on the PC
 | Screen memory | Recall: Jarvis remembers your screen |
 | Form helper | The Chrome helper offers to fill forms |
 | Telegram | Jarvis answers you on Telegram |
+| Notifications | Jarvis pings your phone/tablet (and Telegram) when it finishes a job. Off = silence everywhere |
+| Notifications on this device | Turn on push notifications for *this* phone/tablet (needs the https:// Tailscale address) |
 | Auto-copy on this device | While the app is open, new copies from other devices go straight to *this* device's clipboard |
 | Photo / music / file folders | One switch per Syncthing folder (below) |
 
@@ -126,12 +128,24 @@ Jarvis looks at the screen every 5 seconds and saves a picture **only when somet
 3. Click the puzzle icon → pin **Jarvis Assist** → click it → enter the PIN from the God Station window.
 4. Fill in **App → PC → My details** (name, email, phone, address…).
 
-Start typing in any form. Jarvis highlights it in blue: *"Sir, I've got this. Shall I fill it in?"*
-**Fill it** fills what it knows (green) and leaves the rest for you (yellow).
+Start typing in any form. Jarvis highlights it in blue, and a **Windows notification** pops up:
+*"Sir, I've got this. I see a form with 8 boxes. Shall I fill it in?"* with **Fill it** / **Never on this site**.
+Closing the notification means "not now".
+**Fill it** fills what it knows (green) and leaves the rest for you (yellow), then a second notification says how it went.
+Your phone/tablet also gets *"Done, sir — I filled 6 fields on …"* if notifications are on there.
+(No notification? Windows Settings → System → Notifications → make sure **Google Chrome** is allowed.
+If notifications are blocked, Jarvis shows the same message as a bubble inside the page instead.)
 - It **never presses Submit**. You always check first.
 - It never fills passwords, logins, card numbers, CVV or ID numbers, and it stays quiet on sign-in pages.
 - **Never on this site** silences it for that website. The popup has an on/off switch too.
 - Unusual questions ("Why do you want this job?") go to the local brain when it's running. It only answers from your details and memory, and leaves the box empty if unsure.
+
+### Notifications on your phone and tablet
+
+1. Open the app on the phone with the **https://** Tailscale address (section 3). Push notifications need HTTPS.
+2. **PC → Switches → Notifications on this device** → allow. A test notification arrives straight away.
+3. Jarvis now notifies you when it fills a form, signs or fills a PDF, or when Claude asks it to (Claude's `notify_me` tool).
+   They arrive even when the app is closed. Telegram gets the same messages if it's set up.
 
 ## 9. Sign and fill PDFs
 
@@ -162,7 +176,7 @@ The link lets Claude use Jarvis's tools. It's free beyond your Claude account.
    *"What did I tell Jarvis about my tablet?"* or *"Look at my screen and help me with this form."*
 
 Claude's tools: search memory, remember, search/view screen history, look at the screen now, clipboard, list folders, read text files,
-my details, sign PDF, fill PDF form, open on PC.
+my details, sign PDF, fill PDF form, **notify me** (pings your phone), open on PC.
 **Claude in Chrome** (Claude's browser extension, on paid Claude plans) can then do the clicking and typing on websites,
 with Jarvis supplying the details and memory.
 
@@ -199,6 +213,7 @@ Everything else (switches, screen memory limits) is in `station_data/settings.js
 | `station_data/devices.json` | Paired devices (only hashes of their keys) |
 | `station_data/recall/` | Screen memory, one folder per 8-hour segment |
 | `station_data/profile.json`, `signature.png` | Your details and signature, used for forms and PDFs |
+| `station_data/vapid_private.pem`, `push.json` | The PC's notification key and which devices get notifications |
 | `station_data/claude.token` | The key Claude's Jarvis tools use. Delete it to cut Claude off; it's recreated on restart |
 | `extension/` | Jarvis Assist for Chrome |
 

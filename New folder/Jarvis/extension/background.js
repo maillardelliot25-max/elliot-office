@@ -20,9 +20,56 @@ async function call(path, { method = "GET", body } = {}) {
   return data;
 }
 
-chrome.runtime.onMessage.addListener((msg, _sender, reply) => {
+// ── Windows notifications ("Sir, I've got this") ─────────────────────────────
+// Notification ids look like "offer:<tabId>:<time>" so a button press finds its tab.
+function notify(id, options) {
+  return new Promise((resolve) => {
+    chrome.notifications.create(id, { type: "basic", iconUrl: "icon-128.png", title: "Jarvis", priority: 2, ...options }, () =>
+      resolve(!chrome.runtime.lastError));
+  });
+}
+
+async function focusTab(tabId) {
+  try {
+    const tab = await chrome.tabs.update(tabId, { active: true });
+    await chrome.windows.update(tab.windowId, { focused: true });
+  } catch {}
+}
+
+chrome.notifications.onButtonClicked.addListener(async (id, button) => {
+  const [kind, tabId] = id.split(":");
+  chrome.notifications.clear(id);
+  if (kind !== "offer") return;
+  const tab = Number(tabId);
+  if (button === 0) { await focusTab(tab); chrome.tabs.sendMessage(tab, { type: "doFill" }).catch(() => {}); }
+  else chrome.tabs.sendMessage(tab, { type: "mute" }).catch(() => {});
+});
+
+// Closing the notification = "Not now"
+chrome.notifications.onClosed.addListener((id, byUser) => {
+  const [kind, tabId] = id.split(":");
+  if (kind === "offer" && byUser) chrome.tabs.sendMessage(Number(tabId), { type: "dismiss" }).catch(() => {});
+});
+
+chrome.notifications.onClicked.addListener((id) => {
+  const [, tabId] = id.split(":");
+  chrome.notifications.clear(id);
+  if (tabId) focusTab(Number(tabId));
+});
+
+chrome.runtime.onMessage.addListener((msg, sender, reply) => {
   (async () => {
     try {
+      if (msg.type === "offer") {
+        const ok = await notify(`offer:${sender.tab.id}:${Date.now()}`, {
+          message: msg.text, contextMessage: msg.site, requireInteraction: true,
+          buttons: [{ title: "Fill it" }, { title: "Never on this site" }],
+        });
+        return reply({ ok });
+      }
+      if (msg.type === "toast") {
+        return reply({ ok: await notify(`info:${sender.tab?.id ?? ""}:${Date.now()}`, { message: msg.text, contextMessage: msg.site || "" }) });
+      }
       if (msg.type === "status") return reply({ ok: true, ...(await call("/api/assist/status")) });
       if (msg.type === "fill") return reply({ ok: true, ...(await call("/api/assist/fill", { method: "POST", body: msg.form })) });
       if (msg.type === "pair") {

@@ -25,6 +25,7 @@ from station.config import StationConfig
 from station.controls import ControlError, PCControl
 from station.intents import describe, quick_intent
 from station.memory import StationMemory
+from station.notify import Notifier
 from station.recall import RecallStore, Recorder, load_ocr, segment_of
 from station.settings import Settings
 from station.syncthing import Syncthing, SyncthingError
@@ -92,6 +93,13 @@ class PausedBody(BaseModel):
 class PathBody(BaseModel):
     path: str
 
+class NotifyBody(BaseModel):
+    title: str = "Jarvis"
+    body: str
+
+class SubscribeBody(BaseModel):
+    subscription: dict
+
 class FormBody(BaseModel):
     url: str = ""
     title: str = ""
@@ -101,7 +109,7 @@ class FormBody(BaseModel):
 # ── App ──────────────────────────────────────────────────────────────────────
 
 def create_app(config: StationConfig, control: PCControl | None = None,
-               brain: LocalBrain | None = None, telegram_transport=None) -> FastAPI:
+               brain: LocalBrain | None = None, telegram_transport=None, push_sender=None) -> FastAPI:
     config.data_dir.mkdir(parents=True, exist_ok=True)
     auth = DeviceAuth(config.data_dir)
     memory = StationMemory(config.data_dir / "memory.db")
@@ -112,6 +120,7 @@ def create_app(config: StationConfig, control: PCControl | None = None,
     recall = RecallStore(config.data_dir / "recall")
     recorder = Recorder(recall, control, settings, ocr=load_ocr())
     signature_path = config.data_dir / "signature.png"
+    notifier = Notifier(config.data_dir, settings, sender=push_sender)
     auth.ensure_local_token(config.data_dir / "claude.token", "Claude (this PC)")
 
     async def watch_clipboard():
@@ -160,6 +169,7 @@ def create_app(config: StationConfig, control: PCControl | None = None,
     app.state.settings = settings
     app.state.recall = recall
     app.state.recorder = recorder
+    app.state.notifier = notifier
     telegram = None  # set below, once converse/execute exist
 
     def device(authorization: str = Header(default="")) -> str:
@@ -391,6 +401,31 @@ def create_app(config: StationConfig, control: PCControl | None = None,
                                execute=execute, control=control, recall=recall, settings=settings,
                                save_dir=config.upload_dir, transport=telegram_transport)
     app.state.telegram = telegram
+    notifier.telegram = telegram
+
+    # ── Notifications ────────────────────────────────────────────────────────
+
+    @app.get("/api/push/key")
+    def push_key(device_id: str = Depends(device)):
+        return {"key": notifier.public_key(), "subscribed": notifier.is_subscribed(device_id)}
+
+    @app.post("/api/push/subscribe")
+    def push_subscribe(body: SubscribeBody, device_id: str = Depends(device)):
+        try:
+            notifier.subscribe(device_id, body.subscription)
+        except ValueError as e:
+            raise HTTPException(400, str(e))
+        return {"ok": True}
+
+    @app.delete("/api/push/subscribe")
+    def push_unsubscribe(device_id: str = Depends(device)):
+        notifier.unsubscribe(device_id)
+        return {"ok": True}
+
+    @app.post("/api/notify")
+    async def notify(body: NotifyBody, _: str = Depends(device)):
+        """Send a notification to your phone/tablet (+ Telegram). Used by Chrome, Claude and the test button."""
+        return await notifier.notify(body.title[:100], body.body[:1000])
 
     @app.post("/api/chat")
     async def chat(body: ChatBody, device_id: str = Depends(device)):
@@ -535,9 +570,12 @@ def create_app(config: StationConfig, control: PCControl | None = None,
             except Exception as e:
                 logger.warning(f"[ASSIST] brain couldn't help: {e}")
         n = len(filled)
-        memory.add("jarvis", f"Filled {n} field(s) on “{body.title or body.url}” ({body.url})", "Chrome")
+        page = body.title or body.url
+        memory.add("jarvis", f"Filled {n} field(s) on “{page}” ({body.url})", "Chrome")
         if n:
             msg = f"Done, sir. I filled {n} field{'s' if n != 1 else ''}. Please check them before you submit."
+            await notifier.notify("Jarvis", f"Done, sir — I filled {n} field{'s' if n != 1 else ''} on “{page[:80]}”. "
+                                  "Check them before you submit.", tag="assist")
         else:
             msg = "I'm sorry, sir — I don't know what goes in these. Add your details in the app (PC → My details)."
         return {"values": filled, "message": msg}
@@ -561,16 +599,20 @@ def create_app(config: StationConfig, control: PCControl | None = None,
     @app.post("/api/docs/sign")
     async def doc_sign(body: PathBody, _: str = Depends(device)):
         try:
-            return await run_in_threadpool(docs.sign_pdf, body.path, signature_path)
+            out = await run_in_threadpool(docs.sign_pdf, body.path, signature_path)
         except docs.DocError as e:
             raise HTTPException(400, str(e))
+        await notifier.notify("Jarvis", f"Signed, sir. {out['message']}", tag="docs")
+        return out
 
     @app.post("/api/docs/fill")
     async def doc_fill(body: PathBody, _: str = Depends(device)):
         try:
-            return await run_in_threadpool(docs.fill_pdf, body.path, profile.values())
+            out = await run_in_threadpool(docs.fill_pdf, body.path, profile.values())
         except docs.DocError as e:
             raise HTTPException(400, str(e))
+        await notifier.notify("Jarvis", f"Done, sir. {out['message']}", tag="docs")
+        return out
 
     # ── The app itself ───────────────────────────────────────────────────────
 

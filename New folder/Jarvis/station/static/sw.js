@@ -1,5 +1,5 @@
 /* Caches the app shell so it opens instantly. Live data (/api) always comes from the PC. */
-const CACHE = "jarvis-station-v3";
+const CACHE = "jarvis-station-v4";
 const SHELL = ["/", "/index.html", "/style.css", "/app.js", "/manifest.json", "/icon-192.png", "/icon-512.png"];
 
 self.addEventListener("install", (e) => {
@@ -12,6 +12,25 @@ self.addEventListener("activate", (e) => {
       .then((keys) => Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k))))
       .then(() => self.clients.claim())
   );
+});
+
+// Notifications from Jarvis (arrive even when the app is closed)
+self.addEventListener("push", (e) => {
+  let msg = { title: "Jarvis", body: "", url: "/", tag: "jarvis" };
+  try { msg = { ...msg, ...e.data.json() }; } catch { if (e.data) msg.body = e.data.text(); }
+  e.waitUntil(self.registration.showNotification(msg.title, {
+    body: msg.body, tag: msg.tag, renotify: true, icon: "/icon-192.png", badge: "/icon-192.png",
+    vibrate: [80, 40, 80], data: { url: msg.url },
+  }));
+});
+
+self.addEventListener("notificationclick", (e) => {
+  e.notification.close();
+  const url = e.notification.data?.url || "/";
+  e.waitUntil(self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((wins) => {
+    const open = wins.find((w) => new URL(w.url).origin === self.location.origin);
+    return open ? open.focus() : self.clients.openWindow(url);
+  }));
 });
 
 self.addEventListener("fetch", (e) => {

@@ -4,7 +4,7 @@
   "version": "1.0.0",
   "description": "Jarvis watches for forms, highlights them and fills them for you from your God Station.",
   "icons": { "16": "icon-16.png", "48": "icon-48.png", "128": "icon-128.png" },
-  "permissions": ["storage"],
+  "permissions": ["storage", "notifications"],
   "host_permissions": ["http://localhost:8765/*", "http://127.0.0.1:8765/*"],
   "background": { "service_worker": "background.js" },
   "action": { "default_popup": "popup.html", "default_title": "Jarvis Assist" },

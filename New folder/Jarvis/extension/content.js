@@ -118,12 +118,35 @@
     if (!status.ok || !status.enabled) return;  // not paired, station off, or helper switched off
 
     fields.forEach((f) => f.classList.add("jarvis-glow"));
-    show(`${status.greeting} I see a form with ${fields.length} boxes. Shall I fill it in?`, [
-      ["Fill it", () => fill(container), true],
-      ["Not now", () => { clearGlow(container); hide(); }],
-      ["Never on this site", () => { localStorage.setItem(SITE_KEY, "1"); clearGlow(container); hide(); }],
-    ]);
+    pending = container;
+    const text = `${status.greeting} I see a form with ${fields.length} boxes. Shall I fill it in?`;
+    // A real Windows notification first; the in-page bubble only if notifications are blocked
+    const shown = await send({ type: "offer", text, site: location.hostname });
+    if (!shown.ok) {
+      show(text, [
+        ["Fill it", () => fill(container), true],
+        ["Not now", () => { clearGlow(container); hide(); }],
+        ["Never on this site", () => { localStorage.setItem(SITE_KEY, "1"); clearGlow(container); hide(); }],
+      ]);
+    }
   }, true);
+
+  let pending = null;
+  chrome.runtime.onMessage.addListener((msg) => {
+    if (msg.type === "doFill" && pending) fill(pending);
+    if (msg.type === "dismiss" && pending) { clearGlow(pending); pending = null; }
+    if (msg.type === "mute") {
+      localStorage.setItem(SITE_KEY, "1");
+      if (pending) clearGlow(pending);
+      pending = null;
+    }
+  });
+
+  // Tell you how it went: notification, or the bubble if notifications are blocked
+  async function tell(text, buttons = [], autoHideMs = 12000) {
+    const shown = await send({ type: "toast", text, site: location.hostname });
+    if (!shown.ok) show(text, buttons, autoHideMs);
+  }
 
   function clearGlow(container) {
     container.querySelectorAll(".jarvis-glow").forEach((f) => f.classList.remove("jarvis-glow"));
@@ -155,13 +178,13 @@
       options: el.tagName === "SELECT" ? [...el.options].map((o) => o.text.trim()).filter(Boolean).slice(0, 300) : undefined,
       current: el.value ? "has value" : "",
     })).filter((f, i) => !els[i].value || els[i].tagName === "SELECT");
-    show("Right away, sir…");
+    pending = null;
     const res = await send({ type: "fill", form: { url: location.href, title: document.title, fields } });
     busy = false;
     clearGlow(container);
     if (!res.ok) {
-      show(res.error === "not-paired" ? "Sir, I'm not paired with the God Station. Click the Jarvis icon in Chrome to pair me."
-        : `I'm sorry, sir: ${res.error}`, [], 8000);
+      tell(res.error === "not-paired" ? "Sir, I'm not paired with the God Station. Click the Jarvis icon in Chrome to pair me."
+        : `I'm sorry, sir: ${res.error}`);
       return;
     }
     let n = 0;
@@ -172,7 +195,7 @@
     }
     els.forEach((el) => { if (!done.has(el) && !el.value) el.classList.add("jarvis-todo"); });
     const left = els.filter((el) => !el.value).length;
-    show(`${res.message}${left ? ` ${left} left for you (yellow).` : ""}`, [["Thanks, Jarvis", hide, true]], 15000);
+    tell(`${res.message}${left ? ` ${left} left for you (yellow).` : ""}`, [["Thanks, Jarvis", hide, true]]);
     setTimeout(() => container.querySelectorAll(".jarvis-filled,.jarvis-todo")
       .forEach((f) => f.classList.remove("jarvis-filled", "jarvis-todo")), 20000);
   }

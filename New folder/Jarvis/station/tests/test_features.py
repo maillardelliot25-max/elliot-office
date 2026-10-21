@@ -351,3 +351,62 @@ def test_mcp_tools_talk_to_the_station(station, monkeypatch):
     assert img.data.startswith(b"\xff\xd8")
     tools = asyncio.run(mcp_server.mcp.list_tools())
     assert {"search_memory", "look_at_screen", "search_screen_history", "sign_pdf"} <= {t.name for t in tools}
+
+
+# ── Notifications ───────────────────────────────────────────────────────────
+
+SUB = {"endpoint": "https://fcm.googleapis.com/fcm/send/abc", "keys": {"p256dh": "x", "auth": "y"}}
+
+
+def notifying_app(tmp_path, pushes, fail_with=None):
+    def sender(sub, payload, key_file):
+        if fail_with:
+            err = Exception("gone")
+            err.response = type("R", (), {"status_code": fail_with})()
+            raise err
+        assert Path(key_file).exists()
+        pushes.append((sub["endpoint"], json.loads(payload)))
+    app = create_app(StationConfig(data_dir=tmp_path), control=FakeControl(tmp_path), brain=FakeBrain(),
+                     push_sender=sender)
+    return paired(app), app
+
+
+def test_phone_subscribes_and_gets_notified(tmp_path):
+    pushes = []
+    client, app = notifying_app(tmp_path, pushes)
+    key = client.get("/api/push/key").json()
+    assert len(key["key"]) == 87 and key["subscribed"] is False  # 65-byte P-256 key, base64url
+    assert client.post("/api/push/subscribe", json={"subscription": {"nope": 1}}).status_code == 400
+    assert client.post("/api/push/subscribe", json={"subscription": SUB}).json()["ok"]
+    assert client.get("/api/push/key").json()["subscribed"]
+    assert client.post("/api/notify", json={"body": "Hello, sir"}).json()["sent"] == 1
+    assert pushes[-1] == (SUB["endpoint"], {"title": "Jarvis", "body": "Hello, sir", "url": "/", "tag": "jarvis"})
+
+    # Jobs Jarvis does are announced
+    client.put("/api/profile", json={"email": "e@example.com"})
+    client.post("/api/assist/fill", json={"title": "Sign up", "fields": [{"i": 0, "label": "Email"}]})
+    assert "filled 1 field" in pushes[-1][1]["body"] and "Sign up" in pushes[-1][1]["body"]
+
+    # Muted with the switch
+    client.patch("/api/settings", json={"notify": False})
+    assert client.post("/api/notify", json={"body": "quiet"}).json() == {"sent": 0, "muted": True}
+
+    # Same keys after a restart, so phones stay subscribed
+    app2 = create_app(StationConfig(data_dir=tmp_path), control=FakeControl(tmp_path), brain=FakeBrain())
+    assert app2.state.notifier.public_key() == key["key"]
+
+
+def test_dead_subscriptions_are_removed(tmp_path):
+    client, app = notifying_app(tmp_path, [], fail_with=410)
+    client.post("/api/push/subscribe", json={"subscription": SUB})
+    assert client.post("/api/notify", json={"body": "hi"}).json()["sent"] == 0
+    assert app.state.notifier.subs == {}
+
+
+def test_notifications_also_go_to_telegram(tmp_path):
+    tg = FakeTelegram([])
+    app = create_app(StationConfig(data_dir=tmp_path, telegram_token="T", telegram_chat_id="42"),
+                     control=FakeControl(tmp_path), brain=FakeBrain(), telegram_transport=httpx.MockTransport(tg),
+                     push_sender=lambda *a: None)
+    assert paired(app).post("/api/notify", json={"body": "Form filled, sir"}).json()["sent"] == 1
+    assert tg.sent[-1][1]["text"] == "🔔 Jarvis\nForm filled, sir"
