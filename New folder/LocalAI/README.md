@@ -27,6 +27,8 @@ On top of that it creates images and videos with **Gemini Nano Banana / Veo**, b
 | 🎬 **Create videos** | **Google Veo 3.1**: about 8-second clips with sound, from text or by animating an image |
 | 🎤 **Voice** | Speak your messages (🎤), and have answers read aloud (🔊) |
 | 🧠 **Memory that learns** | After each conversation Jarvis notes anything lasting it learned about you: likes, dislikes, preferences, people, work, goals. It shows "🧠 Remembered: …". It never stores passwords or card numbers. Say "remember…" or "forget…" anytime, ask "what did we decide about X last week?" (it searches past chats), or manage everything on the 🧠 Memory screen |
+| 📸 **Jarvis Lens: ask about your screen** | Like Gemini's screen feature: **swipe up from the bottom edge of your screen** (a quick upward flick of the mouse, touchpad or finger) or press **Ctrl+Alt+Space**. Jarvis takes a screenshot and a bar pops up at the bottom: ask "what's this error?", "summarise this", "translate", "what should I reply?". Follow-up questions work, and **Open in app** continues the chat |
+| 🎨 **Make it yours** | Settings → **Edit appearance**: themes (Claude, Midnight, Jarvis, Ocean, Forest, Rose, Mono), light/dark, your own colours, font, text size, roundness, chat width, and a **video or image background** with dim, blur and see-through panels. Chrome uses your colours too |
 | 🌐 **Jarvis in Chrome** | Side panel on any website: summarise or explain the page, right-click selected text or an image → *Ask Jarvis*, draft replies. With 🖱 *Browse for me* on, Jarvis clicks, types, scrolls and opens pages for you, asking before each action |
 | ⤓ **Export** | Save any chat as a Markdown file |
 
@@ -125,6 +127,25 @@ The app must be running for the extension to work. Chrome doesn't let extensions
 
 **Security:** every request to the app must carry the pairing code. Websites and other extensions can't use your Jarvis.
 
+## 7. Jarvis Lens: ask about your screen
+
+Lens starts automatically with **Start Elliot AI.bat** and runs quietly in the background.
+
+- **Swipe up:** move the pointer (or your finger on a touchscreen) to the very bottom edge of the screen, then flick it quickly upward. Slow movements, like going to the taskbar and back, don't trigger it.
+- **Or press Ctrl+Alt+Space.**
+- Ask your question, or tap a quick one (*What's this? · Explain the error · Summarise · Translate · What should I reply?*). **📸 New capture** takes a fresh screenshot, **Esc** hides the bar, and **Open in app** continues in the full app.
+- It needs a model that can see images. "Auto" picks the best one you have: Claude, then Gemini, then ChatGPT, then a local one like `qwen3-vl:8b`. Change it, the shortcut, or turn the swipe off in Settings → **Jarvis Lens**, then restart the app.
+- Screenshots go to the model you chose. With a ☁ model that means the company behind it, so close anything private first or use a local model.
+- On a Mac, allow Python under System Settings → Privacy & Security → **Accessibility** and **Screen Recording** the first time.
+
+In the app, **📸** next to the message box attaches a screenshot of any screen or window. In Chrome, the side panel's **📸 What I see** asks about the current tab.
+
+## 8. Customise the look
+
+Settings → **🎨 Edit appearance**. Everything previews live. **Save** keeps it, **Cancel** undoes it, **Reset to default** starts over.
+
+For a video background, use **⬆ Upload** (MP4 or WebM, up to 150 MB; short loops of 10 to 30 seconds look best) or paste a link to an .mp4. Turn **Darken** up and use **See-through panels** to keep text readable.
+
 ## Troubleshooting
 
 - **"Can't reach Ollama":** open the Ollama app (or run `ollama serve`).
@@ -135,6 +156,8 @@ The app must be running for the extension to work. Chrome doesn't let extensions
 - **React or diagram preview is blank:** those previews need internet, to load React or Mermaid. Web pages, SVGs and documents work offline.
 - **🎤 doesn't work:** use Chrome or Edge. Voice typing uses the browser's speech service, which needs internet.
 - **Chrome says "Jarvis isn't paired" or "can't reach Elliot AI":** make sure the app is running, then paste the pairing code again (the ⚙ Settings screen shows it).
+- **Swiping up does nothing:** check Lens is running (start the app with `Start Elliot AI.bat`), try Ctrl+Alt+Space, and make sure the swipe starts at the very last pixel row of the screen. If it triggers by accident, turn the swipe off in Settings and use the shortcut.
+- **Background video doesn't play:** use MP4 (H.264) or WebM. iPhone .mov files often won't play in browsers, so convert them first.
 - **"PDF support needs pypdf":** run `python -m pip install pypdf`.
 
 **Privacy & safety:** with a 💻 local model, chat, documents and memory never leave your computer. With a ☁ model, your messages and attachments go to that company (Anthropic, OpenAI or Google) under your API account. File organizing with a ☁ model sends small previews of each photo and the start of each document. Image and video prompts, and any images you edit, are sent to Google when you use Gemini. Web search goes to DuckDuckGo. In Tools mode, file access is limited to the workspace folder. Commands, however, run with your user's full permissions, so keep the permission prompts on unless you trust what you're asking for.

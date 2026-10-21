@@ -6,6 +6,7 @@
 <title>Jarvis</title>
 <style>
   :root {
+    --font:ui-sans-serif, system-ui, "Segoe UI", sans-serif; --fs:15px; --radius:14px; --chatw:780px; --glass:72%;
     --bg:#faf9f5; --side:#f0eee6; --panel:#ffffff; --line:#e3e0d6; --text:#1f1e1d; --dim:#73726c;
     --accent:#c96442; --accent-text:#fff; --code:#f5f4ef; --user:#ece9df; --danger:#b3261e;
   }
@@ -15,9 +16,23 @@
       --code:#1c1c1a; --user:#3a3936; --danger:#ff8a80;
     }
   }
+  :root[data-theme="dark"] {
+      --bg:#262624; --side:#1f1e1d; --panel:#30302e; --line:#3e3e3a; --text:#ecebe6; --dim:#a6a59f;
+      --code:#1c1c1a; --user:#3a3936; --danger:#ff8a80;
+  }
   * { box-sizing:border-box; }
   html, body { height:100%; margin:0; }
-  body { background:var(--bg); color:var(--text); font:15px/1.6 ui-sans-serif, system-ui, "Segoe UI", sans-serif; display:flex; overflow:hidden; }
+  body { background:var(--bg); color:var(--text); font:var(--fs)/1.6 var(--font); display:flex; overflow:hidden; }
+  /* Background video / image (Settings → Edit appearance) */
+  #bgLayer { position:fixed; inset:0; z-index:0; overflow:hidden; display:none; background:#000; }
+  #bgLayer video, #bgLayer .img { position:absolute; inset:-20px; width:calc(100% + 40px); height:calc(100% + 40px); object-fit:cover; background-size:cover; background-position:center; }
+  #bgDim { position:absolute; inset:0; background:#000; }
+  body.has-bg #bgLayer { display:block; }
+  body.has-bg { background:#000; }
+  body > nav, body > main, body > aside { position:relative; z-index:1; }
+  body.has-bg #side { background:color-mix(in srgb, var(--side) var(--glass), transparent); backdrop-filter:blur(14px); }
+  body.has-bg #main { background:color-mix(in srgb, var(--bg) var(--glass), transparent); backdrop-filter:blur(6px); }
+  body.has-bg #top { border-color:transparent; }
   button, select, input, textarea { font:inherit; color:inherit; }
   button { cursor:pointer; background:none; border:1px solid var(--line); border-radius:8px; padding:5px 10px; }
   button:hover { background:var(--user); }
@@ -50,13 +65,13 @@
   #title { flex:1; font-weight:500; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
   #model { max-width:230px; }
   #log { flex:1; overflow-y:auto; }
-  #log .inner { max-width:780px; margin:0 auto; padding:24px 16px 40px; }
+  #log .inner { max-width:var(--chatw); margin:0 auto; padding:24px 16px 40px; }
   .welcome { text-align:center; margin-top:14vh; color:var(--dim); }
   .welcome h1 { color:var(--text); font-weight:500; font-size:30px; margin:0 0 8px; }
   .ideas { display:flex; flex-wrap:wrap; gap:8px; justify-content:center; margin-top:22px; }
   .ideas button { font-size:13px; color:var(--dim); background:var(--panel); }
   .userWrap { display:flex; flex-direction:column; align-items:flex-end; margin:20px 0; }
-  .user-msg { background:var(--user); border-radius:14px; padding:10px 14px; max-width:85%; white-space:pre-wrap; word-wrap:break-word; }
+  .user-msg { background:var(--user); border-radius:var(--radius); padding:10px 14px; max-width:85%; white-space:pre-wrap; word-wrap:break-word; }
   .user-msg img { max-width:220px; max-height:220px; border-radius:8px; display:block; margin-bottom:6px; }
   .user-msg textarea { width:min(600px, 70vw); min-height:80px; border:1px solid var(--line); border-radius:8px; padding:8px; background:var(--panel); }
   .userWrap .msgActs { margin:4px 0 0; opacity:0; }
@@ -99,11 +114,11 @@
   @keyframes blink { 50% { opacity:0; } }
 
   /* Composer */
-  #composer { max-width:780px; width:100%; margin:0 auto; padding:0 16px 16px; }
+  #composer { max-width:var(--chatw); width:100%; margin:0 auto; padding:0 16px 16px; }
   #modes { display:flex; gap:4px; margin-bottom:6px; }
   #modes button { border:none; font-size:13px; color:var(--dim); border-radius:20px; padding:3px 12px; }
   #modes button.on { background:var(--user); color:var(--text); font-weight:500; }
-  #box { border:1px solid var(--line); border-radius:16px; background:var(--panel); padding:10px 12px; box-shadow:0 2px 10px rgba(0,0,0,.04); }
+  #box { border:1px solid var(--line); border-radius:calc(var(--radius) + 2px); background:var(--panel); padding:10px 12px; box-shadow:0 2px 10px rgba(0,0,0,.04); }
   #box.drag { border-color:var(--accent); }
   #attachments { display:flex; flex-wrap:wrap; gap:6px; }
   #attachments .att { position:relative; font-size:12px; border:1px solid var(--line); border-radius:8px; padding:3px 22px 3px 8px; margin-bottom:6px; }
@@ -129,7 +144,7 @@
   /* Modals */
   .modal { position:fixed; inset:0; background:rgba(0,0,0,.4); display:none; align-items:center; justify-content:center; z-index:10; padding:16px; }
   .modal.open { display:flex; }
-  .modal .card { background:var(--panel); border-radius:14px; padding:20px; width:580px; max-width:100%; max-height:90vh; overflow-y:auto; }
+  .modal .card { background:var(--panel); border-radius:var(--radius); padding:20px; width:580px; max-width:100%; max-height:90vh; overflow-y:auto; }
   .modal h3 { margin:22px 0 0; font-size:15px; }
   .modal label { display:block; font-size:13px; color:var(--dim); margin:12px 0 4px; }
   .modal input[type=text], .modal input[type=password], .modal textarea, .modal select { width:100%; border:1px solid var(--line); border-radius:8px; padding:8px; background:var(--bg); }
@@ -144,6 +159,15 @@
   .memItem { display:flex; gap:8px; align-items:center; padding:4px 0; border-bottom:1px solid var(--line); }
   .memItem span { flex:1; }
   .memItem button { border:none; color:var(--dim); padding:0 6px; }
+  .presets { display:flex; flex-wrap:wrap; gap:6px; margin-top:6px; }
+  .presets button { display:flex; align-items:center; gap:6px; }
+  .presets i { width:14px; height:14px; border-radius:50%; display:inline-block; border:1px solid var(--line); }
+  .colors { display:grid; grid-template-columns:repeat(auto-fill, minmax(150px, 1fr)); gap:6px 12px; margin-top:6px; }
+  .colors label { display:flex !important; align-items:center; gap:8px; margin:0 !important; color:var(--text) !important; font-size:13px; }
+  .colors input[type=color] { width:34px; height:26px; border:1px solid var(--line); border-radius:6px; padding:0; background:none; cursor:pointer; }
+  .range { display:flex; align-items:center; gap:10px; }
+  .range input { flex:1; }
+  .range span { width:52px; text-align:right; font-size:13px; color:var(--dim); }
   .srvtool { font-size:13px; color:var(--dim); margin:0 0 8px; }
   .appBtns { display:flex; gap:8px; margin:0 0 12px; flex-wrap:wrap; }
   #orgList { max-height:46vh; overflow-y:auto; border:1px solid var(--line); border-radius:10px; margin-top:12px; }
@@ -167,6 +191,7 @@
 </style>
 </head>
 <body>
+<div id="bgLayer"><video id="bgVideo" muted loop playsinline autoplay></video><div class="img" id="bgImg"></div><div id="bgDim"></div></div>
 <nav id="side">
   <div class="brand"><span></span><b id="brandName">Jarvis</b></div>
   <div class="sidePad">
@@ -203,6 +228,7 @@
         <button class="icon" id="attach" title="Attach images, PDFs, documents or code">📎</button>
         <input type="file" id="file" multiple hidden>
         <button class="icon" id="mic" title="Speak instead of typing">🎤</button>
+        <button class="icon" id="shot" title="Ask about your screen: attach a screenshot">📸</button>
         <span id="chatOpts">
           <button class="toggle" id="toolsBtn" title="Let the AI read/write files, run code, search the web and make images">🛠 Tools</button>
           <button class="toggle" id="thinkBtn" title="Think step by step before answering (thinking models)">💭 Think</button>
@@ -239,7 +265,7 @@
 
 <div class="modal" id="settings">
   <div class="card">
-    <h2 style="margin:0">Settings</h2>
+    <div style="display:flex;align-items:center;gap:8px"><h2 style="margin:0;flex:1">Settings</h2><button id="openLook" class="primary">🎨 Edit appearance</button></div>
     <label>Your name</label>
     <input type="text" id="sName">
     <label>Assistant's name</label>
@@ -247,6 +273,13 @@
     <label>Custom instructions (how the AI should respond, in every chat)</label>
     <textarea id="sInstr" placeholder="e.g. Keep answers short. I run Maillard AI, a freelance AI agency."></textarea>
     <label><input type="checkbox" id="sLearn"> Learn what I like automatically from conversations (see 🧠 Memory)</label>
+    <h3>Jarvis Lens: ask about your screen</h3>
+    <div style="font-size:13px;color:var(--dim);margin-top:6px">Starts with the app. Flick the mouse (or your finger) up from the very bottom edge of the screen, or press the shortcut, and Jarvis looks at your screen. Restart the app after changing the swipe or shortcut.</div>
+    <label><input type="checkbox" id="sSwipe"> Swipe up from the bottom of the screen opens it</label>
+    <label>Keyboard shortcut (pynput format)</label>
+    <input type="text" id="sHotkey" placeholder="<ctrl>+<alt>+<space>">
+    <label>Model that looks at your screen</label>
+    <select id="sLens"><option value="auto">Auto: best model that can see images</option></select>
     <h3>Jarvis in Chrome</h3>
     <div style="font-size:13px;color:var(--dim);margin-top:6px">Install the extension from the <code>LocalAI/chrome-extension</code> folder (README, step 6), click its icon, and paste this pairing code:</div>
     <div style="display:flex;gap:8px;margin-top:6px"><input type="text" id="sToken" readonly style="font:15px ui-monospace,monospace;letter-spacing:1px"><button id="sCopyToken">Copy</button></div>
@@ -347,6 +380,43 @@
     <input type="text" id="mSearch" placeholder="Search memory" style="margin-top:10px">
     <div id="mList" style="max-height:48vh;overflow-y:auto;margin-top:6px"></div>
     <div class="actions"><button id="mClose">Close</button></div>
+  </div>
+</div>
+<div class="modal" id="lookModal">
+  <div class="card" style="width:640px">
+    <h2 style="margin:0">🎨 Edit appearance</h2>
+    <div style="color:var(--dim);font-size:14px;margin-top:4px">Changes show instantly. Press Save to keep them.</div>
+    <label>Start from a theme</label>
+    <div class="presets" id="lPresets"></div>
+    <label>Mode</label>
+    <select id="lTheme"><option value="auto">Auto (follow my computer)</option><option value="light">Light</option><option value="dark">Dark</option></select>
+    <label>Colours</label>
+    <div class="colors" id="lColors"></div>
+    <label>Font</label>
+    <select id="lFont">
+      <option value="system">Clean (system)</option><option value="rounded">Rounded</option><option value="serif">Classic serif</option>
+      <option value="mono">Code / terminal</option><option value="wide">Wide modern</option>
+    </select>
+    <label>Text size</label><div class="range"><input type="range" id="lFs" min="12" max="20" step="1"><span id="lFsV"></span></div>
+    <label>Corner roundness</label><div class="range"><input type="range" id="lRadius" min="0" max="28" step="1"><span id="lRadiusV"></span></div>
+    <label>Chat width</label><div class="range"><input type="range" id="lWidth" min="560" max="1200" step="20"><span id="lWidthV"></span></div>
+    <h3>Background</h3>
+    <select id="lBgType" style="margin-top:8px"><option value="none">None</option><option value="video">Video</option><option value="image">Image</option></select>
+    <div id="lBgOpts">
+      <div style="display:flex;gap:6px;margin-top:8px">
+        <button id="lUpload">⬆ Upload video or image</button>
+        <input type="file" id="lFile" accept="video/mp4,video/webm,image/*" hidden>
+        <input type="text" id="lUrl" placeholder="…or paste a link to an .mp4 / image" style="flex:1">
+      </div>
+      <label>Darken background</label><div class="range"><input type="range" id="lDim" min="0" max="90" step="5"><span id="lDimV"></span></div>
+      <label>Blur background</label><div class="range"><input type="range" id="lBlur" min="0" max="30" step="1"><span id="lBlurV"></span></div>
+      <label>See-through panels</label><div class="range"><input type="range" id="lGlass" min="0" max="80" step="5"><span id="lGlassV"></span></div>
+    </div>
+    <div class="actions">
+      <button id="lReset" style="margin-right:auto">Reset to default</button>
+      <button id="lCancel">Cancel</button>
+      <button class="primary" id="lSave">Save</button>
+    </div>
   </div>
 </div>
 <div id="lightbox"><img alt=""></div>
@@ -1083,6 +1153,10 @@ function fillSettings(s) {
   $("sName").value = s.name || ""; $("sInstr").value = s.instructions || "";
   $("sWs").value = s.workspace || ""; $("sAsst").value = s.assistant_name || "Jarvis";
   $("sLearn").checked = s.auto_memory !== false; $("sToken").value = s.chrome_token || "";
+  $("sSwipe").checked = s.lens_swipe !== false; $("sHotkey").value = s.lens_hotkey || "<ctrl>+<alt>+<space>";
+  $("sLens").innerHTML = `<option value="auto">Auto: best model that can see images</option>` +
+    models.filter(m => m.caps.includes("vision")).map(m => `<option value="${esc(m.name)}">${esc(m.label)}</option>`).join("");
+  $("sLens").value = [...$("sLens").options].some(o => o.value === s.lens_model) ? s.lens_model : "auto";
   $("sAuto").checked = !!s.auto_approve; $("sKey").value = s.google_api_key || "";
   $("sAnthropic").value = s.anthropic_api_key || ""; $("sOpenAI").value = s.openai_api_key || "";
   $("sPy").checked = !!s.auto_python;
@@ -1103,6 +1177,7 @@ $("sSave").onclick = async () => {
     settings = await api("/api/settings", { method: "POST", body: {
       name: $("sName").value.trim(), instructions: $("sInstr").value,
       assistant_name: $("sAsst").value.trim() || "Jarvis", auto_memory: $("sLearn").checked,
+      lens_swipe: $("sSwipe").checked, lens_hotkey: $("sHotkey").value.trim() || "<ctrl>+<alt>+<space>", lens_model: $("sLens").value,
       workspace: $("sWs").value.trim(), auto_approve: $("sAuto").checked,
       google_api_key: $("sKey").value.trim(), image_provider: $("sProvider").value,
       image_model: $("sImgModel").value, video_model: $("sVidModel").value.trim() || "veo-3.1-generate-preview",
@@ -1115,6 +1190,141 @@ $("sSave").onclick = async () => {
     if (!chatId) welcome();
   } catch (e) { toast(e.message); }
 };
+// ── Appearance ────────────────────────────────────────────────────────
+const COLOR_KEYS = { accent: "Accent", bg: "Background", side: "Sidebar", panel: "Cards & boxes", text: "Text", user: "Your messages" };
+const PRESETS = {
+  Claude: { theme: "auto" },
+  Midnight: { theme: "dark", accent: "#8b7cf6", bg: "#14141c", side: "#0f0f15", panel: "#1d1d28", text: "#e8e6f0", user: "#2a2840" },
+  Jarvis: { theme: "dark", accent: "#22d3ee", bg: "#07111c", side: "#050c14", panel: "#0c1a2a", text: "#d8f3ff", user: "#0f2a3f", font: "wide" },
+  Ocean: { theme: "light", accent: "#0e7490", bg: "#f3f8fa", side: "#e3eef2", panel: "#ffffff", text: "#0f2530", user: "#d7eaf0" },
+  Forest: { theme: "dark", accent: "#4ade80", bg: "#111a14", side: "#0c130e", panel: "#18241b", text: "#e3efe5", user: "#1f3324" },
+  Rose: { theme: "light", accent: "#e11d74", bg: "#fff7fa", side: "#fbe8ef", panel: "#ffffff", text: "#2a1720", user: "#f8dbe6", font: "rounded" },
+  Mono: { theme: "light", accent: "#111111", bg: "#ffffff", side: "#f2f2f2", panel: "#ffffff", text: "#111111", user: "#ececec", font: "mono" },
+};
+const FONTS = {
+  system: 'ui-sans-serif, system-ui, "Segoe UI", sans-serif',
+  rounded: '"Nunito", "Segoe UI Variable Display", ui-rounded, "Varela Round", system-ui, sans-serif',
+  serif: 'Georgia, "Iowan Old Style", "Times New Roman", serif',
+  mono: 'ui-monospace, "Cascadia Code", Consolas, "SF Mono", monospace',
+  wide: '"Bahnschrift", "Segoe UI Variable Display", "Helvetica Neue", Arial, sans-serif',
+};
+const CSS_VARS = ["--accent", "--accent-text", "--bg", "--side", "--panel", "--text", "--user", "--line", "--dim", "--code"];
+function readable(hex) {   // white or black text on a colour, whichever reads better
+  const n = parseInt(hex.slice(1), 16), [r, g, b] = [n >> 16, (n >> 8) & 255, n & 255];
+  return (0.299 * r + 0.587 * g + 0.114 * b) > 160 ? "#111" : "#fff";
+}
+function applyAppearance(a = {}) {
+  const root = document.documentElement;
+  if (a.theme && a.theme !== "auto") root.dataset.theme = a.theme; else delete root.dataset.theme;
+  CSS_VARS.forEach(v => root.style.removeProperty(v));
+  for (const k of Object.keys(COLOR_KEYS)) if (a[k]) root.style.setProperty("--" + k, a[k]);
+  if (a.accent) root.style.setProperty("--accent-text", readable(a.accent));
+  if (a.bg || a.text) {   // keep borders, hints and code blocks in tune with custom colours
+    root.style.setProperty("--line", "color-mix(in srgb, var(--text) 14%, var(--bg))");
+    root.style.setProperty("--dim", "color-mix(in srgb, var(--text) 58%, var(--bg))");
+    root.style.setProperty("--code", "color-mix(in srgb, var(--text) 5%, var(--bg))");
+  }
+  root.style.setProperty("--font", FONTS[a.font] || FONTS.system);
+  root.style.setProperty("--fs", (a.fs || 15) + "px");
+  root.style.setProperty("--radius", (a.radius ?? 14) + "px");
+  root.style.setProperty("--chatw", (a.width || 780) + "px");
+  root.style.setProperty("--glass", (100 - (a.glass ?? 30)) + "%");
+  const bg = a.bg_type && a.bg_type !== "none" && a.bg_url;
+  document.body.classList.toggle("has-bg", !!bg);
+  const video = $("bgVideo");
+  if (bg && a.bg_type === "video") {
+    if (video.getAttribute("src") !== a.bg_url) video.src = a.bg_url;
+    video.hidden = false; video.play().catch(() => {});
+  } else { video.pause(); video.removeAttribute("src"); video.hidden = true; }
+  $("bgImg").style.backgroundImage = bg && a.bg_type === "image" ? `url("${a.bg_url}")` : "";
+  $("bgImg").hidden = !(bg && a.bg_type === "image");
+  const blur = a.bg_blur ? `blur(${a.bg_blur}px)` : "";
+  video.style.filter = $("bgImg").style.filter = blur;
+  $("bgDim").style.opacity = (a.bg_dim ?? 35) / 100;
+  try { localStorage.setItem("appearance", JSON.stringify(a)); } catch {}
+}
+let look = {};
+function fillLook() {
+  $("lTheme").value = look.theme || "auto";
+  $("lColors").innerHTML = Object.entries(COLOR_KEYS).map(([k, label]) => {
+    const current = look[k] || getComputedStyle(document.documentElement).getPropertyValue("--" + k).trim();
+    const hex = /^#[0-9a-f]{6}$/i.test(current) ? current : "#888888";
+    return `<label><input type="color" data-key="${k}" value="${hex}">${label}</label>`;
+  }).join("");
+  $("lColors").querySelectorAll("input").forEach(i => i.oninput = () => { look[i.dataset.key] = i.value; applyAppearance(look); });
+  $("lFont").value = look.font || "system";
+  const ranges = { lFs: ["fs", 15, "px"], lRadius: ["radius", 14, "px"], lWidth: ["width", 780, "px"], lDim: ["bg_dim", 35, "%"], lBlur: ["bg_blur", 0, "px"], lGlass: ["glass", 30, "%"] };
+  for (const [id, [key, def, unit]] of Object.entries(ranges)) {
+    $(id).value = look[key] ?? def; $(id + "V").textContent = $(id).value + unit;
+    $(id).oninput = () => { look[key] = +$(id).value; $(id + "V").textContent = $(id).value + unit; applyAppearance(look); };
+  }
+  $("lBgType").value = look.bg_type || "none"; $("lUrl").value = look.bg_url || "";
+  $("lBgOpts").hidden = $("lBgType").value === "none";
+}
+$("lPresets").innerHTML = Object.entries(PRESETS).map(([name, p]) =>
+  `<button data-preset="${name}"><i style="background:${p.accent || "#c96442"}"></i><i style="background:${p.bg || "#faf9f5"}"></i>${name}</button>`).join("");
+$("lPresets").querySelectorAll("button").forEach(b => b.onclick = () => {
+  const keep = Object.fromEntries(Object.entries(look).filter(([k]) => /^(bg_|fs|radius|width|glass)/.test(k)));
+  look = { ...keep, ...PRESETS[b.dataset.preset] };
+  applyAppearance(look); fillLook();
+});
+$("lTheme").onchange = () => {
+  look.theme = $("lTheme").value;
+  Object.keys(COLOR_KEYS).forEach(k => delete look[k]);   // a new mode starts from its own colours
+  applyAppearance(look); fillLook();
+};
+$("lFont").onchange = () => { look.font = $("lFont").value; applyAppearance(look); };
+$("lBgType").onchange = () => { look.bg_type = $("lBgType").value; $("lBgOpts").hidden = look.bg_type === "none"; applyAppearance(look); };
+$("lUrl").onchange = () => {
+  look.bg_url = $("lUrl").value.trim();
+  if (look.bg_url && (!look.bg_type || look.bg_type === "none")) look.bg_type = /\.(mp4|webm|m4v|mov)(\?|$)/i.test(look.bg_url) ? "video" : "image";
+  $("lBgType").value = look.bg_type || "none"; $("lBgOpts").hidden = false; applyAppearance(look);
+};
+$("lUpload").onclick = () => $("lFile").click();
+$("lFile").onchange = async e => {
+  const f = e.target.files[0]; e.target.value = "";
+  if (!f) return;
+  if (f.size > 150e6) return toast("That file is over 150 MB. Pick a shorter or smaller video.");
+  toast("Uploading…");
+  try {
+    const data = (await readAs(f, "readAsDataURL")).split(",")[1];
+    const r = await api("/api/upload", { method: "POST", body: { name: f.name, data } });
+    look.bg_url = r.url; look.bg_type = f.type.startsWith("video") ? "video" : "image";
+    if (look.bg_dim === undefined) look.bg_dim = 35;
+    fillLook(); applyAppearance(look); toast("Background set. Press Save to keep it.");
+  } catch (err) { toast(err.message); }
+};
+$("openLook").onclick = () => { look = { ...(settings.appearance || {}) }; fillLook(); $("settings").classList.remove("open"); $("lookModal").classList.add("open"); };
+$("lCancel").onclick = () => { applyAppearance(settings.appearance || {}); $("lookModal").classList.remove("open"); };
+$("lReset").onclick = () => { look = {}; applyAppearance(look); fillLook(); };
+$("lSave").onclick = async () => {
+  try {
+    settings = await api("/api/settings", { method: "POST", body: { appearance: look } });
+    $("lookModal").classList.remove("open"); toast("Appearance saved");
+  } catch (e) { toast(e.message); }
+};
+try { applyAppearance(JSON.parse(localStorage.getItem("appearance") || "{}")); } catch {}
+
+// ── Screenshot ("ask about my screen") ────────────────────────────────
+$("shot").onclick = async () => {
+  try {
+    const stream = await navigator.mediaDevices.getDisplayMedia({ video: { displaySurface: "monitor" }, audio: false });
+    const v = document.createElement("video");
+    v.srcObject = stream; v.muted = true; await v.play();
+    await new Promise(r => setTimeout(r, 350));
+    const scale = Math.min(1, 1920 / v.videoWidth);
+    const c = document.createElement("canvas");
+    c.width = v.videoWidth * scale; c.height = v.videoHeight * scale;
+    c.getContext("2d").drawImage(v, 0, 0, c.width, c.height);
+    stream.getTracks().forEach(t => t.stop());
+    const url = c.toDataURL("image/jpeg", 0.85);
+    pending.push({ kind: "image", name: "screen.jpg", data: url.split(",")[1], url });
+    drawAttachments();
+    if (!$("input").value) $("input").value = "What's on my screen? ";
+    $("input").focus(); toast("Screenshot attached. Ask about it.");
+  } catch (e) { if (e.name !== "NotAllowedError") toast("Couldn't capture the screen: " + e.message); }
+};
+
 // ── Memory ────────────────────────────────────────────────────────────
 function applyName() {
   const n = settings.assistant_name || "Jarvis";
@@ -1232,12 +1442,14 @@ document.querySelectorAll(".modal").forEach(m => m.addEventListener("click", e =
 
 (async () => {
   try { settings = await api("/api/settings"); } catch {}
-  applyName();
+  applyName(); applyAppearance(settings.appearance || {});
   drawToggles();
   try { await refreshProjects(); } catch {}
   setMode("chat");
   await loadModels();
-  refreshChats();
+  await refreshChats();
+  const link = location.hash.match(/chat=([a-f0-9]{32})/);   // opened from Jarvis Lens / Chrome: "#chat=<id>"
+  if (link) { history.replaceState(null, "", location.pathname); openChat(link[1]); }
   input.focus();
 })();
 </script>

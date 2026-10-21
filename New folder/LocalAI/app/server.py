@@ -58,6 +58,10 @@ DEFAULT_SETTINGS = {
     "name": "Elliot",
     "assistant_name": "Jarvis",
     "auto_memory": True,      # learn what you like from every conversation
+    "appearance": {},         # colours, fonts, background video… (edited in Settings → Edit appearance)
+    "lens_swipe": True,       # Jarvis Lens: swipe up from the bottom of the screen to ask about it
+    "lens_hotkey": "<ctrl>+<alt>+<space>",
+    "lens_model": "auto",     # "auto" = best model you have that can see images
     "instructions": "",
     "workspace": str(Path.home() / "ElliotAI-Workspace"),
     "auto_approve": False,
@@ -140,9 +144,11 @@ def list_json(folder, fields):
     return sorted(out, key=lambda c: -(c.get("updated") or 0))
 
 
-def save_media(data, ext):
+def save_media(data, ext, to_workspace=True):
     name = f"{datetime.now():%Y%m%d-%H%M%S}-{uuid.uuid4().hex[:6]}.{ext}"
     (MEDIA / name).write_bytes(data)
+    if not to_workspace:
+        return f"/media/{name}"
     # Also drop a copy in the workspace so the agent (and you) can use it in projects
     try:
         out = workspace() / "generated"
@@ -203,6 +209,19 @@ def list_models():
         notes.append(f"Local models unavailable: can't reach Ollama at {OLLAMA}. Is it running?")
     cloud, cloud_notes = providers.cloud_models(load_settings())
     return {"models": local + cloud, "notes": notes + cloud_notes}
+
+
+def lens_model():
+    """The model Jarvis Lens uses to look at your screen: your choice, else the best one that can see images."""
+    choice = load_settings()["lens_model"]
+    if choice and choice != "auto":
+        return choice
+    models = list_models()["models"]
+    for provider in ("anthropic", "google", "openai", "ollama"):
+        found = [m["name"] for m in models if m["provider"] == provider and "vision" in m["caps"]]
+        if found:
+            return found[0]
+    return ""
 
 
 def math_model(fallback):
@@ -726,6 +745,42 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(data)
 
+    def send_file(self, p):
+        """Serve a file, honouring Range requests so background videos stream and loop smoothly."""
+        size = p.stat().st_size
+        ctype = mimetypes.guess_type(p.name)[0] or "application/octet-stream"
+        m = re.match(r"bytes=(\d*)-(\d*)", self.headers.get("Range") or "")
+        start, end = 0, size - 1
+        if m and (m.group(1) or m.group(2)):
+            if m.group(1):
+                start = int(m.group(1))
+                end = min(int(m.group(2)), size - 1) if m.group(2) else size - 1
+            else:
+                start = max(0, size - int(m.group(2)))
+            if start >= size:
+                self.send_response(416)
+                self.send_header("Content-Range", f"bytes */{size}")
+                self.end_headers()
+                return
+            self.send_response(206)
+            self.send_header("Content-Range", f"bytes {start}-{end}/{size}")
+        else:
+            self.send_response(200)
+        self.send_header("Content-Type", ctype)
+        self.send_header("Accept-Ranges", "bytes")
+        self.send_header("Content-Length", str(end - start + 1))
+        self.send_header("Cache-Control", "max-age=86400")
+        self.end_headers()
+        with open(p, "rb") as f:
+            f.seek(start)
+            left = end - start + 1
+            while left > 0:
+                chunk = f.read(min(1 << 20, left))
+                if not chunk:
+                    break
+                self.wfile.write(chunk)
+                left -= len(chunk)
+
     def send_json(self, obj, code=200):
         self.send_bytes(json.dumps(obj).encode(), "application/json", code)
 
@@ -769,7 +824,7 @@ class Handler(BaseHTTPRequestHandler):
                 p = MEDIA / name
                 if not p.is_file():
                     return self.send_json({"error": "not found"}, 404)
-                self.send_bytes(p.read_bytes(), mimetypes.guess_type(name)[0] or "application/octet-stream")
+                self.send_file(p)
             elif url.path.startswith("/ws/"):     # files in the workspace, for live app previews
                 p = safe_path(urllib.parse.unquote(url.path[4:]))
                 if p.is_dir():
@@ -809,6 +864,8 @@ class Handler(BaseHTTPRequestHandler):
                 self.send_json(load_json(PROJECTS, url.path.rsplit("/", 1)[1]))
             elif url.path == "/api/settings":
                 self.send_json(public_settings())
+            elif url.path == "/api/lens_model":
+                self.send_json({"model": lens_model()})
             elif url.path == "/api/memory":
                 self.send_json({"memories": MEMORY.all(), "categories": memory_store.CATEGORIES})
             else:
@@ -858,6 +915,11 @@ class Handler(BaseHTTPRequestHandler):
                     n = organizer.undo(plan)
                 save_json(PLANS, plan)
                 return self.send_json({"moved": n, "folder": plan["folder"]})
+            if path == "/api/upload":     # background videos/images for the appearance editor
+                ext = Path(b.get("name", "")).suffix.lower().lstrip(".")
+                if ext not in {"mp4", "webm", "mov", "m4v", "jpg", "jpeg", "png", "webp", "gif"}:
+                    raise ValueError("Use an MP4/WebM video or a JPG/PNG/WebP/GIF image.")
+                return self.send_json({"url": save_media(base64.b64decode(b["data"]), ext, to_workspace=False)})
             if path == "/api/browser_result":
                 if b.get("id") in _browser:
                     _browser[b["id"]]["output"] = str(b.get("output", ""))[:50000]

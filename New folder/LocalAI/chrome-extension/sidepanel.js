@@ -23,6 +23,7 @@ async function start() {
   try {
     const s = await api("/api/settings");
     $("name").textContent = s.assistant_name || "Jarvis";
+    applyLook(s.appearance || {});
     showApp(true);
     await loadModels();
     if (chatId) await openChat(chatId); else welcome(s);
@@ -32,6 +33,15 @@ async function start() {
     showApp(false);
     $("pMsg").textContent = !cfg.token ? "" : e.status === 401 ? "That pairing code didn't work. Copy it again from Settings."
       : `Can't reach Elliot AI at ${cfg.server}. Is it running?`;
+  }
+}
+function applyLook(a) {   // use the colours chosen in the app's Edit appearance
+  const map = { accent: "--accent", bg: "--bg", panel: "--panel", text: "--text", user: "--user" };
+  for (const [k, v] of Object.entries(map)) if (a[k]) document.documentElement.style.setProperty(v, a[k]);
+  if (a.bg || a.text) {
+    document.documentElement.style.setProperty("--line", "color-mix(in srgb, var(--text) 14%, var(--bg))");
+    document.documentElement.style.setProperty("--dim", "color-mix(in srgb, var(--text) 58%, var(--bg))");
+    document.documentElement.style.setProperty("--code", "color-mix(in srgb, var(--text) 5%, var(--bg))");
   }
 }
 function showApp(on) { $("app").style.display = on ? "contents" : "none"; $("pair").hidden = on; }
@@ -224,7 +234,10 @@ async function send(text, { image } = {}) {
       ctx = "📄 " + p.title;
     } catch (e) { ctx = "(couldn't read this page)"; }
   }
-  if (image) { try { images.push(await imageB64(image)); ctx = "🖼 image"; } catch { add("line err", "Couldn't load that image."); } }
+  if (image) {
+    try { images.push(image.startsWith("data:") ? image.split(",")[1] : await imageB64(image)); ctx = image.startsWith("data:") ? "📸 what I see" : "🖼 image"; }
+    catch { add("line err", "Couldn't load that image."); }
+  }
   userBubble(text, ctx);
   const status = add("line typing", "Thinking ");
   let seg = null, segText = "";
@@ -299,7 +312,15 @@ $("send").onclick = async () => {
   }
   const t = input.value; input.value = ""; input.oninput(); send(t);
 };
-document.querySelectorAll("#quick button").forEach(b => b.onclick = () => send(b.dataset.q));
+document.querySelectorAll("#quick button[data-q]").forEach(b => b.onclick = () => send(b.dataset.q));
+$("seeBtn").onclick = async () => {   // screenshot of the visible part of the current tab
+  try {
+    const tab = await targetTab();
+    const shot = await chrome.tabs.captureVisibleTab(tab.windowId, { format: "jpeg", quality: 80 });
+    send(input.value.trim() || "What's on my screen? Explain what I'm looking at.", { image: shot });
+    input.value = "";
+  } catch (e) { add("line err", "Couldn't capture this tab: " + esc(e.message)); }
+};
 
 // Requests from the right-click menu
 async function takePending() {

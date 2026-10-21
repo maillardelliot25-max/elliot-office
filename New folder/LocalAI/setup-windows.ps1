@@ -29,7 +29,7 @@ if (-not (Get-Command python -ErrorAction SilentlyContinue)) {
     Write-Host "Installing Python (needed for the Elliot AI app)..."
     winget install --id Python.Python.3.12 -e --accept-source-agreements --accept-package-agreements
 }
-try { python -m pip install --quiet --upgrade anthropic openai pypdf pillow } catch { Write-Host "Open a new PowerShell and run: python -m pip install anthropic openai pypdf pillow" }
+try { python -m pip install --quiet --upgrade anthropic openai pypdf pillow pynput mss } catch { Write-Host "Open a new PowerShell and run: python -m pip install anthropic openai pypdf pillow pynput mss" }
 
 Set-Content -Path "$PSScriptRoot\.model" -Value $Model
 Write-Host ""

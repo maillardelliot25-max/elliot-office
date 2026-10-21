@@ -18,7 +18,7 @@ export OLLAMA_CONTEXT_LENGTH=65536
 pgrep -x ollama >/dev/null || (nohup ollama serve >/tmp/ollama.log 2>&1 &) ; sleep 2
 ollama pull "$MODEL"
 ollama pull "$VISION_MODEL"   # lets the app read images
-python3 -m pip install --quiet --user --upgrade anthropic openai pypdf pillow || true   # cloud AI, PDFs, photo sorting
+python3 -m pip install --quiet --user --upgrade anthropic openai pypdf pillow pynput mss || true   # cloud AI, PDFs, photo sorting
 echo "$MODEL" > .model
 
 echo
