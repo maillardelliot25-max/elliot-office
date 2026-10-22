@@ -331,6 +331,14 @@
     <div style="font-size:13px;color:var(--dim);margin-top:6px">Install the Friday Android app (README, step 9), set it as your phone's digital assistant, then swipe up from a bottom corner in any app to ask about your screen. Answers come from this PC, so your phone needs to be on the same Wi-Fi.</div>
     <label><input type="checkbox" id="sPhone"> Allow my phone to connect over Wi-Fi (needs the pairing code below; restart the app after changing)</label>
     <div id="sLan" style="font-size:14px;margin-top:6px"></div>
+    <h3>🏠 Jarvis, your home base</h3>
+    <div style="font-size:13px;color:var(--dim);margin-top:6px">When Jarvis runs on this PC, Friday can search your screen history ("what was I doing at 3pm?"), find files anywhere on the PC, check the PC's health, and recall what you told Jarvis on any device. Turn on 🛠 Tools in a chat to use it.</div>
+    <label><input type="checkbox" id="sJarvis"> Link Friday to Jarvis</label>
+    <div style="display:flex;gap:12px;flex-wrap:wrap">
+      <label style="flex:1">Jarvis address<input type="text" id="sJarvisUrl"></label>
+      <label style="flex:1">Link token (blank = found automatically)<input type="password" id="sJarvisToken" autocomplete="off"></label>
+    </div>
+    <div id="sJarvisStatus" style="font-size:13px;margin-top:6px"></div>
     <h3>Friday in Chrome</h3>
     <div style="font-size:13px;color:var(--dim);margin-top:6px">Install the extension from the <code>LocalAI/chrome-extension</code> folder (README, step 6), click its icon, and paste this pairing code:</div>
     <div style="display:flex;gap:8px;margin-top:6px"><input type="text" id="sToken" readonly style="font:15px ui-monospace,monospace;letter-spacing:1px"><button id="sCopyToken">Copy</button></div>
@@ -1366,6 +1374,13 @@ function fillSettings(s) {
       ` · <span style="color:var(--dim)">${esc(m.folder)}</span> ` + (m.blocks.length ? `<button id="sScreenClear">Delete all</button>` : "");
     $("sScreenClear")?.addEventListener("click", async () => { if (confirm("Delete all saved screenshots?")) { await api("/api/screen_memory/clear", { method: "POST", body: {} }); $("openSettings").click(); } });
   }).catch(() => {});
+  $("sJarvis").checked = s.jarvis_link !== false; $("sJarvisUrl").value = s.jarvis_url || "http://localhost:8780";
+  $("sJarvisToken").value = s.jarvis_token || "";
+  $("sJarvisStatus").textContent = "Checking Jarvis…";
+  api("/api/jarvis").then(j => {
+    $("sJarvisStatus").innerHTML = (j.linked ? `<span style="color:var(--accent)">✓ ${esc(j.message)}</span>` : `✗ ${esc(j.message)}`) +
+      (!j.linked && !j.token_file_found && !s.jarvis_token ? `<br><span style="color:var(--dim)">Looked for the token in ${esc(j.token_file)}</span>` : "");
+  }).catch(() => { $("sJarvisStatus").textContent = ""; });
   api("/api/lan_info").then(l => {
     $("sLan").innerHTML = !l.addresses.length ? "" :
       `PC address for the phone app: <b style="font-family:ui-monospace,monospace">${l.addresses.map(esc).join("</b> or <b style=\"font-family:ui-monospace,monospace\">")}</b>` +
@@ -1402,6 +1417,8 @@ $("sSave").onclick = async () => {
       name: $("sName").value.trim(), instructions: $("sInstr").value,
       assistant_name: $("sAsst").value.trim() || "Friday", auto_memory: $("sLearn").checked,
       phone_access: $("sPhone").checked, persona: $("sPersona").value,
+      jarvis_link: $("sJarvis").checked, jarvis_url: $("sJarvisUrl").value.trim() || "http://localhost:8780",
+      jarvis_token: $("sJarvisToken").value.trim(),
       screen_watch: $("sWatch").checked, screen_watch_model: $("sWatchModel").value, screen_watch_every: Math.max(10, +$("sWatchEvery").value || 20),
       screen_memory: $("sScreen").checked, screen_every: Math.max(10, +$("sScreenEvery").value || 60), screen_keep_blocks: Math.max(1, +$("sScreenKeep").value || 3),
       lens_swipe: $("sSwipe").checked, lens_hotkey: $("sHotkey").value.trim() || "<ctrl>+<alt>+<space>", lens_model: $("sLens").value,

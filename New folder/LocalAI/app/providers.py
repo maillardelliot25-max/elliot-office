@@ -529,8 +529,9 @@ def openai_round(provider, model, system, messages, tools, opts, settings, emit,
 
 # ── One-shot answers (used by the file organizer) ───────────────────────
 
-def complete(model, prompt, images=(), settings=None):
-    """Single question → text answer, with optional images. No tools, no streaming."""
+def complete(model, prompt, images=(), settings=None, json_mode=True):
+    """Single question → text answer, with optional images. No tools, no streaming.
+    json_mode: offline models must answer in JSON (for callers that parse the reply)."""
     provider = provider_of(model)
     if provider == "anthropic":
         import anthropic
@@ -555,7 +556,7 @@ def complete(model, prompt, images=(), settings=None):
         except openai.APIStatusError as e:
             raise RuntimeError(f"{label_of(provider, settings)}: {short_error(e)}") from None
         return r.choices[0].message.content or ""
-    body = {"model": model, "stream": False, "format": "json",
+    body = {"model": model, "stream": False, **({"format": "json"} if json_mode else {}),
             "messages": [{"role": "user", "content": prompt, **({"images": list(images)} if images else {})}]}
     req = urllib.request.Request(OLLAMA + "/api/chat", data=json.dumps(body).encode(),
                                  headers={"Content-Type": "application/json"})

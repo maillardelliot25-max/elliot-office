@@ -39,6 +39,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+import jarvis_link  # noqa: E402
 import memory as memory_store  # noqa: E402
 import organizer  # noqa: E402
 import providers  # noqa: E402
@@ -88,8 +89,11 @@ DEFAULT_SETTINGS = {
     "image_model": "gemini-3.1-flash-image",  # Nano Banana 2; "gemini-3-pro-image" = Nano Banana Pro
     "video_model": "veo-3.1-generate-preview",
     "local_image_url": "http://127.0.0.1:7860",  # AUTOMATIC1111 / Forge / SD.Next with --api
+    "jarvis_link": True,      # use Jarvis (the home base on this PC) for screen history, PC files and its memory
+    "jarvis_url": "http://localhost:8780",
+    "jarvis_token": "",       # blank = read Jarvis/station_data/friday.token automatically
 }
-SECRET_KEYS = {"google_api_key", "anthropic_api_key", "openai_api_key"}
+SECRET_KEYS = {"google_api_key", "anthropic_api_key", "openai_api_key", "jarvis_token"}
 
 MAX_TOOL_ROUNDS = 30
 NEEDS_APPROVAL = {"write_file", "edit_file", "run_command", "run_python", "generate_video"}
@@ -522,7 +526,7 @@ TOOLS = [
      "params": {"query": "Keywords to look for"}, "required": ["query"]},
 ]
 
-TOOL_SCHEMAS = {t["name"]: t for t in TOOLS}
+TOOL_SCHEMAS = {t["name"]: t for t in TOOLS + jarvis_link.TOOLS}
 
 
 def valid_args(name, args):
@@ -572,8 +576,11 @@ def last_image(chat):
     return None
 
 
-def run_tool(name, args, chat=None, progress=lambda msg: None):
+def run_tool(name, args, chat=None, progress=lambda msg: None, model=""):
     a = args or {}
+    if name in ("pc_screen_history", "pc_files", "pc_status"):
+        progress("Asking Jarvis…")
+        return jarvis_link.run(name, a, load_settings(), lambda img: describe_screenshot(img, model))
     if name == "list_files":
         root = safe_path(a.get("path", "."))
         items = []
@@ -653,9 +660,25 @@ def run_tool(name, args, chat=None, progress=lambda msg: None):
     return f"Unknown tool {name}"
 
 
+def describe_screenshot(image, model=""):
+    """Describe an old screenshot: with the chat's own model if it can see, else an offline one (stays on the PC)."""
+    seer = model if model and "vision" in model_caps(model) else watch_model()
+    if not seer:
+        return ""
+    return providers.complete(seer, "This is a screenshot of my PC from earlier. Describe briefly what I was doing: "
+                              "the app or website, what was on screen, and any important details (names, numbers, "
+                              "prices, dates).", [image], load_settings(), json_mode=False)
+
+
 def recall(query, current=None):
     words = [w for w in re.findall(r"\w+", query.lower()) if len(w) > 2]
     found = [f"Memory: {m['text']}" for m in MEMORY.search(query, 8)]
+    s = load_settings()
+    if jarvis_link.status(s)["linked"]:
+        try:
+            found += jarvis_link.search_memory(s, query)
+        except jarvis_link.JarvisError:
+            pass
     for c in list_json(CHATS, ("id", "title", "updated")):
         if current and c["id"] == current.get("id"):
             continue
@@ -740,6 +763,12 @@ def system_prompt(tools_on, chat, opts):
             "photo (or to edit an attached image), and generate_video when they ask for a video. Use remember when the "
             "user tells you something worth keeping long-term, forget when they ask, and recall to look up past "
             "conversations. Do not ask for permission; the app asks the user for you.")
+        if jarvis_link.status(s)["linked"]:
+            parts.append(
+                "Jarvis, the home base on this PC, is connected: recall also searches Jarvis's memory of every "
+                "device's conversations. Use pc_screen_history for anything the user saw or did on the PC earlier "
+                "(\"what was that price I looked at\", \"what was I doing at 3pm\"), pc_files to find files anywhere "
+                "on the PC, and pc_status for the PC's health.")
     if opts.get("browser"):
         parts.append(
             "You are inside the user's Chrome browser (the Friday extension) and can operate it with the browser_* "
@@ -796,6 +825,8 @@ def converse(chat, model, opts, emit):
     caps = model_caps(model)
     wants_tools = opts.get("tools") or opts.get("research") or opts.get("math") or opts.get("build")
     tools = TOOLS if wants_tools and "tools" in caps else []
+    if tools and jarvis_link.status(settings)["linked"]:
+        tools = tools + jarvis_link.TOOLS
     if opts.get("browser") and "tools" in caps:
         tools = tools + BROWSER_TOOLS
     opts = {**opts, "caps": caps}
@@ -828,7 +859,7 @@ def converse(chat, model, opts, emit):
                     if name.startswith("browser_"):
                         output, is_error = browser_action(call["id"], name, args, emit, stop), False
                     else:
-                        output, is_error = run_tool(name, args, chat, lambda t: emit({"type": "status", "id": call["id"], "text": t})), False
+                        output, is_error = run_tool(name, args, chat, lambda t: emit({"type": "status", "id": call["id"], "text": t}), model), False
                 except Exception as e:
                     output, is_error = f"Error: {e}", True
             emit({"type": "tool_result", "id": call["id"], "output": output})
@@ -1056,6 +1087,10 @@ class Handler(BaseHTTPRequestHandler):
             elif url.path == "/api/lan_info":
                 self.send_json({"addresses": [f"{a}:{PORT}" for a in lan_addresses()],
                                 "phone_access": load_settings()["phone_access"], "listening_on_wifi": LISTEN != "127.0.0.1"})
+            elif url.path == "/api/jarvis":
+                st = jarvis_link.status(load_settings(), fresh=True)
+                self.send_json({"linked": st["linked"], "message": st["message"],
+                                "token_file": str(jarvis_link.TOKEN_FILE), "token_file_found": jarvis_link.TOKEN_FILE.exists()})
             elif url.path == "/api/lens_model":
                 self.send_json({"model": lens_model()})
             elif url.path == "/api/memory":
