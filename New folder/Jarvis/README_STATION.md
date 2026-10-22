@@ -284,3 +284,15 @@ For an always-there assistant on the phone (long-press the power button), use Fr
 
 If the switch says *voice isn't installed*, run `install_station.bat` again (it installs `vosk`, `sounddevice` and `pyttsx3`).
 
+## 15. Where your time went (activity insights)
+
+The **Recall** tab opens with *Where your time went*: time per app, activity by hour, and the last 7 days,
+worked out from screen memory. Each screenshot counts until the next one, at most 5 minutes, so breaks and
+locked time don't count. Step through days with ‹ ›, tap a bar for exact minutes, or tap a day in the week chart.
+Claude/Cowork can ask for the same numbers (`my_activity`), e.g. *"Where did my time go this week? Make me a chart."*
+
+## 16. Claude Cowork
+
+Cowork is the easiest way to install, update and repair Jarvis, and to give him big jobs.
+See [cowork/COWORK.md](cowork/COWORK.md). The batch files accept `/quiet` (no "press any key"), so Cowork can run them.
+

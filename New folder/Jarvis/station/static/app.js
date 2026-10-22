@@ -928,8 +928,109 @@ async function loadRecallStatus() {
   } catch (e) { $("#recState").textContent = e.message; }
 }
 
+// ── Where your time went (from screen memory) ──────────────────────────────
+
+let insightsDay = "";
+const fmtMins = (m) => (m >= 60 ? `${Math.floor(m / 60)} h ${Math.round(m % 60)} min` : `${Math.round(m)} min`);
+const isoDay = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+
+function tipOn(el, text) {
+  const tip = $("#chartTip");
+  const show = (e) => {
+    tip.textContent = text;
+    tip.classList.add("show");
+    const r = el.getBoundingClientRect();
+    tip.style.left = `${Math.min(window.innerWidth - tip.offsetWidth - 8, Math.max(8, r.left + r.width / 2 - tip.offsetWidth / 2))}px`;
+    tip.style.top = `${Math.max(8, r.top - tip.offsetHeight - 6)}px`;
+  };
+  const hide = () => tip.classList.remove("show");
+  el.addEventListener("pointerenter", show);
+  el.addEventListener("pointerleave", hide);
+  el.addEventListener("touchstart", (e) => { show(e); setTimeout(hide, 1800); }, { passive: true });
+}
+
+function columns(values, labels, kind, selected = -1, tipText) {
+  const max = Math.max(...values, 1);
+  const cols = document.createElement("div");
+  cols.className = `cols ${kind}`;
+  const ticks = document.createElement("div");
+  ticks.className = `ticks ${kind}`;
+  values.forEach((v, i) => {
+    const col = document.createElement("div");
+    col.className = "col" + (v ? "" : " zero");
+    col.innerHTML = `<i style="height:${(100 * v) / max}%"></i>`;
+    tipOn(col, tipText(i, v));
+    cols.append(col);
+    const t = document.createElement("span");
+    t.textContent = labels[i];
+    if (i === selected) t.className = "on";
+    ticks.append(t);
+  });
+  return [cols, ticks];
+}
+
+async function loadInsights(day = insightsDay) {
+  const card = $("#insightsCard");
+  let d;
+  try { d = await api(`/api/insights${day ? `?day=${day}` : ""}`); } catch (e) { card.textContent = e.message; return; }
+  insightsDay = d.day;
+  const today = isoDay(new Date());
+  const label = d.day === today ? "Today" : new Date(d.day + "T12:00").toLocaleDateString([], { weekday: "long", day: "numeric", month: "short" });
+  card.innerHTML = `<div class="ins-head"><button class="icon-btn" data-step="-1" title="Day before">‹</button>
+    <div class="what"><b></b><small></small></div><button class="icon-btn" data-step="1" title="Day after">›</button></div>`;
+  card.querySelector("b").textContent = `Where your time went · ${label}`;
+  card.querySelector("small").textContent = d.total_minutes
+    ? `${fmtMins(d.total_minutes)} on the PC · ${d.first.slice(11, 16)}–${d.last.slice(11, 16)}`
+    : "Nothing recorded this day (screen memory saves only when the screen changes).";
+  card.querySelectorAll("[data-step]").forEach((b) => {
+    const next = new Date(d.day + "T12:00");
+    next.setDate(next.getDate() + Number(b.dataset.step));
+    b.disabled = isoDay(next) > today;
+    b.onclick = () => loadInsights(isoDay(next));
+  });
+  if (!d.total_minutes && !d.week.some((w) => w.total_minutes)) return;
+
+  if (d.apps.length) {
+    const sec = document.createElement("div");
+    sec.className = "ins-sec";
+    sec.textContent = "By app";
+    const bars = document.createElement("div");
+    bars.className = "app-bars";
+    const top = d.apps.slice(0, 6);
+    const rest = d.apps.slice(6).reduce((s, a) => s + a.minutes, 0);
+    if (rest) top.push({ app: "Other", minutes: rest });
+    const max = Math.max(...top.map((a) => a.minutes));
+    top.forEach((a) => {
+      const row = document.createElement("div");
+      row.className = "app-bar";
+      row.innerHTML = `<span class="name"></span><div class="track"><div class="fill" style="width:${(100 * a.minutes) / max}%"></div></div><span class="val"></span>`;
+      row.querySelector(".name").textContent = a.app;
+      row.querySelector(".val").textContent = fmtMins(a.minutes);
+      bars.append(row);
+    });
+    card.append(sec, bars);
+  }
+
+  const hourSec = document.createElement("div");
+  hourSec.className = "ins-sec";
+  hourSec.textContent = "By hour";
+  const hourLabels = d.hours.map((_, h) => (h % 6 === 0 ? String(h).padStart(2, "0") : ""));
+  card.append(hourSec, ...columns(d.hours, hourLabels, "hours", -1,
+    (h, v) => `${String(h).padStart(2, "0")}:00–${String(h + 1).padStart(2, "0")}:00 · ${fmtMins(v)}`));
+
+  const weekSec = document.createElement("div");
+  weekSec.className = "ins-sec";
+  weekSec.textContent = "Last 7 days";
+  const days = d.week.map((w) => new Date(w.day + "T12:00").toLocaleDateString([], { weekday: "short" }));
+  const [wc, wt] = columns(d.week.map((w) => w.total_minutes), days, "week", 6,
+    (i, v) => `${new Date(d.week[i].day + "T12:00").toLocaleDateString([], { weekday: "long", day: "numeric", month: "short" })} · ${fmtMins(v)}`);
+  [...wc.children].forEach((col, i) => { col.style.cursor = "pointer"; col.onclick = () => loadInsights(d.week[i].day); });
+  card.append(weekSec, wc, wt);
+}
+
 async function loadRecall() {
   loadRecallStatus();
+  loadInsights();
   try {
     const segs = await api("/api/recall/segments");
     const list = $("#segList");

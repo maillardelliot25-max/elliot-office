@@ -6,7 +6,7 @@ if errorlevel 1 (
   echo Python is not installed.
   echo Install it from https://www.python.org/downloads/  ^(tick "Add python.exe to PATH"^)
   echo or open Terminal and run:  winget install Python.Python.3.12
-  pause
+  if /i not "%~1"=="/quiet" pause
   exit /b 1
 )
 if not exist .venv\Scripts\python.exe python -m venv .venv
@@ -14,14 +14,14 @@ if not exist .venv\Scripts\python.exe python -m venv .venv
 .venv\Scripts\python.exe -m pip install -r requirements-station.txt
 if errorlevel 1 (
   echo Install failed - see the error above.
-  pause
+  if /i not "%~1"=="/quiet" pause
   exit /b 1
 )
 echo Installing free Windows OCR for screen memory (optional)...
 .venv\Scripts\python.exe -m pip install winocr || echo   OCR skipped - screen memory will still work, just without searchable text.
 echo Installing "Hey Jarvis" voice (optional)...
 .venv\Scripts\python.exe -m pip install vosk sounddevice pyttsx3 || echo   Voice skipped - everything else still works.
-call install_sendto.bat
+call install_sendto.bat /quiet
 echo.
 echo  Done! Now double-click start_station.bat
-pause
+if /i not "%~1"=="/quiet" pause

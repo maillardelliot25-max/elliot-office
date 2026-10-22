@@ -3,7 +3,13 @@
 Your PC is the **God Station**. Jarvis lives on it, remembers everything, watches your screen,
 and you control it from your phone, tablet, Telegram, and Claude. **Everything is free.**
 
-## Set it up (about 30 minutes, once)
+## Easiest: let Claude Cowork do it
+
+Install the Claude desktop app, upload the two skills in [`cowork/`](cowork/COWORK.md), and say
+**"Set up Jarvis on this PC."** Cowork installs everything, starts Jarvis and tells you the PIN for your phone.
+Later, just say **"Update Jarvis."** Details: [cowork/COWORK.md](cowork/COWORK.md).
+
+## Or set it up yourself (about 30 minutes, once)
 
 | # | Do this | Where |
 |---|---|---|

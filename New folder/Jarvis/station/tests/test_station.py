@@ -306,3 +306,10 @@ def test_outbox_lists_and_removes_files(station):
     assert client.delete("/api/outbox", params={"name": "../../../etc/passwd"}).status_code == 404
     assert client.delete("/api/outbox", params={"name": "song.mp3"}).json()["ok"]
     assert not (outbox / "song.mp3").exists()
+
+
+def test_pin_is_written_for_local_helpers(tmp_path):
+    app = create_app(StationConfig(data_dir=tmp_path), control=FakeControl(tmp_path), brain=FakeBrain())
+    assert (tmp_path / "pairing_pin.txt").read_text() == app.state.auth.pin
+    TestClient(app).post("/api/pair", json={"pin": app.state.auth.pin})
+    assert (tmp_path / "pairing_pin.txt").read_text() == app.state.auth.pin  # rotated after use

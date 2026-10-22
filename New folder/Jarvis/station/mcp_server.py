@@ -106,6 +106,28 @@ def view_screen_moment(frame_id: int) -> Image:
 
 
 @mcp.tool()
+def my_activity(day: str = "") -> str:
+    """Where the user's time went on the PC (from screen memory): minutes per app and window, by hour,
+    and the last 7 days. day = 'YYYY-MM-DD' (default today)."""
+    d = _get("/api/insights", **({"day": day} if day else {})).json()
+    if not d["total_minutes"]:
+        return f"No screen activity recorded on {d['day']}."
+    apps = ", ".join(f"{a['app']} {a['minutes']:.0f} min" for a in d["apps"][:8])
+    wins = "\n".join(f"- {w['title']} ({w['app']}): {w['minutes']:.0f} min" for w in d["windows"][:8])
+    busiest = max(range(24), key=lambda h: d["hours"][h])
+    week = ", ".join(f"{w['day'][5:]}: {w['total_minutes'] / 60:.1f} h" for w in d["week"])
+    return (f"{d['day']}: {d['total_minutes'] / 60:.1f} h active ({d['first'][11:16]}–{d['last'][11:16]}).\n"
+            f"By app: {apps}.\nTop windows:\n{wins}\nBusiest hour: {busiest}:00.\nLast 7 days: {week}.")
+
+
+@mcp.tool()
+def say_out_loud(text: str) -> str:
+    """Jarvis says something out loud on the user's PC speakers."""
+    _post("/api/voice/say", {"text": text})
+    return "Said it, sir."
+
+
+@mcp.tool()
 def look_at_screen() -> Image:
     """See the user's PC screen right now."""
     return Image(data=_get("/api/screen", w=1366, q=70).content, format="jpeg")

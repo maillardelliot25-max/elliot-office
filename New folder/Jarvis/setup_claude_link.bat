@@ -3,8 +3,8 @@ rem Connects Jarvis to the Claude desktop app, so Claude can use Jarvis's memory
 cd /d "%~dp0"
 if not exist .venv\Scripts\python.exe (
   echo Run install_station.bat first.
-  pause
+  if /i not "%~1"=="/quiet" pause
   exit /b 1
 )
 .venv\Scripts\python.exe station\setup_claude.py
-pause
+if /i not "%~1"=="/quiet" pause

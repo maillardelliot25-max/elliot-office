@@ -632,6 +632,16 @@ def create_app(config: StationConfig, control: PCControl | None = None,
                 "max_bytes": int(settings["recall_max_gb"] * 2**30), "disk_free_bytes": free,
                 "ocr": recorder.ocr is not None}
 
+    @app.get("/api/insights")
+    def insights(day: str = "", _: str = Depends(device)):
+        """Where your time went: minutes per app, per hour, and the week, from screen memory."""
+        from datetime import date as _date
+        try:
+            d = _date.fromisoformat(day) if day else datetime.now().date()
+        except ValueError:
+            raise HTTPException(400, "day must look like 2026-10-22")
+        return {**recall.activity(d), "week": recall.week(d)}
+
     @app.get("/api/recall/segments")
     def recall_segments(_: str = Depends(device)):
         return recall.segments()

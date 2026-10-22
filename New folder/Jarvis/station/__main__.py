@@ -36,8 +36,14 @@ def main():
     print(f"  JARVIS GOD STATION v{__version__}  —  owner: {config.owner_name}")
     print("=" * 60)
     print("  Open one of these in Chrome on your phone:")
-    for label, ip in local_addresses():
-        print(f"    {label:<28} http://{ip}:{config.port}")
+    lines = [f"{label:<28} http://{ip}:{config.port}" for label, ip in local_addresses()]
+    for line in lines:
+        print(f"    {line}")
+    try:  # for helpers on this PC (e.g. Claude Cowork) that can't see this window
+        config.data_dir.mkdir(parents=True, exist_ok=True)
+        (config.data_dir / "addresses.txt").write_text("\n".join(lines) + "\n")
+    except OSError:
+        pass
     print(f"  Brain: Ollama {config.ollama_model} @ {config.ollama_url}")
     print(f"  Terminal from phone: {'ON' if config.allow_shell else 'OFF'}")
     print("=" * 60, flush=True)

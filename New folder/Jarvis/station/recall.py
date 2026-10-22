@@ -23,7 +23,7 @@ import re
 import shutil
 import sqlite3
 import threading
-from datetime import datetime
+from datetime import date, datetime, timedelta
 from pathlib import Path
 
 logger = logging.getLogger("jarvis.station.recall")
@@ -58,6 +58,18 @@ CREATE TRIGGER IF NOT EXISTS frames_ad AFTER DELETE ON frames BEGIN
     INSERT INTO frames_fts(frames_fts, rowid, window, text) VALUES ('delete', old.id, old.window, old.text);
 END;
 """
+
+
+GAP_CAP_SECONDS = 300    # a screenshot "covers" the time until the next one, at most 5 min (idle beyond that)
+LAST_FRAME_SECONDS = 30
+
+
+def app_of(window: str) -> str:
+    """'Inbox - Gmail — chrome' → 'chrome' (Jarvis saves window titles as 'title — program')."""
+    if " — " in window:
+        title, app = window.rsplit(" — ", 1)
+        return app.strip() or title.strip() or "Unknown"
+    return window.strip() or "Unknown"
 
 
 def segment_of(dt: datetime) -> str:
@@ -148,6 +160,50 @@ class RecallStore:
                    FROM frames GROUP BY segment ORDER BY segment DESC"""
             ).fetchall()
         return [{**dict(r), "label": segment_label(r["segment"])} for r in rows]
+
+    # ── Where your time went ─────────────────────────────────────────────────
+
+    def _day_rows(self, day: date) -> list:
+        start = datetime.combine(day, datetime.min.time())
+        with self._lock:
+            return self.db.execute(
+                "SELECT ts, window FROM frames WHERE ts >= ? AND ts < ? ORDER BY ts",
+                (start.isoformat(timespec="seconds"), (start + timedelta(days=1)).isoformat(timespec="seconds")),
+            ).fetchall()
+
+    def activity(self, day: date) -> dict:
+        rows = self._day_rows(day)
+        apps: dict[str, float] = {}
+        windows: dict[tuple, float] = {}
+        hours = [0.0] * 24
+        for i, r in enumerate(rows):
+            ts = datetime.fromisoformat(r["ts"])
+            if i + 1 < len(rows):
+                secs = min((datetime.fromisoformat(rows[i + 1]["ts"]) - ts).total_seconds(), GAP_CAP_SECONDS)
+            else:
+                secs = LAST_FRAME_SECONDS
+            app = app_of(r["window"])
+            title = r["window"].rsplit(" — ", 1)[0].strip() if " — " in r["window"] else r["window"]
+            apps[app] = apps.get(app, 0) + secs
+            windows[(title or app, app)] = windows.get((title or app, app), 0) + secs
+            hours[ts.hour] += secs
+        total = sum(apps.values())
+        mins = lambda secs: round(secs / 60, 1)
+        return {
+            "day": day.isoformat(),
+            "total_minutes": mins(total),
+            "first": rows[0]["ts"] if rows else None,
+            "last": rows[-1]["ts"] if rows else None,
+            "apps": [{"app": a, "minutes": mins(v), "share": round(v / total, 3) if total else 0}
+                     for a, v in sorted(apps.items(), key=lambda kv: -kv[1])],
+            "windows": [{"title": t, "app": a, "minutes": mins(v)}
+                        for (t, a), v in sorted(windows.items(), key=lambda kv: -kv[1])[:10]],
+            "hours": [mins(h) for h in hours],
+        }
+
+    def week(self, last_day: date) -> list[dict]:
+        return [{"day": (d := last_day - timedelta(days=n)).isoformat(),
+                 "total_minutes": self.activity(d)["total_minutes"]} for n in range(6, -1, -1)]
 
     def total_bytes(self) -> int:
         with self._lock:

@@ -652,3 +652,52 @@ def test_voice_say_endpoint(tmp_path):
                      voice_parts={"speak": spoken.append})
     assert paired(app).post("/api/voice/say", json={"text": "Good morning, sir."}).json()["ok"]
     assert spoken == ["Good morning, sir."]
+
+
+# ── Where your time went ────────────────────────────────────────────────────
+
+def test_activity_insights(tmp_path, monkeypatch):
+    from datetime import date, timedelta as td
+    from station.recall import app_of
+    assert app_of("Inbox - Gmail — chrome") == "chrome" and app_of("Untitled") == "Untitled"
+
+    store = RecallStore(tmp_path / "recall")
+    t0 = datetime(2026, 10, 22, 9, 0, 0)
+    shots = [(0, "Apply — chrome"), (120, "Apply — chrome"), (240, "budget.xlsx — EXCEL"),
+             (360, "budget.xlsx — EXCEL"), (5000, "YouTube — chrome")]  # 5000 s: a long idle gap
+    for secs, window in shots:
+        store.add_frame(t0 + td(seconds=secs), b"j", window)
+    store.add_frame(datetime(2026, 10, 21, 20, 0), b"j", "Netflix — chrome")
+
+    a = store.activity(date(2026, 10, 22))
+    apps = {x["app"]: x["minutes"] for x in a["apps"]}
+    assert apps == {"chrome": 4.5, "EXCEL": 7.0}  # 2+2 min + last 30 s; 2 min + idle gap capped at 5 min
+    assert a["total_minutes"] == 11.5 and a["first"].endswith("09:00:00")
+    assert a["hours"][9] == 11.0 and a["hours"][10] == 0.5 and sum(a["hours"]) == 11.5
+    assert a["windows"][0] == {"title": "budget.xlsx", "app": "EXCEL", "minutes": 7.0}
+
+    week = store.week(date(2026, 10, 22))
+    assert [w["day"] for w in week][-2:] == ["2026-10-21", "2026-10-22"]
+    assert week[-2]["total_minutes"] == 0.5 and week[-1]["total_minutes"] == 11.5
+    assert store.activity(date(2026, 10, 1))["total_minutes"] == 0
+
+
+def test_insights_api_and_claude_tool(station, monkeypatch):
+    client, app, tmp = station
+    app.state.recall.add_frame(datetime(2026, 10, 22, 14, 5), b"j", "Report — WINWORD")
+    app.state.recall.add_frame(datetime(2026, 10, 22, 14, 7), b"j", "Report — WINWORD")
+    r = client.get("/api/insights", params={"day": "2026-10-22"}).json()
+    assert r["apps"][0]["app"] == "WINWORD" and len(r["hours"]) == 24 and len(r["week"]) == 7
+    assert client.get("/api/insights", params={"day": "yesterday"}).status_code == 400
+
+    from station import mcp_server
+    token = (tmp / "data" / "claude.token").read_text()
+
+    def fake_client():
+        tc = TestClient(app)
+        tc.headers["Authorization"] = f"Bearer {token}"
+        return tc
+    monkeypatch.setattr(mcp_server, "_client", fake_client)
+    text = mcp_server.my_activity("2026-10-22")
+    assert "WINWORD 2 min" in text and "Busiest hour: 14:00" in text
+    assert "No screen activity" in mcp_server.my_activity("2026-01-01")

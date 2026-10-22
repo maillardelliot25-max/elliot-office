@@ -53,6 +53,11 @@ class DeviceAuth:
     def new_pin(self) -> str:
         self.pin = f"{secrets.randbelow(1_000_000):06d}"
         self.failed = 0
+        # also in a file, so a helper on this PC (e.g. Claude Cowork setting Jarvis up) can tell you the PIN
+        try:
+            (self.path.parent / "pairing_pin.txt").write_text(self.pin)
+        except OSError:
+            pass
         print(f"\n  🔑  PAIRING PIN: {self.pin}   (type this into the app on your phone)\n", flush=True)
         return self.pin
 
