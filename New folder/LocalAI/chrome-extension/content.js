@@ -1,8 +1,8 @@
 // Friday on every page: when you start filling in a form, offer to fill it for you.
 (() => {
-  if (window.__jarvisForms) return;
+  if (window.__fridayForms) return;
   const esc = t => String(t).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
-  window.__jarvisForms = true;
+  window.__fridayForms = true;
   const offered = new WeakSet();
   const FIELDS = 'input:not([type=hidden]):not([type=submit]):not([type=button]):not([type=password]):not([type=file]), textarea, select';
   const SECRET = /pass|card|cvv|cvc|iban|sort.?code|account.?num|ssn|social.?sec|pin\b|otp|one.?time/i;
@@ -52,7 +52,7 @@
   }
 
   async function settings() {
-    try { return await chrome.runtime.sendMessage({ type: "jarvis-settings" }); } catch { return null; }
+    try { return await chrome.runtime.sendMessage({ type: "friday-settings" }); } catch { return null; }
   }
 
   document.addEventListener("focusin", async e => {
@@ -67,7 +67,7 @@
     card(`I've got this${sir}. Shall I fill in this form for you? I'll use what I know about you, then you check it and press submit.`, [
       ["Fill it for me", true, () => fill(form, s)],
       ["No thanks", false, () => close(form)],
-      ["Not on this site", false, () => { chrome.runtime.sendMessage({ type: "jarvis-mute", host: location.hostname }); close(form); }],
+      ["Not on this site", false, () => { chrome.runtime.sendMessage({ type: "friday-mute", host: location.hostname }); close(form); }],
     ], form);
   }, true);
 
@@ -79,7 +79,7 @@
       current: f.value || "",
     }));
     card(`Right away${s.butler ? ", sir" : ""}. Filling it in…`, [], form);
-    const r = await chrome.runtime.sendMessage({ type: "jarvis-autofill", fields: list, title: document.title, url: location.href });
+    const r = await chrome.runtime.sendMessage({ type: "friday-autofill", fields: list, title: document.title, url: location.href });
     if (!r || r.error) return card(`Sorry${s.butler ? ", sir" : ""}, I couldn't fill it: ${esc(r?.error || "Friday isn't reachable")}`, [["OK", true, () => close(form)]]);
     let n = 0;
     const missing = [];

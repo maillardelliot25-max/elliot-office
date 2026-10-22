@@ -882,7 +882,7 @@ class Handler(BaseHTTPRequestHandler):
             self.send_header("Access-Control-Allow-Origin", self.cors)
         if getattr(self, "set_cookie", False):
             token = load_settings()["chrome_token"]
-            self.send_header("Set-Cookie", f"jarvis_key={token}; HttpOnly; SameSite=Strict; Path=/; Max-Age=31536000")
+            self.send_header("Set-Cookie", f"friday_key={token}; HttpOnly; SameSite=Strict; Path=/; Max-Age=31536000")
         super().end_headers()
 
     def do_OPTIONS(self):
@@ -891,7 +891,7 @@ class Handler(BaseHTTPRequestHandler):
         if origin.startswith("chrome-extension://"):
             self.send_header("Access-Control-Allow-Origin", origin)
             self.send_header("Access-Control-Allow-Methods", "GET, POST, DELETE")
-            self.send_header("Access-Control-Allow-Headers", "Content-Type, X-Jarvis-Token")
+            self.send_header("Access-Control-Allow-Headers", "Content-Type, X-Friday-Token, X-Jarvis-Token")
         self.end_headers()
 
     def send_bytes(self, data, ctype, code=200):
@@ -967,9 +967,9 @@ class Handler(BaseHTTPRequestHandler):
         return False
 
     def presented_code(self):
-        """The pairing code: X-Jarvis-Token header, or "Authorization: Bearer <code>" for OpenAI-style clients."""
+        """The pairing code: X-Friday-Token header (or the old X-Jarvis-Token), or "Authorization: Bearer <code>" for OpenAI-style clients."""
         auth = self.headers.get("Authorization") or ""
-        return self.headers.get("X-Jarvis-Token") or (auth[7:].strip() if auth.lower().startswith("bearer ") else "")
+        return self.headers.get("X-Friday-Token") or self.headers.get("X-Jarvis-Token") or (auth[7:].strip() if auth.lower().startswith("bearer ") else "")
 
     def guard_remote(self):
         """Another device on your Wi-Fi (the Friday phone app, or a phone browser): only with phone
@@ -982,7 +982,7 @@ class Handler(BaseHTTPRequestHandler):
         url = urllib.parse.urlparse(self.path)
         key = urllib.parse.parse_qs(url.query).get("key", [""])[0] if url.path in ("/", "/index.html") else ""
         cookie = SimpleCookie(self.headers.get("Cookie") or "")
-        presented = self.presented_code() or key or (cookie["jarvis_key"].value if "jarvis_key" in cookie else "")
+        presented = self.presented_code() or key or next((cookie[k].value for k in ("friday_key", "jarvis_key") if k in cookie), "")
         if not hmac.compare_digest(presented, s["chrome_token"]):
             self.send_json({"error": "Friday isn't paired: use the pairing code from Settings on the PC."}, 401)
             return False
@@ -999,7 +999,7 @@ class Handler(BaseHTTPRequestHandler):
         url = urllib.parse.urlparse(self.path)
         try:
             if url.path in ("/", "/index.html"):
-                page = (APP_DIR / "index.html").read_text("utf-8").replace("__JARVIS_TOKEN__", load_settings()["chrome_token"])
+                page = (APP_DIR / "index.html").read_text("utf-8").replace("__FRIDAY_TOKEN__", load_settings()["chrome_token"])
                 self.send_bytes(page.encode(), "text/html; charset=utf-8")
             elif url.path.startswith("/media/"):
                 name = Path(urllib.parse.unquote(url.path[7:])).name
@@ -1269,7 +1269,7 @@ class Handler(BaseHTTPRequestHandler):
         """OpenAI-style chat for your other systems (device manager, scripts, Friday…): any brain, plus
         Friday's memory of you when they don't send their own system prompt."""
         model = b.get("model") or ""
-        if model in ("", "auto", "default", "jarvis"):
+        if model in ("", "auto", "default", "friday", "jarvis"):
             model = load_settings()["default_model"] or next((m["name"] for m in list_models()["models"]), "")
         system, msgs = [], []
         for m in b.get("messages") or []:

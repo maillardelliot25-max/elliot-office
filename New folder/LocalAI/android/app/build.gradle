@@ -3,11 +3,11 @@ plugins {
 }
 
 android {
-    namespace 'com.maillard.jarvis'
+    namespace 'com.maillard.friday'
     compileSdk 35
 
     defaultConfig {
-        applicationId 'com.maillard.jarvis'
+        applicationId 'com.maillard.friday'
         minSdk 29          // Android 10+: needed for the assistant's screen-reading API
         targetSdk 35
         versionCode 1

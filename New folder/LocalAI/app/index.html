@@ -503,8 +503,8 @@
 
 <script>
 const $ = id => document.getElementById(id);
-const TOKEN = "__JARVIS_TOKEN__";   // filled in by the server; every API call must carry it
-const HEADERS = { "Content-Type": "application/json", "X-Jarvis-Token": TOKEN };
+const TOKEN = "__FRIDAY_TOKEN__";   // filled in by the server; every API call must carry it
+const HEADERS = { "Content-Type": "application/json", "X-Friday-Token": TOKEN };
 const esc = s => String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const PREVIEW = ["html", "svg", "xml", "jsx", "tsx", "react", "mermaid", "markdown", "md"];
 let chatId = null, models = [], busy = false, controller = null, pending = [], settings = {}, projects = [], allChats = [];

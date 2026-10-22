@@ -9,8 +9,8 @@ bottom where you can ask about it. Esc hides it.
 Runs alongside the Elliot AI app (it talks to http://localhost:8765) and uses
 the same chats, memory and models.
 
-    pythonw jarvis_lens.py        (Windows, no console window)
-    python3 jarvis_lens.py        (Mac / Linux)
+    pythonw friday_lens.py        (Windows, no console window)
+    python3 friday_lens.py        (Mac / Linux)
 
 Needs: pip install pynput mss pillow
 """
@@ -56,7 +56,7 @@ def settings():
 def call(path, body=None):
     req = urllib.request.Request(SERVER + path, data=json.dumps(body).encode() if body is not None else None,
                                  headers={"Content-Type": "application/json",
-                                          "X-Jarvis-Token": settings().get("chrome_token", "")})
+                                          "X-Friday-Token": settings().get("chrome_token", "")})
     return urllib.request.urlopen(req, timeout=600)
 
 

@@ -1,4 +1,4 @@
-package com.maillard.jarvis;
+package com.maillard.friday;
 
 import android.content.ComponentName;
 import android.content.Intent;
@@ -13,7 +13,7 @@ import android.speech.SpeechRecognizer;
  * phone's default when you pick the assistant. So that voice typing keeps working everywhere,
  * this one simply passes everything through to the phone's real recogniser.
  */
-public class JarvisRecognitionService extends RecognitionService {
+public class FridayRecognitionService extends RecognitionService {
     private SpeechRecognizer delegate;
 
     @Override

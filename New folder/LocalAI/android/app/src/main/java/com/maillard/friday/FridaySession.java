@@ -1,4 +1,4 @@
-package com.maillard.jarvis;
+package com.maillard.friday;
 
 import android.app.assist.AssistStructure;
 import android.content.Context;
@@ -16,14 +16,14 @@ import android.view.WindowManager;
  * Runs when you swipe up from a bottom corner (or hold the side key) with Friday set as the
  * digital assistant. Android hands us a screenshot and the text on screen; the panel asks about them.
  */
-public class JarvisSession extends VoiceInteractionSession {
+public class FridaySession extends VoiceInteractionSession {
     private AssistPanel panel;
     // Screen data can arrive just before or just after onShow, so keep the latest copy
     private Bitmap lastShot;
     private String lastText;
     private long lastAt;
 
-    JarvisSession(Context context) {
+    FridaySession(Context context) {
         super(context);
     }
 

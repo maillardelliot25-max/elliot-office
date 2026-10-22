@@ -1,4 +1,4 @@
-package com.maillard.jarvis;
+package com.maillard.friday;
 
 import android.content.Context;
 
@@ -33,7 +33,7 @@ final class Api {
         con.setConnectTimeout(6000);
         con.setReadTimeout(readTimeoutMs);
         con.setRequestProperty("Content-Type", "application/json");
-        con.setRequestProperty("X-Jarvis-Token", token);
+        con.setRequestProperty("X-Friday-Token", token);
         return con;
     }
 

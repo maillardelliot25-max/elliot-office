@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <voice-interaction-service xmlns:android="http://schemas.android.com/apk/res/android"
-    android:sessionService="com.maillard.jarvis.JarvisSessionService"
-    android:recognitionService="com.maillard.jarvis.JarvisRecognitionService"
-    android:settingsActivity="com.maillard.jarvis.MainActivity"
+    android:sessionService="com.maillard.friday.FridaySessionService"
+    android:recognitionService="com.maillard.friday.FridayRecognitionService"
+    android:settingsActivity="com.maillard.friday.MainActivity"
     android:supportsAssist="true"
     android:supportsLaunchVoiceAssistFromKeyguard="false" />

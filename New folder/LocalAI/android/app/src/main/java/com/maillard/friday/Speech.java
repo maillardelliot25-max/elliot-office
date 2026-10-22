@@ -1,4 +1,4 @@
-package com.maillard.jarvis;
+package com.maillard.friday;
 
 import android.content.ComponentName;
 import android.content.Context;

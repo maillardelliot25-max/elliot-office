@@ -1,4 +1,4 @@
-package com.maillard.jarvis;
+package com.maillard.friday;
 
 import android.content.Context;
 import android.content.SharedPreferences;
@@ -8,7 +8,7 @@ final class Prefs {
     private Prefs() {}
 
     private static SharedPreferences sp(Context c) {
-        return c.getSharedPreferences("jarvis", Context.MODE_PRIVATE);
+        return c.getSharedPreferences("friday", Context.MODE_PRIVATE);
     }
 
     static String server(Context c) {

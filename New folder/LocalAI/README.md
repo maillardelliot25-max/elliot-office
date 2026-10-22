@@ -161,7 +161,7 @@ For a video background, use **⬆ Upload** (MP4 or WebM, up to 150 MB; short loo
 3. Back in Settings, note the **PC address** (like `192.168.1.20:8765`) and the **pairing code**.
 
 **On the phone:**
-1. Install the app: open `https://github.com/maillardelliot25-max/elliot-office/releases/tag/jarvis-android` in the phone's browser (sign in to GitHub if asked), download **Friday.apk**, open it, and allow installing from your browser when asked. GitHub rebuilds this file whenever the app's code changes.
+1. Install the app: open `https://github.com/maillardelliot25-max/elliot-office/releases/tag/friday-android` in the phone's browser (sign in to GitHub if asked), download **Friday.apk**, open it, and allow installing from your browser when asked. GitHub rebuilds this file whenever the app's code changes. *Already have the older phone app installed? Uninstall it first. The new version installs as a separate app.*
 2. Open **Friday**, enter the PC address and pairing code, and tap **Connect**.
 3. Tap **Open assistant settings** and choose Friday as the **Digital assistant app / Device assistance app**. On the same screen, turn on **Use screenshot** and **Analyse text on screen** (wording varies by phone and One UI version).
 4. Pick how to open it:
@@ -187,8 +187,8 @@ Anything that can talk to an OpenAI-style API can use **every brain you've added
 
 ```python
 from openai import OpenAI
-jarvis = OpenAI(base_url="http://localhost:8765/v1", api_key="YOUR-PAIRING-CODE")
-reply = jarvis.chat.completions.create(model="auto", messages=[{"role": "user", "content": "Summarise today's device alerts"}])
+friday = OpenAI(base_url="http://localhost:8765/v1", api_key="YOUR-PAIRING-CODE")
+reply = friday.chat.completions.create(model="auto", messages=[{"role": "user", "content": "Summarise today's device alerts"}])
 print(reply.choices[0].message.content)
 ```
 

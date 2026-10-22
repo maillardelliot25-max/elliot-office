@@ -9,7 +9,7 @@ let lastPage = "";   // the page already attached to this chat, so it isn't sent
 async function api(path, opts = {}) {
   const r = await fetch(cfg.server + path, {
     ...opts,
-    headers: { "Content-Type": "application/json", "X-Jarvis-Token": cfg.token },
+    headers: { "Content-Type": "application/json", "X-Friday-Token": cfg.token },
     body: opts.body && JSON.stringify(opts.body),
   });
   const j = await r.json();
@@ -127,10 +127,10 @@ async function inPage(func, ...args) {
 // These run inside the web page.
 function pageRead() {
   const visible = el => { const r = el.getBoundingClientRect(), s = getComputedStyle(el); return r.width > 0 && r.height > 0 && s.visibility !== "hidden" && s.display !== "none"; };
-  document.querySelectorAll("[data-jarvis]").forEach(e => e.removeAttribute("data-jarvis"));
+  document.querySelectorAll("[data-friday]").forEach(e => e.removeAttribute("data-friday"));
   const els = [...document.querySelectorAll('a[href], button, input:not([type=hidden]), textarea, select, [role=button], [role=link], [role=tab], [contenteditable=true]')].filter(visible).slice(0, 200);
   const list = els.map((el, i) => {
-    el.setAttribute("data-jarvis", i + 1);
+    el.setAttribute("data-friday", i + 1);
     const tag = el.tagName.toLowerCase();
     const label = (el.innerText || el.value || el.placeholder || el.getAttribute("aria-label") || el.title || el.name || "").trim().replace(/\s+/g, " ").slice(0, 80);
     return `[${i + 1}] ${tag === "input" ? `input(${el.type})` : tag} "${label}"${tag === "a" ? " → " + el.href.slice(0, 90) : ""}`;
@@ -140,7 +140,7 @@ function pageRead() {
 }
 function pageAct(action, target, text, enter) {
   const find = t => {
-    if (/^\d+$/.test(String(t).trim())) return document.querySelector(`[data-jarvis="${String(t).trim()}"]`);
+    if (/^\d+$/.test(String(t).trim())) return document.querySelector(`[data-friday="${String(t).trim()}"]`);
     const want = String(t).toLowerCase().trim();
     const all = [...document.querySelectorAll('a, button, input, textarea, select, [role=button], [role=link], [role=tab], [contenteditable=true], label')];
     const label = el => (el.innerText || el.value || el.placeholder || el.getAttribute("aria-label") || el.title || el.name || "").toLowerCase().trim();
@@ -246,7 +246,7 @@ async function send(text, { image } = {}) {
   try {
     const r = await fetch(cfg.server + "/api/chat", {
       method: "POST", signal: controller.signal,
-      headers: { "Content-Type": "application/json", "X-Jarvis-Token": cfg.token },
+      headers: { "Content-Type": "application/json", "X-Friday-Token": cfg.token },
       body: JSON.stringify({ chat_id: chatId, model, message: { content: text, files, images }, tools: true, browser: browse, autopilot }),
     });
     if (!r.ok) throw new Error((await r.json()).error || r.statusText);
