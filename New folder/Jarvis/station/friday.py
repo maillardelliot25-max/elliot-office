@@ -40,7 +40,7 @@ class FridayLink:
         self.settings = settings
         self.transport = transport
         self._memories: list[dict] = []
-        self._memories_at = 0.0
+        self._memories_at: float | None = None  # None = never fetched (not 0: uptime can be < 60 s after boot)
 
     @property
     def url(self) -> str:
@@ -85,7 +85,7 @@ class FridayLink:
     # ── Shared memory ────────────────────────────────────────────────────────
 
     async def memories(self) -> list[dict]:
-        if time.monotonic() - self._memories_at < MEMORY_CACHE_SECONDS:
+        if self._memories_at is not None and time.monotonic() - self._memories_at < MEMORY_CACHE_SECONDS:
             return self._memories
         self._memories = (await self._request("GET", "/api/memory")).get("memories", [])
         self._memories_at = time.monotonic()
@@ -116,7 +116,7 @@ class FridayLink:
             return False
         try:
             await self._request("POST", "/api/memory", json={"text": text, "category": category})
-            self._memories_at = 0.0
+            self._memories_at = None  # fetch fresh next time
             return True
         except FridayError as e:
             logger.info(f"[FRIDAY] couldn't share memory: {e}")

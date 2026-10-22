@@ -544,3 +544,37 @@ def test_setup_checklist_shows_friday(tmp_path):
     assert not item["ok"] and "pairing code" in item["fix"]
     client.patch("/api/settings", json={"friday_code": "PAIR-123"})
     assert {i["key"]: i for i in client.get("/api/setup").json()["items"]}["friday"]["ok"]
+
+
+def test_contract_friday_relies_on(tmp_path):
+    """Friday (LocalAI/app/jarvis_link.py) calls these with friday.token. Keep their shapes stable."""
+    import io as _io
+    app = create_app(StationConfig(data_dir=tmp_path), control=FakeControl(tmp_path), brain=FakeBrain())
+    c = TestClient(app)
+    c.headers["Authorization"] = f"Bearer {(tmp_path / 'friday.token').read_text()}"
+    buf = _io.BytesIO()
+    Image.new("RGB", (64, 36), "white").save(buf, "JPEG")
+    fid = app.state.recall.add_frame(datetime(2026, 10, 22, 9, 30), buf.getvalue(), "Invoice — chrome", "Total due 1,250")
+    app.state.memory.add("you", "the invoice is due Friday", "Phone")
+
+    assert c.get("/api/system").status_code == 200
+    hit = c.get("/api/recall/search", params={"q": "total due", "limit": 5}).json()[0]
+    assert {"id", "ts", "window", "snippet"} <= set(hit) and hit["ts"] == "2026-10-22T09:30:00"
+    frames = c.get("/api/recall/frames", params={"segment": "2026-10-22_08-16", "limit": 200}).json()
+    assert frames[0]["id"] == fid and {"id", "ts", "window"} <= set(frames[0])
+    assert c.get("/api/recall/frames", params={"segment": "2026-10-22_08-16", "before_id": fid}).json() == []
+    assert c.get(f"/api/recall/frame/{fid}", params={"w": 1280}).headers["content-type"] == "image/jpeg"
+    mem = c.get("/api/memory/search", params={"q": "invoice", "limit": 5}).json()[0]
+    assert {"ts", "device", "role", "text"} <= set(mem)
+    listing = c.get("/api/files", params={"path": str(tmp_path)}).json()
+    assert {"path", "entries"} <= set(listing)
+    assert {"name", "path", "is_dir", "size", "modified"} <= set(listing["entries"][0])
+
+
+def test_friday_memory_right_after_boot(monkeypatch):
+    """A freshly started PC has a small uptime clock; the empty cache must not count as fresh."""
+    import station.friday as fr
+    monkeypatch.setattr(fr.time, "monotonic", lambda: 5.0)
+    settings = {"friday": True, "friday_code": "PAIR-123", "friday_url": "http://localhost:8765", "friday_share_memory": True}
+    link = fr.FridayLink(settings, transport=httpx.MockTransport(FakeFriday()))
+    assert "Usher" in asyncio.run(link.relevant_memories("my favourite artist"))[0]["text"]
