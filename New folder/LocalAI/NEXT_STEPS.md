@@ -52,11 +52,19 @@ Every `/api/*` and `/v1/*` call needs the pairing code (header `X-Friday-Token`,
 - Screen memory and screenshots stay on the PC unless the user chooses a cloud brain; keep it **off by default**.
 - Every remote request needs the pairing code.
 
-## Working alongside Jarvis Station / Cowork
+## Working alongside Jarvis (home base)
 
-Elliot's other project, **Jarvis God Station** (branch `claude/cross-device-home-app-epwsbl`, folder `New folder/Jarvis/`), controls the PC from the phone and is gaining an autonomous "Cowork" agent. To run both on one PC:
+The split Elliot agreed: **Friday** is the everywhere AI (Chrome, Android, on the go). **Jarvis** (branch `claude/cross-device-home-app-epwsbl`, folder `New folder/Jarvis/`) is the home base: the PC, files, screen memory (Recall), management and data.
 
-- **Ports:** Friday uses **8765**. Station also defaults to 8765, so start it with `STATION_PORT=8780` (in its `.env`). If the port is taken, Friday now says so and exits instead of crashing.
-- **One brain:** Station/Cowork can think through Friday's OpenAI-compatible gateway at `http://localhost:8765/v1/chat/completions` (`Authorization: Bearer <pairing code>`). That gives it every brain set up in Friday: Ollama, Claude, Gemini, OpenAI and custom brains.
-- **Shared memory:** `GET/POST /api/memory` (header `X-Friday-Token: <pairing code>`).
-- **Don't run duplicates:** both have an 8-hour screen recorder and a Chrome form helper. Keep Station's Recall (it has OCR search) and leave Friday's screen memory off. Load only one of the two form-helper extensions.
+- **Ports:** Friday uses **8765**, Jarvis uses **8780**. If 8765 is taken, Friday says so and exits.
+- **Duplicates:** Jarvis keeps screen memory (it has OCR search). Leave Friday's screen memory off. Elliot keeps only one of the two form-helper extensions.
+
+**Jarvis calls Friday.** Keep these shapes stable. Jarvis sends the pairing code as `X-Jarvis-Token`, so the server must keep accepting that old header name.
+- `GET /v1/models`
+- `GET /api/memory` and `POST /api/memory {"text", "category": "Other"}`
+- `POST /v1/chat/completions {"model", "messages", "stream": false}` (sometimes with Jarvis's own system prompt, expecting JSON `{"reply", "actions"}`)
+
+**Friday can call Jarvis** (not wired up yet) at `http://localhost:8780` with `Authorization: Bearer <token>`. Jarvis writes the token to `Jarvis/station_data/friday.token` on startup.
+- `GET /api/recall/search?q=` and `GET /api/recall/frames?limit=` (screen history)
+- `GET /api/memory/search?q=` and `POST /api/memory/note {"text"}`
+- `GET /api/files?path=`, `GET /api/system`, `GET /api/clipboard`
