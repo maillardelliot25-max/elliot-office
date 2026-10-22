@@ -578,3 +578,77 @@ def test_friday_memory_right_after_boot(monkeypatch):
     settings = {"friday": True, "friday_code": "PAIR-123", "friday_url": "http://localhost:8765", "friday_share_memory": True}
     link = fr.FridayLink(settings, transport=httpx.MockTransport(FakeFriday()))
     assert "Usher" in asyncio.run(link.relevant_memories("my favourite artist"))[0]["text"]
+
+
+# ── "Hey Jarvis" voice ──────────────────────────────────────────────────────
+
+from station.voice import speakable, split_wake
+
+
+@pytest.mark.parametrize("heard,command", [
+    ("hey jarvis open youtube", "open youtube"),
+    ("ok jarvis, what's the time", "what's the time"),
+    ("jarvis", ""),
+    ("so jarvis lock my pc", "lock my pc"),
+    ("turn the music up", None),
+])
+def test_wake_word(heard, command):
+    assert split_wake(heard) == command
+
+
+def test_speakable_reads_naturally():
+    assert speakable("✅ **Done**, sir — see https://example.com/x") == "Done, sir see a link"
+    assert speakable("word " * 200).endswith("The rest is in the app, sir.")
+
+
+def test_hey_jarvis_end_to_end(tmp_path):
+    import threading
+    import time as _t
+    heard = ["what a nice day",              # not for Jarvis: ignored
+             "hey jarvis volume up",         # instant command
+             "jarvis", "next song",          # name first, then the request
+             "hey jarvis shut down my pc",   # risky → asks
+             "yes",
+             "hey jarvis restart my pc",
+             "no"]
+    spoken, done = [], threading.Event()
+
+    def listen(model_dir, is_paused, should_stop):
+        for sentence in heard:
+            assert not is_paused()
+            yield sentence
+        done.set()
+        while not should_stop():
+            _t.sleep(0.05)
+
+    def speak(text):
+        spoken.append(text)
+
+    control = FakeControl(tmp_path)
+    app = create_app(StationConfig(data_dir=tmp_path), control=control, brain=FakeBrain(),
+                     voice_parts={"listen": listen, "speak": speak, "model": lambda folder: folder})
+    with TestClient(app) as client:
+        token = client.post("/api/pair", json={"pin": app.state.auth.pin}).json()["token"]
+        client.headers["Authorization"] = f"Bearer {token}"
+        assert client.get("/api/voice").json()["state"] == "off"  # off until switched on
+        client.patch("/api/settings", json={"voice": True})
+        assert done.wait(10)
+        _t.sleep(0.5)
+        status = client.get("/api/voice").json()
+    assert spoken[0].startswith("Volume up")
+    assert spoken[1] == "Yes, sir?"
+    assert spoken[2].lower().startswith("next track")
+    assert spoken[3] == "Shutdown PC. Shall I go ahead? Say yes or no."
+    assert spoken[4] == "shutdown ok" and ("power", "shutdown") in control.calls
+    assert spoken[5].endswith("Say yes or no.") and spoken[6] == "Cancelled, sir."
+    assert ("power", "restart") not in control.calls
+    assert status["last_heard"] == "restart my pc"
+    assert any(m["device"] == "Voice (PC)" for m in app.state.memory.recent(30))  # remembered like a chat
+
+
+def test_voice_say_endpoint(tmp_path):
+    spoken = []
+    app = create_app(StationConfig(data_dir=tmp_path), control=FakeControl(tmp_path), brain=FakeBrain(),
+                     voice_parts={"speak": spoken.append})
+    assert paired(app).post("/api/voice/say", json={"text": "Good morning, sir."}).json()["ok"]
+    assert spoken == ["Good morning, sir."]

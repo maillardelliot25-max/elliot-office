@@ -31,6 +31,7 @@ from station.recall import RecallStore, Recorder, load_ocr, segment_of
 from station.settings import Settings
 from station.syncthing import Syncthing, SyncthingError
 from station.telegram_bot import TelegramBot
+from station.voice import VoiceAssistant
 
 logger = logging.getLogger("jarvis.station")
 
@@ -111,7 +112,7 @@ class FormBody(BaseModel):
 
 def create_app(config: StationConfig, control: PCControl | None = None,
                brain: LocalBrain | None = None, telegram_transport=None, push_sender=None,
-               friday_transport=None) -> FastAPI:
+               friday_transport=None, voice_parts: dict | None = None) -> FastAPI:
     config.data_dir.mkdir(parents=True, exist_ok=True)
     auth = DeviceAuth(config.data_dir)
     memory = StationMemory(config.data_dir / "memory.db")
@@ -163,7 +164,9 @@ def create_app(config: StationConfig, control: PCControl | None = None,
         tasks = [asyncio.create_task(watch_clipboard()), asyncio.create_task(watch_screen())]
         if telegram:
             tasks.append(asyncio.create_task(telegram.run()))
+        voice.start(asyncio.get_running_loop())
         yield
+        voice.stop()
         for task in tasks:
             task.cancel()
 
@@ -428,6 +431,21 @@ def create_app(config: StationConfig, control: PCControl | None = None,
     app.state.telegram = telegram
     notifier.telegram = telegram
 
+    # ── "Hey Jarvis" voice on the PC ─────────────────────────────────────────
+    voice = VoiceAssistant(lambda command: converse(command, "Voice (PC)", "voice"),
+                           lambda action: execute(action, True), settings, config.data_dir, **(voice_parts or {}))
+    app.state.voice = voice
+
+    @app.get("/api/voice")
+    def voice_status(_: str = Depends(device)):
+        return voice.status()
+
+    @app.post("/api/voice/say")
+    async def voice_say(body: TextBody, _: str = Depends(device)):
+        """Jarvis says something out loud on the PC (from the app, Friday or Claude)."""
+        await run_in_threadpool(voice.say, body.text[:1000])
+        return {"ok": True}
+
     # ── Setup checklist ──────────────────────────────────────────────────────
 
     @app.get("/api/setup")
@@ -484,6 +502,8 @@ def create_app(config: StationConfig, control: PCControl | None = None,
              "Install the Claude desktop app, then double-click setup_claude_link.bat and restart Claude."),
             ("telegram", "Telegram", has_tg, telegram.status if telegram else "not set up",
              "@BotFather → /newbot → put TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID in Jarvis/.env (README §10)."),
+            ("voice", "“Hey Jarvis” voice on the PC", settings["voice"] and voice.state.startswith("listening"),
+             voice.state, "PC → Switches → “Hey Jarvis” voice. (If it says voice isn't installed, run install_station.bat again.)"),
             ("friday", "Friday link (the everywhere AI)", fstat["online"], fstat["detail"],
              "Start Friday, then paste its pairing code (Friday → Settings) under PC → Friday."),
             ("sync", "Photo / music / file sync (Syncthing)", sync_ok, sync_detail,

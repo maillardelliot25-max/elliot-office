@@ -26,6 +26,8 @@ DEFAULTS = {
     "assist": True,                # Chrome form helper
     "telegram": True,              # answer you on Telegram
     "notify": True,                # notifications on phone/tablet/Telegram when Jarvis does a job
+    "voice": False,                # "Hey Jarvis" on the PC (uses the microphone, so off until you turn it on)
+    "voice_wake": "jarvis",        # the name he answers to
     "syncthing_url": "http://127.0.0.1:8384",
     "syncthing_api_key": "",
     # Friday — the everywhere AI that works side by side with Jarvis

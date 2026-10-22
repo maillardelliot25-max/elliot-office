@@ -264,3 +264,23 @@ Developers: tests run with `python -m pytest station/tests -q` (from the `Jarvis
   `POST /api/memory/note`, `GET /api/files?path=…`, `GET /api/system`.
 - **No doubling up:** keep screen memory in Jarvis (Recall) and leave Friday's screen memory off. Use one Chrome form helper,
   not both: turn the other off (Jarvis: **PC → Switches → Form helper**), or you'll get two pop-ups on every form.
+
+## 14. "Hey Jarvis": voice, like Siri
+
+**On the PC (hands-free):** app → **PC → Switches → "Hey Jarvis" voice** → on. The first time, Jarvis downloads a free
+offline speech model (~40 MB). Then just talk:
+
+- *"Hey Jarvis, open YouTube"* → he does it and says so.
+- *"Jarvis"* … *"Yes, sir?"* … *"what did I work on this morning?"*
+- *"Hey Jarvis, shut down the PC"* → *"Shall I go ahead? Say yes or no."* Risky things always wait for your yes.
+
+Everything runs on the PC, offline. Audio is never saved, only what you ask (like a chat message).
+He answers with a built-in Windows voice (a British male voice if Windows has one: Settings → Time & language → Speech → add voices).
+The switch shows what he's doing ("listening", "thinking…") and the last thing he heard.
+
+**On your phone/tablet:** tap 🎙 in the Jarvis tab, ask, and he answers out loud too
+(switch: **PC → Switches → Speak answers on this device**).
+For an always-there assistant on the phone (long-press the power button), use Friday's Android app. That's Friday's job.
+
+If the switch says *voice isn't installed*, run `install_station.bat` again (it installs `vosk`, `sounddevice` and `pyttsx3`).
+

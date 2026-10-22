@@ -19,6 +19,8 @@ if errorlevel 1 (
 )
 echo Installing free Windows OCR for screen memory (optional)...
 .venv\Scripts\python.exe -m pip install winocr || echo   OCR skipped - screen memory will still work, just without searchable text.
+echo Installing "Hey Jarvis" voice (optional)...
+.venv\Scripts\python.exe -m pip install vosk sounddevice pyttsx3 || echo   Voice skipped - everything else still works.
 call install_sendto.bat
 echo.
 echo  Done! Now double-click start_station.bat

@@ -306,7 +306,20 @@ async function loadHistory() {
   } catch (e) { toast(e.message, true); }
 }
 
-async function sendChat(text) {
+// Say Jarvis's answer out loud on this phone/tablet (when you asked with the mic)
+function speakReply(text) {
+  if (!("speechSynthesis" in window) || localGet("station_speak", "1") !== "1") return;
+  const clean = text.replace(/https?:\/\/\S+/g, "a link").replace(/[*_`#>|~]/g, "").slice(0, 450);
+  const u = new SpeechSynthesisUtterance(clean);
+  const voices = speechSynthesis.getVoices();
+  u.voice = voices.find((v) => /en-GB/i.test(v.lang) && /male|daniel|george|arthur/i.test(v.name))
+    || voices.find((v) => /en-GB/i.test(v.lang)) || voices.find((v) => /^en/i.test(v.lang)) || null;
+  u.rate = 1.05;
+  speechSynthesis.cancel();
+  speechSynthesis.speak(u);
+}
+
+async function sendChat(text, spoken = false) {
   text = text.trim();
   if (!text) return;
   addMsg("you", text);
@@ -316,6 +329,7 @@ async function sendChat(text) {
     thinking.remove();
     const el = addMsg("jarvis", res.reply, res.brain === "instant" ? "instant" : res.brain === "offline" ? "brain offline" : "");
     renderActions(el, res.actions);
+    if (spoken) speakReply(res.reply);
     if (res.brain === "offline") checkBrain();
   } catch (e) {
     thinking.remove();
@@ -352,7 +366,7 @@ else {
   rec.onresult = (e) => {
     const text = [...e.results].map((r) => r[0].transcript).join("");
     $("#chatInput").value = text;
-    if (e.results[e.results.length - 1].isFinal) { rec.stop(); $("#chatInput").value = ""; sendChat(text); }
+    if (e.results[e.results.length - 1].isFinal) { rec.stop(); $("#chatInput").value = ""; sendChat(text, true); }
   };
   rec.onend = () => { listening = false; $("#micBtn").classList.remove("listening"); };
   rec.onerror = (e) => toast("Mic: " + e.error, true);
@@ -657,6 +671,7 @@ const SWITCHES = [
   ["recall", "Screen memory", "Jarvis remembers what was on screen (8-hour segments, on this PC only)"],
   ["assist", "Form helper", "Chrome highlights forms and offers to fill them"],
   ["telegram", "Telegram", "Talk to Jarvis from Telegram"],
+  ["voice", "“Hey Jarvis” voice", "Say “Hey Jarvis” to the PC and he answers out loud. Uses the PC's mic; audio is never saved"],
 ];
 const localGet = (k, d) => { try { return localStorage.getItem(k) ?? d; } catch { return d; } };
 const localSet = (k, v) => { try { localStorage.setItem(k, v); } catch {} };
@@ -679,6 +694,7 @@ async function loadSwitches() {
     list.innerHTML = "";
     SWITCHES.forEach(([key, title, desc]) => {
       const extra = key === "telegram" ? ` — ${s.telegram_status}` : "";
+      if (key === "voice") loadVoiceStatus();
       list.append(switchRow(title, desc + extra, s[key], async (on) => {
         await api("/api/settings", { method: "PATCH", body: { [key]: on } });
         toast(`${title} ${on ? "on" : "off"}`);
@@ -686,6 +702,8 @@ async function loadSwitches() {
       }));
     });
     list.append(await notifyRow());
+    list.append(switchRow("Speak answers on this device", "When you ask with the 🎙 mic, Jarvis answers out loud here too",
+      localGet("station_speak", "1") === "1", async (on) => localSet("station_speak", on ? "1" : "0")));
     list.append(switchRow("Auto-copy on this device", "When the app is open, new copies from other devices go straight to this device's clipboard",
       localGet("station_autocopy", "1") === "1", async (on) => localSet("station_autocopy", on ? "1" : "0")));
     loadSync(s);
@@ -752,6 +770,16 @@ async function notifyRow() {
   });
   if (!supported) row.querySelector("input").disabled = true;
   return row;
+}
+
+// "Hey Jarvis" status under its switch
+async function loadVoiceStatus() {
+  try {
+    const v = await api("/api/voice");
+    const row = [...$$("#switchList li")].find((li) => li.textContent.includes("Hey Jarvis"));
+    const small = row?.querySelector("small");
+    if (small && v.enabled) small.textContent = `Status: ${v.state}${v.last_heard ? ` · last heard “${v.last_heard}”` : ""}`;
+  } catch {}
 }
 
 // Friday link: shared memory, one brain, ask each other
