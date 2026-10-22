@@ -66,6 +66,7 @@ final class AssistPanel {
     private String screenText = "";
     private String chatId;
     private boolean busy;
+    private int maxAnswer = Integer.MAX_VALUE;
     private SpeechRecognizer recognizer;
 
     AssistPanel(Context ctx, Closer closer) {
@@ -113,6 +114,7 @@ final class AssistPanel {
 
     /** A new swipe: forget the old conversation and wait for the new screen capture. */
     void reset() {
+        fitScreen();
         chatId = null;
         screenshot = null;
         screenText = "";
@@ -120,13 +122,26 @@ final class AssistPanel {
         thumb.setVisibility(View.GONE);
         screenNote.setText(Prefs.configured(ctx) ? "Reading your screen…" : "Open the Friday app to connect it to your PC first.");
         answer.setText("");
+        answerScroll.getLayoutParams().height = android.view.ViewGroup.LayoutParams.WRAP_CONTENT;
         answerScroll.setVisibility(View.GONE);
         input.setText("");
     }
 
     /** Opened without a screen capture (e.g. from the app icon): plain chat. */
     void plain() {
+        fitScreen();
         screenNote.setText("Ask me anything.");
+    }
+
+    /** Tablets and landscape: a centred sheet at most 640dp wide, and answers that scroll instead of pushing the box off-screen. */
+    private void fitScreen() {
+        android.util.DisplayMetrics m = ctx.getResources().getDisplayMetrics();
+        int maxWidth = (int) (640 * m.density);
+        android.widget.FrameLayout.LayoutParams lp = (android.widget.FrameLayout.LayoutParams) root.findViewById(R.id.card).getLayoutParams();
+        lp.width = m.widthPixels > maxWidth ? maxWidth : android.widget.FrameLayout.LayoutParams.MATCH_PARENT;
+        lp.gravity = android.view.Gravity.BOTTOM | android.view.Gravity.CENTER_HORIZONTAL;
+        root.findViewById(R.id.card).setLayoutParams(lp);
+        maxAnswer = (int) (m.heightPixels * 0.45f);
     }
 
     void setScreenshot(Bitmap bmp) {
@@ -230,7 +245,13 @@ final class AssistPanel {
 
     private void append(String text) {
         answer.append(text);
-        answerScroll.post(() -> answerScroll.fullScroll(View.FOCUS_DOWN));
+        answerScroll.post(() -> {
+            if (answerScroll.getHeight() > maxAnswer) {
+                answerScroll.getLayoutParams().height = maxAnswer;
+                answerScroll.requestLayout();
+            }
+            answerScroll.fullScroll(View.FOCUS_DOWN);
+        });
     }
 
     private void show(String text) {

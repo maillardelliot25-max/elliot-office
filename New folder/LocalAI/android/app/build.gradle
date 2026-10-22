@@ -10,8 +10,8 @@ android {
         applicationId 'com.maillard.friday'
         minSdk 29          // Android 10+: needed for the assistant's screen-reading API
         targetSdk 35
-        versionCode 1
-        versionName '1.0'
+        versionCode 2
+        versionName '1.1'
     }
 
     // A fixed key (committed on purpose, it guards nothing secret) so each new build

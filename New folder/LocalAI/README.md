@@ -168,9 +168,21 @@ For a video background, use **⬆ Upload** (MP4 or WebM, up to 150 MB; short loo
    - **Swipe gestures:** Settings → Display → Navigation bar → *Swipe gestures*, then swipe up diagonally from a bottom corner.
    - **Side button:** Settings → Advanced features → Side button → *Press and hold* → *Digital assistant*.
 5. Optional: tap **Allow microphone** to ask by voice with 🎤.
+6. Optional, **"Sir, I've got this" form help:** tap **Open Accessibility settings** → *Installed apps* → **Friday form helper** → On.
+   If Android says it's a *restricted setting*, go to Settings → Apps → Friday → ⋮ (top right) → **Allow restricted settings**, then try again.
+   Now, when you start typing into a form in any app (sign-ups, applications, delivery details…), the screen edges glow and Friday offers to fill it in from what it remembers about you.
+   It only fills **empty** boxes. It never touches passwords, card or bank details, ID numbers or one-time codes, it stays quiet on sign-in and payment screens, and it **never presses Send or Submit**: you check first.
+   Tap **Not in this app** to silence it for one app (you can undo that on the setup screen).
+
+**Away from home (free, private): Tailscale**
+1. Install [Tailscale](https://tailscale.com/download) on the PC and on the phone, and sign in with the **same account** on both.
+2. On the PC, phone access must be on (step 1 above). In the Tailscale app on the PC, copy this PC's address (`100.x.x.x`).
+3. In the Friday phone app, change the PC address to `100.x.x.x:8765` and tap **Connect**. It now works on mobile data and any Wi-Fi.
+Tailscale encrypts everything between your devices, and nothing is opened to the internet. The PC must be on, with Friday running.
 
 **Good to know:**
-- The phone must be on the **same Wi-Fi as the PC**, and Friday must be running on the PC. To use it away from home, install [Tailscale](https://tailscale.com) on both devices and use the PC's Tailscale address instead.
+- The phone must be on the **same Wi-Fi as the PC** (or connected with Tailscale, above), and Friday must be running on the PC.
+- Tablets work the same way. The panel stays a comfortable width in the middle of a big or sideways screen.
 - Screenshots and screen text go to your PC and then to the model Friday Lens uses (Settings → Friday Lens). With a ☁ model that means the company behind it. Password fields are never read.
 - Android requires an assistant to include a voice service. Friday's simply passes voice typing through to Google's or Samsung's, so voice typing elsewhere keeps working.
 - To go back to Gemini, choose it again under Digital assistant app.
@@ -193,6 +205,19 @@ print(reply.choices[0].message.content)
 ```
 
 If the request has no `system` message, Friday answers as itself, with your memory and custom instructions. Send your own `system` message to set a different role. Streaming (`stream=True`) and images (`image_url` data URLs) work. Tools and file actions are only available inside Friday's own apps.
+
+## 11. Friday + Jarvis (your home base)
+
+Friday is your everywhere AI: Chrome, phone and tablet. **Jarvis** (the `Jarvis` folder next to this one) is the home base on the PC. It keeps your screen history, files, clipboard and PC controls. They work together:
+
+- **Run both:** Friday uses port 8765 and Jarvis uses 8780. Start each one normally.
+- **Friday → Jarvis:** with Jarvis running, Friday links up by itself (⚙ Settings → **🏠 Jarvis, your home base** shows ✓). In a chat with 🛠 Tools on, ask things like:
+  - *"What was I doing at 3pm?"* Friday finds that moment in Jarvis's screen history and describes it (offline, unless your chat model is ☁).
+  - *"What was the price of that flight I looked at this morning?"* Friday searches the text that was on your screen.
+  - *"Find my CV on the PC"*, *"How's my PC doing?"*
+  - Recall also searches what you told Jarvis on any device.
+- **Jarvis → Friday:** in Jarvis → PC → Friday, paste Friday's pairing code (⚙ Settings → Friday in Chrome). Jarvis can then think with any brain you've added to Friday and share memories with it.
+- **One of each:** let Jarvis keep the screen history (leave Friday's **🎞 Screen memory** off), and use only one form helper in Chrome.
 
 ## What's next
 

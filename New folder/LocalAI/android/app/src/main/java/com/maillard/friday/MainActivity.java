@@ -25,7 +25,8 @@ import java.util.concurrent.Executors;
 /** Setup: connect to Friday on your PC, make Friday the phone's assistant, allow the microphone. */
 public class MainActivity extends Activity {
     private EditText server, code;
-    private TextView status, assistantStatus;
+    private TextView status, assistantStatus, formStatus;
+    private Button unmute;
     private float dp;
 
     @Override
@@ -42,6 +43,7 @@ public class MainActivity extends Activity {
 
         col.addView(heading("1. Connect to Friday on your PC"));
         col.addView(text("On the PC: open Friday → ⚙ Settings → \"Friday on your phone\", turn on phone access, restart the app, then copy the address and pairing code shown there. Phone and PC must be on the same Wi-Fi.", 14, R.color.dim, false));
+        col.addView(text("Away from home: install Tailscale on the PC and the phone (same account), then use the PC's Tailscale address instead (e.g. 100.101.102.103:8765). See the README.", 13, R.color.dim, false));
         server = field("PC address, e.g. 192.168.1.20:8765", InputType.TYPE_TEXT_VARIATION_URI);
         code = field("Pairing code", InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD);
         server.setText(Prefs.server(this));
@@ -66,6 +68,25 @@ public class MainActivity extends Activity {
         col.addView(heading("4. Talk to it (optional)"));
         col.addView(button("Allow microphone", v -> requestPermissions(new String[]{Manifest.permission.RECORD_AUDIO}, 1)));
 
+        col.addView(heading("5. \"Sir, I've got this\" form help (optional)"));
+        col.addView(text("When you start filling in a form in any app, Friday glows the screen edges and offers to fill it in from what it remembers about you. "
+                + "It only fills empty boxes, never touches passwords, card or bank details or codes, and never presses Send: you check first.\n"
+                + "Turn on: Accessibility → Installed apps → Friday form helper → On. "
+                + "If Android says it's a restricted setting: Settings → Apps → Friday → ⋮ (top right) → Allow restricted settings, then try again.", 14, R.color.dim, false));
+        col.addView(button("Open Accessibility settings", v -> {
+            try {
+                startActivity(new Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS));
+            } catch (ActivityNotFoundException ignored) {
+            }
+        }));
+        formStatus = text("", 14, R.color.dim, false);
+        col.addView(formStatus);
+        unmute = button("", v -> {
+            Prefs.unmuteAll(this);
+            showFormStatus();
+        });
+        col.addView(unmute);
+
         col.addView(heading("Try it"));
         col.addView(button("Open Friday now", v -> startActivity(new Intent(this, AssistActivity.class))));
 
@@ -80,7 +101,15 @@ public class MainActivity extends Activity {
         String current = Settings.Secure.getString(getContentResolver(), "assistant");
         boolean isUs = current != null && current.startsWith(getPackageName());
         assistantStatus.setText(isUs ? "✓ Friday is your assistant." : current == null ? "" : "Friday isn't your assistant yet.");
+        showFormStatus();
         if (Prefs.configured(this) && status.getText().length() == 0) connect();
+    }
+
+    private void showFormStatus() {
+        formStatus.setText(FormHelperService.enabled(this) ? "✓ Form help is on." : "Form help is off.");
+        int muted = Prefs.mutedCount(this);
+        unmute.setText("Offer form help again in the " + muted + (muted == 1 ? " app" : " apps") + " I turned it off for");
+        unmute.setVisibility(muted > 0 ? View.VISIBLE : View.GONE);
     }
 
     private void connect() {

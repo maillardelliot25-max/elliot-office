@@ -37,14 +37,13 @@ Every `/api/*` and `/v1/*` call needs the pairing code (header `X-Friday-Token`,
 
 ## Next tasks (in order)
 
-1. ✅ **Done: watch the whole PC screen.** `screen_watcher()` in `friday_lens.py` + `/api/screen_check` in `server.py`. Settings → Friday Lens → "Watch my screen and offer help". It checks only when the screen changes, uses an offline vision model by default, glows the screen edges and shows "Sir, I've got this" with Help me / Not now / Stop watching, at most once every 10 minutes.
-2. **Let Lens fill forms in desktop apps.** After the user accepts, ask the model for the field values (re-use `autofill()` in `server.py` with labels read from the screenshot), then type them with `pynput.keyboard` (Tab between fields). Never type into password fields; always stop before submitting.
-3. **Sign PDFs / fill PDF documents.** Add a tool `fill_pdf(path, values)` and `sign_pdf(path, page, x, y)` in `server.py` using `pypdf` (`PdfWriter.update_page_form_field_values` for form PDFs) and a saved signature image (Settings: upload `signature.png`) stamped with `pypdf` + Pillow. Save as a new file, never overwrite the original.
-4. **"What was I doing at 3pm?"** Add a tool `screen_history(time)` that loads the screenshot nearest that time from `data/screen_memory/` and sends it to a vision model; return its description.
-5. **Proactive help on the phone/tablet.** In the Android app, add a "Friday noticed" notification: a foreground service is NOT allowed to read the screen. Use the assistant session only (user swipes), or an AccessibilityService (strict Play Store rules; fine for sideloading) that detects focused form fields and posts a notification "Sir, I've got this". Same autofill endpoint.
-6. **Tablet layout.** The Android sheet already works on tablets; test landscape and cap the card width at ~640dp.
-7. **Away from home.** Document Tailscale setup (phone → PC) in the README, or add a cloud relay.
-8. **Hook up the device-management system.** Point its AI settings at `http://<PC>:8765/v1` with the pairing code as the API key (README section 10). If it is the repo's `Jarvis/` project, change `Jarvis/core/brain_claude.py` to use the OpenAI SDK against that URL so both share brains and memory.
+1. ✅ **Watch the whole PC screen.** `screen_watcher()` in `friday_lens.py` + `/api/screen_check`. Settings → Friday Lens → "Watch my screen and offer help".
+2. ✅ **Proactive form help on the phone/tablet.** `FormHelperService.java` (an AccessibilityService the user turns on). It offers on the first focused box of a form with 2+ fillable boxes, glows the edges, shows a card (never takes focus), fills empty boxes via `/api/autofill` with `ACTION_SET_TEXT`, skips passwords/card/bank/codes, stays quiet on sign-in and payment screens, never submits. "Not in this app" mutes per app (Prefs `form_muted`).
+3. ✅ **Tablet layout.** `AssistPanel.fitScreen()`: the sheet is max 640dp and centred; long answers scroll within 45% of the screen.
+4. ✅ **Away from home.** README section 9: Tailscale, using the PC's `100.x.x.x:8765` address. (`tailscale serve` https doesn't work yet: those requests arrive as localhost with a ts.net Host, which the local guard rejects. To support it, allow `*.ts.net` hosts in `guard()` and require the pairing code for them.)
+5. ✅ **"What was I doing at 3pm?" / shared brains with the device-management system.** Covered by the Jarvis link (`jarvis_link.py`, README section 11) and Jarvis using Friday's `/v1` gateway.
+6. **Covered by Jarvis, not Friday:** filling desktop (non-browser) apps on the PC, and signing/filling PDFs. Jarvis has PC keyboard control and PDF sign/fill (`Jarvis/station/docs.py`). Don't duplicate them in Friday.
+7. **Ideas:** let the phone panel ask Jarvis-backed questions (send `"tools": true` from `AssistPanel` once approvals can be answered from the phone); a "Friday noticed" quick-settings tile.
 
 ## Safety rules to keep
 
