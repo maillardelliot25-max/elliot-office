@@ -43,7 +43,7 @@ public class MainActivity extends Activity {
 
         col.addView(heading("1. Connect to Friday on your PC"));
         col.addView(text("On the PC: open Friday → ⚙ Settings → \"Friday on your phone\", turn on phone access, restart the app, then copy the address and pairing code shown there. Phone and PC must be on the same Wi-Fi.", 14, R.color.dim, false));
-        col.addView(text("Away from home: install Tailscale on the PC and the phone (same account), then use the PC's Tailscale address instead (e.g. 100.101.102.103:8765). See the README.", 13, R.color.dim, false));
+        col.addView(text("Away from home: install Tailscale on the PC and the phone (same account), then use the PC's Tailscale address instead: 100.x.x.x:8765, or the secure https://….ts.net address shown in Friday's Settings on the PC.", 13, R.color.dim, false));
         server = field("PC address, e.g. 192.168.1.20:8765", InputType.TYPE_TEXT_VARIATION_URI);
         code = field("Pairing code", InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD);
         server.setText(Prefs.server(this));

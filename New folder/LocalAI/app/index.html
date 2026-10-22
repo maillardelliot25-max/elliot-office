@@ -331,6 +331,7 @@
     <div style="font-size:13px;color:var(--dim);margin-top:6px">Install the Friday Android app (README, step 9), set it as your phone's digital assistant, then swipe up from a bottom corner in any app to ask about your screen. Answers come from this PC, so your phone needs to be on the same Wi-Fi.</div>
     <label><input type="checkbox" id="sPhone"> Allow my phone to connect over Wi-Fi (needs the pairing code below; restart the app after changing)</label>
     <div id="sLan" style="font-size:14px;margin-top:6px"></div>
+    <div id="sTailscale" style="font-size:14px;margin-top:6px"></div>
     <h3>🏠 Jarvis, your home base</h3>
     <div style="font-size:13px;color:var(--dim);margin-top:6px">When Jarvis runs on this PC, Friday can search your screen history ("what was I doing at 3pm?"), find files anywhere on the PC, check the PC's health, and recall what you told Jarvis on any device. Turn on 🛠 Tools in a chat to use it.</div>
     <label><input type="checkbox" id="sJarvis"> Link Friday to Jarvis</label>
@@ -1386,6 +1387,18 @@ function fillSettings(s) {
       `PC address for the phone app: <b style="font-family:ui-monospace,monospace">${l.addresses.map(esc).join("</b> or <b style=\"font-family:ui-monospace,monospace\">")}</b>` +
       (l.phone_access && !l.listening_on_wifi ? `<br><span style="color:var(--accent)">Restart the app to turn phone access on.</span>` : "") +
       (!l.phone_access && l.listening_on_wifi ? `<br><span style="color:var(--accent)">Restart the app to finish turning phone access off.</span>` : "");
+    const t = l.tailscale || {};
+    $("sTailscale").innerHTML = !t.installed ? `<b>Away from home:</b> install <a href="https://tailscale.com/download" target="_blank" rel="noopener">Tailscale</a> on this PC and your phone (same account), then reopen Settings.` :
+      !t.running ? `<b>Away from home:</b> Tailscale is installed but not connected. Open Tailscale and sign in.` :
+      `<b>Away from home</b> (Tailscale): use <b style="font-family:ui-monospace,monospace">${esc(t.ip)}:${location.port || 8765}</b> in the phone app` +
+      (t.https ? (t.serving ? `, or the secure address <b style="font-family:ui-monospace,monospace">${esc(t.https)}</b> (works in the phone's browser too, mic included).`
+        : `. <button id="sServe">Turn on the secure https address</button> <span style="color:var(--dim)">(${esc(t.https)}, only your own devices can open it)</span>`) : ".") +
+      (l.phone_access ? "" : `<br><span style="color:var(--accent)">Tick "Allow my phone to connect" above, or other devices will be refused.</span>`);
+    $("sServe")?.addEventListener("click", async e => {
+      e.target.disabled = true; e.target.textContent = "Turning on…";
+      try { await api("/api/tailscale_serve", { method: "POST", body: {} }); toast("Secure address is on"); $("openSettings").click(); }
+      catch (err) { $("sTailscale").insertAdjacentHTML("beforeend", `<div class="err" style="white-space:pre-wrap">${esc(err.message)}</div>`); e.target.disabled = false; e.target.textContent = "Try again"; }
+    });
   }).catch(() => {});
   $("sSwipe").checked = s.lens_swipe !== false; $("sHotkey").value = s.lens_hotkey || "<ctrl>+<alt>+<space>";
   $("sLens").innerHTML = `<option value="auto">Auto: best model that can see images</option>` +

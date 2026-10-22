@@ -178,7 +178,8 @@ For a video background, use **⬆ Upload** (MP4 or WebM, up to 150 MB; short loo
 1. Install [Tailscale](https://tailscale.com/download) on the PC and on the phone, and sign in with the **same account** on both.
 2. On the PC, phone access must be on (step 1 above). In the Tailscale app on the PC, copy this PC's address (`100.x.x.x`).
 3. In the Friday phone app, change the PC address to `100.x.x.x:8765` and tap **Connect**. It now works on mobile data and any Wi-Fi.
-Tailscale encrypts everything between your devices, and nothing is opened to the internet. The PC must be on, with Friday running.
+4. Optional, **secure https address:** in the Tailscale admin page (login.tailscale.com → **DNS**), turn on **MagicDNS** and **HTTPS Certificates**. Then in Friday on the PC → ⚙ Settings → 📱 Friday on your phone, click **Turn on the secure https address**. Use the `https://<your-pc>.<tailnet>.ts.net` address it shows in the phone app, or open it in the phone's browser (`…ts.net/?key=<pairing code>` once). Over https the browser also allows the 🎤 mic, and Chrome can **Install app** for a home-screen icon.
+Tailscale encrypts everything between your devices, and nothing is opened to the internet: only devices signed in to your Tailscale account can reach these addresses. Friday still asks every device for the pairing code. The PC must be on, with Friday running.
 
 **Good to know:**
 - The phone must be on the **same Wi-Fi as the PC** (or connected with Tailscale, above), and Friday must be running on the PC.
@@ -218,6 +219,10 @@ Friday is your everywhere AI: Chrome, phone and tablet. **Jarvis** (the `Jarvis`
   - Recall also searches what you told Jarvis on any device.
 - **Jarvis → Friday:** in Jarvis → PC → Friday, paste Friday's pairing code (⚙ Settings → Friday in Chrome). Jarvis can then think with any brain you've added to Friday and share memories with it.
 - **One of each:** let Jarvis keep the screen history (leave Friday's **🎞 Screen memory** off), and use only one form helper in Chrome.
+
+## 12. Let Claude in Chrome do the setup
+
+Open [CLAUDE_IN_CHROME.md](CLAUDE_IN_CHROME.md) and paste its prompt into Claude in Chrome on your PC. It goes through Friday's setup with you: your details, offline brains, API keys, phone access, the Tailscale https address, the Jarvis link, teaching Friday about you, and a final test.
 
 ## What's next
 

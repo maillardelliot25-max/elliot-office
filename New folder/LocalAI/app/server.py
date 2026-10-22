@@ -913,7 +913,8 @@ class Handler(BaseHTTPRequestHandler):
             self.send_header("Access-Control-Allow-Origin", self.cors)
         if getattr(self, "set_cookie", False):
             token = load_settings()["chrome_token"]
-            self.send_header("Set-Cookie", f"friday_key={token}; HttpOnly; SameSite=Strict; Path=/; Max-Age=31536000")
+            secure = "; Secure" if (self.headers.get("Host") or "").split(":")[0].endswith(".ts.net") else ""
+            self.send_header("Set-Cookie", f"friday_key={token}; HttpOnly; SameSite=Strict; Path=/; Max-Age=31536000{secure}")
         super().end_headers()
 
     def do_OPTIONS(self):
@@ -978,6 +979,10 @@ class Handler(BaseHTTPRequestHandler):
         if not (ip.startswith("127.") or ip in ("::1", "::ffff:127.0.0.1")):
             return self.guard_remote()
         host = (self.headers.get("Host") or "").split(":")[0]
+        if host.endswith(".ts.net") or self.headers.get("Tailscale-User-Login") or self.headers.get("X-Forwarded-For"):
+            # `tailscale serve` hands Friday requests from your other devices as if they came from this PC:
+            # treat them exactly like the phone (phone access on + pairing code)
+            return self.guard_remote()
         origin = self.headers.get("Origin")
         ok_host = host in ("localhost", "127.0.0.1")
         # Every API call carries the pairing code: the app page has it built in, the Chrome extension
@@ -1085,7 +1090,7 @@ class Handler(BaseHTTPRequestHandler):
                 self.send_json({"object": "list", "data": [{"id": m["name"], "object": "model", "owned_by": m["provider_label"],
                                                             "description": m["summary"]} for m in list_models()["models"]]})
             elif url.path == "/api/lan_info":
-                self.send_json({"addresses": [f"{a}:{PORT}" for a in lan_addresses()],
+                self.send_json({"addresses": [f"{a}:{PORT}" for a in lan_addresses()], "tailscale": tailscale_info(),
                                 "phone_access": load_settings()["phone_access"], "listening_on_wifi": LISTEN != "127.0.0.1"})
             elif url.path == "/api/jarvis":
                 st = jarvis_link.status(load_settings(), fresh=True)
@@ -1148,6 +1153,11 @@ class Handler(BaseHTTPRequestHandler):
                 return self.send_json(screen_check(b.get("image", "")))
             if path == "/api/autofill":
                 return self.send_json(autofill(b))
+            if path == "/api/tailscale_serve":
+                if not self.client_address[0].startswith("127.") or self.headers.get("X-Forwarded-For") \
+                        or (self.headers.get("Host") or "").split(":")[0].endswith(".ts.net"):
+                    return self.send_json({"error": "Only from Friday on the PC itself."}, 403)
+                return self.send_json(tailscale_serve())
             if path == "/api/screen_memory/clear":
                 import shutil
                 shutil.rmtree(SCREENS, ignore_errors=True)
@@ -1430,6 +1440,48 @@ def learn(chat_id, model):
         chat["messages"].append({"role": "memory", "content": "", "items": [e["text"] for e in learned]})
         save_json(CHATS, chat)
     return learned
+
+
+def tailscale_cli():
+    for exe in ("tailscale", r"C:\Program Files\Tailscale\tailscale.exe", "/Applications/Tailscale.app/Contents/MacOS/Tailscale"):
+        try:
+            subprocess.run([exe, "version"], capture_output=True, timeout=5, check=True)
+            return exe
+        except (OSError, subprocess.SubprocessError):
+            continue
+    return ""
+
+
+def tailscale_info():
+    """This PC on your Tailscale network: its 100.x address and its https://<pc>.<tailnet>.ts.net name."""
+    exe = tailscale_cli()
+    if not exe:
+        return {"installed": False}
+    try:
+        st = json.loads(subprocess.run([exe, "status", "--json"], capture_output=True, text=True, timeout=8).stdout or "{}")
+    except (OSError, subprocess.SubprocessError, ValueError):
+        return {"installed": True, "running": False}
+    me = st.get("Self") or {}
+    ip = next((a for a in me.get("TailscaleIPs") or [] if "." in a), "")
+    name = (me.get("DNSName") or "").rstrip(".")
+    try:
+        serve = subprocess.run([exe, "serve", "status"], capture_output=True, text=True, timeout=8).stdout
+    except (OSError, subprocess.SubprocessError):
+        serve = ""
+    return {"installed": True, "running": st.get("BackendState") == "Running", "ip": ip,
+            "https": f"https://{name}" if name else "", "serving": bool(name) and f":{PORT}" in serve}
+
+
+def tailscale_serve():
+    """Publish Friday at https://<pc>.<tailnet>.ts.net to your own Tailscale devices only (not the internet)."""
+    exe = tailscale_cli()
+    if not exe:
+        raise ValueError("Tailscale isn't installed on this PC. Get it at tailscale.com/download.")
+    r = subprocess.run([exe, "serve", "--bg", str(PORT)], capture_output=True, text=True, timeout=60)
+    out = (r.stdout + r.stderr).strip()
+    if r.returncode != 0:
+        raise ValueError(out[-600:] or "tailscale serve failed")
+    return {"ok": True, "output": out[-600:], **tailscale_info()}
 
 
 def lan_addresses():
