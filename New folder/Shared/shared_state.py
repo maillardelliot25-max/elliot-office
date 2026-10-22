@@ -255,6 +255,15 @@ def report(task_id, progress=None, status=None, result=None, runner="jarvis"):
             level="error" if status == "failed" else "info", source=runner)
 
 
+def set_result(task_id, status, result, source="sync"):
+    """Attach a reply that arrived later (e.g. from the sync outbox) to a task, whatever state it is in."""
+    if status not in TASK_STATES:
+        raise ValueError(status)
+    connect().execute("UPDATE tasks SET status = ?, result = ?, progress = NULL, updated = ? WHERE id = ?",
+                      (status, str(result)[:4000], time.time(), int(task_id)))
+    log(f"Task {status}: #{task_id}", source=source)
+
+
 def snapshot():
     """Everything the dashboard shows, in one read."""
     return {

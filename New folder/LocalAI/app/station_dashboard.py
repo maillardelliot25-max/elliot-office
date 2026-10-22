@@ -16,7 +16,9 @@ from datetime import datetime
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent / "Shared"))
+import net_daemon  # noqa: E402
 import shared_state  # noqa: E402
+import sync_outbox  # noqa: E402
 
 import jarvis_link  # noqa: E402  (knows where Jarvis keeps its data)
 
@@ -92,8 +94,25 @@ def state():
     snap["services"]["friday"] = {"name": "friday", "status": "running", "pid": None, "detail": "serving this page",
                                   "heartbeat": time.time()}
     snap["jarvis"] = jarvis_data()
+    snap["sync"] = {**sync_outbox.summary(), "network": net_daemon.network_status()}
     snap["shared_file"] = str(shared_state.DB_FILE)
     return snap
+
+
+def offline():
+    """True only when the network daemon has recently seen no internet (unknown counts as online)."""
+    return net_daemon.network_status()["online"] is False
+
+
+def sync_act(body):
+    """Outbox buttons: retry / remove one item."""
+    if body.get("action") == "retry":
+        sync_outbox.retry(body.get("id", ""))
+    elif body.get("action") == "remove":
+        sync_outbox.remove(body.get("id", ""))
+    else:
+        raise ValueError("Unknown outbox action.")
+    return sync_outbox.summary()
 
 
 def act(body):

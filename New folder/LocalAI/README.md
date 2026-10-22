@@ -233,6 +233,13 @@ A full-screen dashboard for the tablet beside your PC: processor, memory, storag
 3. **Start Friday:** `Start Elliot AI.bat`.
 4. **Open the dashboard:** double-click `Open Home Station.bat` (or go to `http://localhost:8765/station`). Press **Win+Shift+Right Arrow** to move the window to the tablet, then click **Full screen**.
 
+**Offline first.** Everything above works with no internet. Anything that needs another device or the internet is saved to an outbox first (`New folder/Shared/state/sync_queue.json`) and sent when it can be:
+- The reporter also runs a **network daemon** (`Shared/net_daemon.py`, or run it on its own). It checks the connection in the background with 1-second probes, so nothing ever waits on network timeouts.
+- **Back online:** saved items for the internet are sent automatically. Items for this PC, home-network devices and Tailscale devices go as soon as those devices answer, even with no internet.
+- **Replies** land in `sync_inbox.json`, the Activity log and, if the item came from a task, on that task. The dashboard's **Activity → Outbox** shows what's waiting, with Retry and Remove.
+- **Asking a ☁ cloud brain while offline:** Friday saves the question and says so immediately. The answer arrives when the connection is back. Offline 💻 brains keep answering as normal.
+- **Other programs** can save to the outbox: `POST /api/sync/queue` with `{"kind": "http", "payload": {"method", "url", "body"}, "label"}` (or `"friday_ask"` with `{"model", "prompt"}`), or `sync_outbox.enqueue(...)` in Python.
+
 Tasks you add wait in the queue until Jarvis's task runner picks them up. Jarvis claims them with `shared_state.claim_next()`, and pausing or cancelling from the dashboard stops it at its next step (`still_wanted()`).
 
 ## What's next

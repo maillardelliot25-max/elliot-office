@@ -3,6 +3,7 @@ Jarvis's reporter: keeps the shared file (shared_state.py) up to date for Friday
 
   python jarvis_reporter.py                 # metrics, processes and service states only
   python jarvis_reporter.py --run-jarvis    # also starts Jarvis Station and records its log output
+  python jarvis_reporter.py --no-sync       # without the network daemon (offline outbox sync)
 
 Every few seconds it records CPU, memory, disk, battery and network use, the busiest processes, and whether
 Jarvis, Friday and Ollama are running (by checking their ports on this PC). With --run-jarvis it starts
@@ -26,6 +27,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import shared_state as state  # noqa: E402
+from net_daemon import NetDaemon  # noqa: E402
 
 try:
     import psutil
@@ -185,7 +187,12 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     ap.add_argument("--run-jarvis", action="store_true", help="start Jarvis Station and record its log")
     ap.add_argument("--every", type=float, default=5, help="seconds between samples (default 5)")
+    ap.add_argument("--no-sync", action="store_true", help="don't run the network daemon that syncs the outbox")
     args = ap.parse_args()
+    daemon = None
+    if not args.no_sync:   # watches the connection and sends the outbox in its own thread; never blocks this loop
+        daemon = NetDaemon()
+        daemon.start()
 
     sampler = Sampler()
     runner = JarvisRunner() if args.run_jarvis else None
@@ -214,6 +221,8 @@ def main():
     except KeyboardInterrupt:
         pass
     finally:
+        if daemon:
+            daemon.stop()
         if runner:
             runner.stop()
         state.put_service("reporter", "stopped", None, "")

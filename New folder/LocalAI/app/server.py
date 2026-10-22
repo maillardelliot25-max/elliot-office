@@ -1159,6 +1159,11 @@ class Handler(BaseHTTPRequestHandler):
                 return self.send_json(autofill(b))
             if path == "/api/station/task":
                 return self.send_json(station_dashboard.act(b))
+            if path == "/api/sync/queue":   # save an action for when its destination is reachable (works offline)
+                item = station_dashboard.sync_outbox.enqueue(b.get("kind", ""), b.get("payload") or {}, b.get("label", ""))
+                return self.send_json({"item": item})
+            if path == "/api/sync/item":
+                return self.send_json(station_dashboard.sync_act(b))
             if path == "/api/tailscale_serve":
                 if not self.client_address[0].startswith("127.") or self.headers.get("X-Forwarded-For") \
                         or (self.headers.get("Host") or "").split(":")[0].endswith(".ts.net"):
@@ -1297,7 +1302,23 @@ class Handler(BaseHTTPRequestHandler):
             model = math_model(model)
             if model != b["model"]:
                 emit({"type": "notice", "text": f"Math mode is using {providers.model_id(model)}"})
+        if providers.provider_of(model) in ("anthropic", "openai", "google") and station_dashboard.offline():
+            return self.save_for_later(chat, model, emit)
         converse(chat, model, opts, emit)
+
+    def save_for_later(self, chat, model, emit):
+        """Offline with a cloud brain: put the question in the sync outbox instead of waiting on timeouts."""
+        question = next((m.get("display") or m.get("content", "") for m in reversed(chat["messages"]) if m["role"] == "user"), "")
+        name = providers.model_id(model)
+        station_dashboard.sync_outbox.enqueue("friday_ask", {"model": model, "prompt": question},
+                                              label=f"Ask {name}: {question[:60]}")
+        sir = ", sir" if load_settings().get("persona") == "butler" else ""
+        text = (f"You're offline at the moment{sir}, so I've saved your question for {name} and will ask it as soon as "
+                "the connection is back. The answer will appear on the Home Station dashboard (Activity → Outbox). "
+                "For an answer right now, switch to an offline brain.")
+        emit({"type": "text", "delta": text})
+        chat["messages"].append({"role": "assistant", "content": text})
+        save_json(CHATS, chat)
 
     def ollama_pull(self, name):
         """Download an offline model through Ollama, streaming progress to the page."""

@@ -209,7 +209,7 @@
       <div class="card">
         <div class="head">
           <h2>Activity</h2><span class="sub">Jarvis, the reporter and your actions</span>
-          <div class="end"><div class="seg" id="logTabs"><button data-v="all" class="on">All</button><button data-v="warning">Warnings</button><button data-v="error">Errors</button></div></div>
+          <div class="end"><div class="seg" id="logTabs"><button data-v="all" class="on">All</button><button data-v="warning">Warnings</button><button data-v="error">Errors</button><button data-v="outbox">Outbox</button></div></div>
         </div>
         <div class="scroll log" id="log"></div>
       </div>
@@ -268,8 +268,10 @@ function tick() {
   $("date").textContent = d.toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long" });
   if (data) {
     const age = Math.round((Date.now() - lastOk) / 1000);
+    const net = data.sync.network.online, waiting = data.sync.waiting;
     $("subtitle").textContent = (data.reporter_ok ? "Jarvis reporter connected" : "Jarvis reporter offline") +
-      ` · updated ${age < 5 ? "now" : age + " s ago"}`;
+      (net === true ? " · Online" : net === false ? " · Offline, working locally" : "") +
+      (waiting ? ` · ${waiting} waiting to sync` : "") + ` · updated ${age < 5 ? "now" : age + " s ago"}`;
   }
 }
 
@@ -316,7 +318,7 @@ function meter(pct) {
 function tile(id, label, value, unit, detail, pct, spark) {
   const span = spark && spark.match(/data-span="([^"]*)"/);
   $(id).innerHTML = `<div class="label">${label}${span ? `<span>${span[1]}</span>` : ""}</div>
-    <div class="value">${value}${unit ? `<small>${unit}</small>` : ""}</div>${meter(pct)}
+    <div class="value">${value}${unit && value !== "–" ? `<small>${unit}</small>` : ""}</div>${meter(pct)}
     <div class="detail">${detail}</div>${spark || ""}`;
 }
 
@@ -374,11 +376,31 @@ function renderServices() {
   $("procNote").textContent = procs.length ? `Top ${procs.length} by processor use` : "";
   $("procs").innerHTML = procs.length ? procs.map(p => `<tr><td class="name" title="${esc(p.name)} (pid ${p.pid})">${esc(p.name)}</td>
     <td class="num">${num(p.cpu, 1)}%</td><td class="num">${p.mem_mb >= 1024 ? num(p.mem_mb / 1024, 1) + " GB" : num(p.mem_mb) + " MB"}</td></tr>`).join("")
-    : `<tr><td colspan="3" class="empty">No process data. The reporter needs psutil (run it with Jarvis's Python).</td></tr>`;
+    : `<tr><td colspan="3" class="empty">${data.reporter_ok ? "No process data. The reporter needs psutil (run it with Jarvis's Python)." : "Waiting for the reporter."}</td></tr>`;
 }
 
 // ── Activity ────────────────────────────────────────────────────────
+function renderOutbox() {
+  const sy = data.sync, net = sy.network.online;
+  const item = it => {
+    const failed = it.status === "failed";
+    const when = failed ? `Stopped after ${it.attempts} tries` : it.status === "sending" ? "Sending now"
+      : it.next_try > Date.now() / 1000 ? `Next try ${hm(it.next_try)}` : net === false && it.kind !== "http" ? "Waiting for the connection" : "Waiting";
+    return `<div class="row"><div class="main"><b title="${esc(it.label)}">${esc(it.label || it.kind)}</b>
+      <span>Saved ${ago(it.created)} · ${when}${it.last_error ? " · " + esc(it.last_error.slice(0, 120)) : ""}</span></div>
+      <span class="state ${failed ? "critical" : it.status === "sending" ? "accent" : "warning"}">${failed ? "Failed" : it.status === "sending" ? "Sending" : "Waiting"}</span>
+      <div class="acts">${failed ? `<button data-sync="${it.id}" data-act="retry">Retry</button>` : ""}<button data-sync="${it.id}" data-act="remove">Remove</button></div></div>`;
+  };
+  const reply = r => `<div class="row"><div class="main"><b title="${esc(r.label)}">${esc(r.label || r.kind)}</b>
+      <span>Sent ${ago(r.sent)} · ${esc(String(r.response?.reply ?? ("HTTP " + (r.response?.status ?? ""))).slice(0, 220))}</span></div>
+      <span class="state good">Synced</span></div>`;
+  $("log").innerHTML = `<div class="sect" style="margin-top:0">${net === false ? "Offline: these wait until the connection is back." : net ? "Online: waiting items are sent automatically." : "The network daemon isn't running (it starts with the reporter)."}</div>` +
+    (sy.items.length ? sy.items.map(item).join("") : `<div class="empty">Nothing waiting to sync.</div>`) +
+    (sy.recent.length ? `<div class="sect">Recent replies</div>` + sy.recent.map(reply).join("") : "");
+}
+
 function renderLog() {
+  if (logTab === "outbox") return renderOutbox();
   const evs = data.events.filter(e => logTab === "all" || (logTab === "warning" ? e.level !== "info" : e.level === "error"));
   $("log").innerHTML = evs.length ? evs.map(e => `<div class="ev ${e.level}"><time title="${new Date(e.ts * 1000).toLocaleString()}">${hms(e.ts)}</time>
     <span class="src" title="${esc(e.source)}">${e.level === "info" ? "" : e.level === "error" ? "Error · " : "Warning · "}${esc(e.source)}</span>
@@ -439,6 +461,13 @@ $("tasks").addEventListener("click", async e => {
   if (!b) return;
   b.disabled = true;
   try { await api("/api/station/task", { id: +b.dataset.task, action: b.dataset.act }); } catch (err) { alert(err.message); }
+  poll();
+});
+$("log").addEventListener("click", async e => {
+  const b = e.target.closest("button[data-sync]");
+  if (!b) return;
+  b.disabled = true;
+  try { await api("/api/sync/item", { id: b.dataset.sync, action: b.dataset.act }); } catch (err) { alert(err.message); }
   poll();
 });
 $("clearDone").onclick = async () => { await api("/api/station/task", { action: "clear" }).catch(e => alert(e.message)); poll(); };
