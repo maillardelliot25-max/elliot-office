@@ -40,6 +40,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import jarvis_link  # noqa: E402
+import station_dashboard  # noqa: E402
 import memory as memory_store  # noqa: E402
 import organizer  # noqa: E402
 import providers  # noqa: E402
@@ -1016,7 +1017,7 @@ class Handler(BaseHTTPRequestHandler):
             self.send_json({"error": "Phone access is off. Turn it on in Friday → Settings on the PC."}, 403)
             return False
         url = urllib.parse.urlparse(self.path)
-        key = urllib.parse.parse_qs(url.query).get("key", [""])[0] if url.path in ("/", "/index.html") else ""
+        key = urllib.parse.parse_qs(url.query).get("key", [""])[0] if url.path in ("/", "/index.html", "/station") else ""
         cookie = SimpleCookie(self.headers.get("Cookie") or "")
         presented = self.presented_code() or key or next((cookie[k].value for k in ("friday_key", "jarvis_key") if k in cookie), "")
         if not hmac.compare_digest(presented, s["chrome_token"]):
@@ -1034,8 +1035,9 @@ class Handler(BaseHTTPRequestHandler):
             return
         url = urllib.parse.urlparse(self.path)
         try:
-            if url.path in ("/", "/index.html"):
-                page = (APP_DIR / "index.html").read_text("utf-8").replace("__FRIDAY_TOKEN__", load_settings()["chrome_token"])
+            if url.path in ("/", "/index.html", "/station"):
+                name = "station.html" if url.path == "/station" else "index.html"   # /station: the home-station dashboard
+                page = (APP_DIR / name).read_text("utf-8").replace("__FRIDAY_TOKEN__", load_settings()["chrome_token"])
                 self.send_bytes(page.encode(), "text/html; charset=utf-8")
             elif url.path.startswith("/media/"):
                 name = Path(urllib.parse.unquote(url.path[7:])).name
@@ -1092,6 +1094,8 @@ class Handler(BaseHTTPRequestHandler):
             elif url.path == "/api/lan_info":
                 self.send_json({"addresses": [f"{a}:{PORT}" for a in lan_addresses()], "tailscale": tailscale_info(),
                                 "phone_access": load_settings()["phone_access"], "listening_on_wifi": LISTEN != "127.0.0.1"})
+            elif url.path == "/api/station/state":
+                self.send_json(station_dashboard.state())
             elif url.path == "/api/jarvis":
                 st = jarvis_link.status(load_settings(), fresh=True)
                 self.send_json({"linked": st["linked"], "message": st["message"],
@@ -1153,6 +1157,8 @@ class Handler(BaseHTTPRequestHandler):
                 return self.send_json(screen_check(b.get("image", "")))
             if path == "/api/autofill":
                 return self.send_json(autofill(b))
+            if path == "/api/station/task":
+                return self.send_json(station_dashboard.act(b))
             if path == "/api/tailscale_serve":
                 if not self.client_address[0].startswith("127.") or self.headers.get("X-Forwarded-For") \
                         or (self.headers.get("Host") or "").split(":")[0].endswith(".ts.net"):

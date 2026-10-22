@@ -224,6 +224,17 @@ Friday is your everywhere AI: Chrome, phone and tablet. **Jarvis** (the `Jarvis`
 
 Open [CLAUDE_IN_CHROME.md](CLAUDE_IN_CHROME.md) and paste its prompt into Claude in Chrome on your PC. It goes through Friday's setup with you: your details, offline brains, API keys, phone access, the Tailscale https address, the Jarvis link, teaching Friday about you, and a final test.
 
+## 13. Home Station: a dashboard on your Galaxy Tab as a second screen
+
+A full-screen dashboard for the tablet beside your PC: processor, memory, storage, power and network use, Jarvis's task queue (add, pause, cancel, retry, reprioritise), services and busiest processes, Jarvis's live activity log, and a read-only summary of Jarvis's screen memory, conversations, switches and paired devices. It runs entirely on the PC with no internet. Jarvis and Friday share one local file (`New folder/Shared/state/shared.db`).
+
+1. **Connect the tablet as a second monitor:** connect it to the PC by USB with a second-screen app (or use Samsung **Second Screen** from the tablet's quick panel). Windows → Settings → System → Display: choose **Extend these displays**, and set the tablet's scale to **150%** (175% if text looks small).
+2. **Start Jarvis with its reporter:** double-click `New folder\Shared\start_jarvis_reporter.bat`. It starts Jarvis exactly as `start_station.bat` does, so use this one instead, and feeds the dashboard. If Jarvis stops, it's restarted.
+3. **Start Friday:** `Start Elliot AI.bat`.
+4. **Open the dashboard:** double-click `Open Home Station.bat` (or go to `http://localhost:8765/station`). Press **Win+Shift+Right Arrow** to move the window to the tablet, then click **Full screen**.
+
+Tasks you add wait in the queue until Jarvis's task runner picks them up. Jarvis claims them with `shared_state.claim_next()`, and pausing or cancelling from the dashboard stops it at its next step (`still_wanted()`).
+
 ## What's next
 
 See [NEXT_STEPS.md](NEXT_STEPS.md) for the hand-over: what's built, where everything lives, the next tasks in order (whole-screen form watching, filling desktop apps, signing PDFs…), and how to keep building for free with Claude Code on a local model.

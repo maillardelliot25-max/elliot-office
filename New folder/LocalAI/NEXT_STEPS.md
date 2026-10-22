@@ -45,6 +45,13 @@ Every `/api/*` and `/v1/*` call needs the pairing code (header `X-Friday-Token`,
 6. **Covered by Jarvis, not Friday:** filling desktop (non-browser) apps on the PC, and signing/filling PDFs. Jarvis has PC keyboard control and PDF sign/fill (`Jarvis/station/docs.py`). Don't duplicate them in Friday.
 7. **Ideas:** let the phone panel ask Jarvis-backed questions (send `"tools": true` from `AssistPanel` once approvals can be answered from the phone); a "Friday noticed" quick-settings tile.
 
+## Home Station (tablet dashboard)
+
+- `New folder/Shared/shared_state.py`: the shared SQLite file (`Shared/state/shared.db`, or `FJ_SHARED_DIR`). Tables: tasks, events, metrics (24 h), processes (latest snapshot), services. Standard library only.
+- `New folder/Shared/jarvis_reporter.py` (+ `start_jarvis_reporter.bat`): Jarvis's side. It samples metrics, processes and service ports every 5 s, and with `--run-jarvis` starts Jarvis Station unchanged, copies its log lines into `events` (levels from the text, tracebacks grouped) and restarts it if it crashes. Jarvis's own code isn't modified.
+- `LocalAI/app/station_dashboard.py` + `station.html`: Friday's side, at `/station`, with `GET /api/station/state` and `POST /api/station/task`. It reads Jarvis's `station_data` read-only (`mode=ro`).
+- **Still to do (Jarvis's session):** a task runner that executes queued tasks: `claim_next()` → work → `report(id, progress=…)`, check `still_wanted(id)` between steps, then `report(id, status="done"|"failed", result=…)`.
+
 ## Safety rules to keep
 
 - Never enter passwords, card/bank details or one-time codes. Never press submit or buy without the user.

@@ -1,0 +1,464 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Home Station</title>
+<style>
+  :root {
+    color-scheme: dark;
+    --bg: #0B0F19;
+    --card: #121826;
+    --raised: #182033;
+    --pressed: #222C44;
+    --border: rgba(255, 255, 255, 0.06);
+    --text: #F2F4F8;
+    --text-2: #A9B1C3;
+    --text-3: #6E7891;
+    --accent: #3E91FF;
+    --series: #3987E5;
+    --track: #1E2638;
+    --good: #0CA30C;
+    --warning: #FAB219;
+    --critical: #D03B3B;
+    --radius: 26px;
+    --gap: 16px;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  body {
+    background: var(--bg); color: var(--text);
+    font: 15px/1.45 "SamsungOne", "Samsung Sans", "Segoe UI", Roboto, system-ui, sans-serif;
+    font-variant-numeric: tabular-nums; -webkit-font-smoothing: antialiased;
+  }
+  button, input, select { font: inherit; color: inherit; }
+  button {
+    min-height: 40px; padding: 0 18px; border-radius: 20px; border: 0; cursor: pointer;
+    background: transparent; color: var(--accent); font-weight: 600;
+  }
+  button:hover { background: var(--raised); }
+  button:active { background: var(--pressed); }
+  button.filled { background: var(--accent); color: #fff; }
+  button.filled:hover { filter: brightness(1.08); }
+  button:disabled { color: var(--text-3); cursor: default; background: transparent; }
+
+  .page { height: 100%; display: flex; flex-direction: column; gap: var(--gap); padding: 24px 28px 28px; }
+  .page > header, .page > .notice, .page > .tiles { flex: none; }
+  header { display: flex; align-items: flex-end; gap: 24px; }
+  header .title h1 { margin: 0; font-size: 34px; font-weight: 600; letter-spacing: -0.2px; }
+  header .title p { margin: 2px 0 0; color: var(--text-2); }
+  header .clock { margin-left: auto; text-align: right; }
+  header .clock b { display: block; font-size: 34px; font-weight: 500; letter-spacing: -0.3px; }
+  header .clock span { color: var(--text-2); }
+
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius);
+          padding: 20px 22px; min-height: 0; display: flex; flex-direction: column; }
+  .card h2 { margin: 0; font-size: 17px; font-weight: 600; }
+  .card .head { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; min-height: 40px; }
+  .card .head .sub { color: var(--text-3); font-size: 13px; }
+  .card .head .end { margin-left: auto; display: flex; gap: 4px; align-items: center; }
+  .scroll { overflow-y: auto; min-height: 0; flex: 1; margin-right: -10px; padding-right: 10px; }
+  .scroll::-webkit-scrollbar { width: 6px; }
+  .scroll::-webkit-scrollbar-thumb { background: var(--pressed); border-radius: 3px; }
+
+  .notice { display: none; align-items: center; gap: 12px; padding: 14px 22px; border-radius: 20px;
+            background: var(--card); border: 1px solid rgba(250, 178, 25, 0.35); color: var(--text); }
+  .notice.show { display: flex; }
+
+  .tiles { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: var(--gap); }
+  .tile { padding: 18px 20px 14px; }
+  .tile .label { color: var(--text-2); font-size: 14px; display: flex; justify-content: space-between; gap: 8px; }
+  .tile .label span { color: var(--text-3); font-size: 12px; white-space: nowrap; }
+  .tile .value { font-size: 32px; font-weight: 600; letter-spacing: -0.4px; line-height: 1.15; margin-top: 2px; }
+  .tile .value small { font-size: 16px; font-weight: 500; color: var(--text-2); margin-left: 2px; }
+  .tile .detail { color: var(--text-2); font-size: 13px; min-height: 19px; }
+  .meter { height: 6px; border-radius: 3px; background: var(--track); margin: 10px 0 8px; overflow: hidden; }
+  .meter i { display: block; height: 100%; border-radius: 3px; background: var(--series); transition: width .4s; }
+  .meter i.high { background: var(--warning); }
+  .meter i.max { background: var(--critical); }
+  .spark { position: relative; height: 56px; }
+  .spark svg { width: 100%; height: 100%; display: block; overflow: visible; }
+  .spark .tip { position: absolute; top: -30px; transform: translateX(-50%); white-space: nowrap; pointer-events: none;
+                background: var(--pressed); color: var(--text); font-size: 12px; padding: 3px 9px; border-radius: 10px; display: none; }
+  .spark .caption { position: absolute; left: 0; bottom: 0; font-size: 12px; color: var(--text-3); pointer-events: none; }
+
+  .layout { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 7fr) minmax(0, 5fr); gap: var(--gap); }
+  .col { display: flex; flex-direction: column; gap: var(--gap); min-height: 0; }
+  .col > .card { flex: 1 1 0; }
+  .col > .card.tall { flex-grow: 1.25; }
+
+  .seg { display: inline-flex; background: var(--raised); border-radius: 20px; padding: 3px; }
+  .seg button { min-height: 34px; padding: 0 14px; border-radius: 17px; color: var(--text-2); font-weight: 500; font-size: 14px; }
+  .seg button.on { background: var(--pressed); color: var(--text); }
+
+  .row { display: flex; align-items: center; gap: 12px; padding: 10px 2px; border-top: 1px solid var(--border); }
+  .row:first-child { border-top: 0; }
+  .row .main { flex: 1; min-width: 0; }
+  .row .main b { display: block; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .row .main span { color: var(--text-3); font-size: 13px; }
+  .row .acts { display: flex; gap: 2px; flex-shrink: 0; }
+  .row .acts button { min-height: 36px; padding: 0 12px; font-size: 14px; }
+  .bar { height: 4px; border-radius: 2px; background: var(--track); margin-top: 6px; overflow: hidden; }
+  .bar i { display: block; height: 100%; background: var(--series); border-radius: 2px; }
+
+  .state { display: inline-flex; align-items: center; gap: 7px; font-size: 13px; color: var(--text-2); white-space: nowrap; }
+  .state::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--text-3); }
+  .state.good::before { background: var(--good); }
+  .state.warning::before { background: var(--warning); }
+  .state.critical::before { background: var(--critical); }
+  .state.accent::before { background: var(--accent); }
+
+  .add { display: flex; gap: 8px; margin-top: 12px; }
+  .add input, .add select { background: var(--raised); border: 1px solid transparent; border-radius: 20px; min-height: 42px; padding: 0 16px; }
+  .add input { flex: 1; min-width: 0; }
+  .add input:focus, .add select:focus { outline: none; border-color: var(--accent); }
+
+  .log { font-size: 14px; }
+  .log .ev { display: grid; grid-template-columns: 72px 128px minmax(0, 1fr); gap: 12px; padding: 7px 2px; border-top: 1px solid var(--border); }
+  .log .ev:first-child { border-top: 0; }
+  .log .ev time { color: var(--text-3); }
+  .log .ev .src { color: var(--text-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .log .ev .msg { white-space: pre-wrap; word-break: break-word; }
+  .log .ev.warning .src { color: var(--warning); }
+  .log .ev.error .src { color: var(--critical); }
+
+  .split { display: grid; grid-template-rows: auto minmax(0, 1fr); gap: 12px; min-height: 0; flex: 1; }
+  .services { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+  .svc { background: var(--raised); border-radius: 18px; padding: 10px 14px; min-width: 0; }
+  .svc .state { overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+  .svc b { display: block; font-weight: 500; }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  th { text-align: left; color: var(--text-3); font-weight: 500; font-size: 13px; padding: 4px 2px 8px; position: sticky; top: 0; background: var(--card); }
+  td { padding: 7px 2px; border-top: 1px solid var(--border); }
+  td.num, th.num { text-align: right; width: 84px; }
+  td.name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 0; }
+
+  .facts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  .fact { background: var(--raised); border-radius: 18px; padding: 12px 14px; }
+  .fact .k { color: var(--text-2); font-size: 13px; }
+  .fact .v { font-size: 22px; font-weight: 600; }
+  .fact .d { color: var(--text-3); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .sect { color: var(--text-2); font-size: 13px; margin: 14px 0 6px; }
+  .switches { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 16px; }
+  .switches div { display: flex; justify-content: space-between; padding: 6px 2px; border-top: 1px solid var(--border); font-size: 14px; }
+  .switches div span:last-child { color: var(--text-2); }
+  .empty { color: var(--text-3); padding: 18px 2px; }
+
+  /* Shorter screens (e.g. the tablet at 200% scaling, 1280 x 800): tighter spacing, same layout */
+  @media (max-height: 900px) {
+    :root { --gap: 12px; --radius: 22px; }
+    .page { padding: 16px 20px 18px; }
+    header .title h1, header .clock b { font-size: 26px; }
+    .card { padding: 14px 18px; }
+    .card .head { margin-bottom: 6px; }
+    .tile { padding: 12px 16px 10px; }
+    .tile .value { font-size: 26px; }
+    .meter { margin: 6px 0 4px; }
+    .spark { height: 40px; }
+    .row { padding: 7px 2px; }
+    .add { margin-top: 8px; }
+    .add input, .add select { min-height: 40px; }
+  }
+  /* Portrait or narrow windows: stack the cards and let the page scroll */
+  @media (max-width: 1100px), (max-height: 600px) {
+    .page { height: auto; }
+    .layout { grid-template-columns: minmax(0, 1fr); }
+    .col > .card { flex: none; height: 520px; }
+    .tiles { grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
+  }
+</style>
+</head>
+<body>
+<div class="page">
+  <header>
+    <div class="title">
+      <h1>Home Station</h1>
+      <p id="subtitle">Connecting…</p>
+    </div>
+    <div class="clock"><b id="time"></b><span id="date"></span></div>
+    <button id="fullscreen">Full screen</button>
+  </header>
+
+  <div class="notice" id="notice"></div>
+
+  <section class="tiles" aria-label="System">
+    <div class="card tile" id="t-cpu"></div>
+    <div class="card tile" id="t-mem"></div>
+    <div class="card tile" id="t-disk"></div>
+    <div class="card tile" id="t-power"></div>
+    <div class="card tile" id="t-net"></div>
+  </section>
+
+  <section class="layout">
+    <div class="col">
+      <div class="card tall">
+        <div class="head">
+          <h2>Task queue</h2><span class="sub" id="taskCount"></span>
+          <div class="end">
+            <div class="seg" id="taskTabs"><button data-v="active" class="on">Active</button><button data-v="queued">Queued</button><button data-v="finished">Finished</button></div>
+            <button id="clearDone" hidden>Clear</button>
+          </div>
+        </div>
+        <div class="scroll" id="tasks"></div>
+        <form class="add" id="addForm" autocomplete="off">
+          <input id="taskTitle" placeholder="Add a task for Jarvis" maxlength="300">
+          <select id="taskPriority" aria-label="Priority"><option value="1">High</option><option value="2" selected>Normal</option><option value="3">Low</option></select>
+          <button class="filled" type="submit">Add</button>
+        </form>
+      </div>
+      <div class="card">
+        <div class="head">
+          <h2>Activity</h2><span class="sub">Jarvis, the reporter and your actions</span>
+          <div class="end"><div class="seg" id="logTabs"><button data-v="all" class="on">All</button><button data-v="warning">Warnings</button><button data-v="error">Errors</button></div></div>
+        </div>
+        <div class="scroll log" id="log"></div>
+      </div>
+    </div>
+    <div class="col">
+      <div class="card">
+        <div class="head"><h2>Services and processes</h2><span class="sub" id="procNote"></span></div>
+        <div class="split">
+          <div class="services" id="services"></div>
+          <div class="scroll"><table><thead><tr><th>Process</th><th class="num">CPU</th><th class="num">Memory</th></tr></thead><tbody id="procs"></tbody></table></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="head"><h2>Jarvis</h2><span class="sub" id="jarvisNote"></span></div>
+        <div class="scroll" id="jarvis"></div>
+      </div>
+    </div>
+  </section>
+</div>
+
+<script>
+const TOKEN = "__FRIDAY_TOKEN__";   // filled in by Friday's server
+const POLL_MS = 3000;
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+let data = null, taskTab = "active", logTab = "all", lastOk = 0;
+
+async function api(path, body) {
+  const r = await fetch(path, { method: body ? "POST" : "GET", headers: { "Content-Type": "application/json", "X-Friday-Token": TOKEN },
+                                body: body ? JSON.stringify(body) : undefined });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(j.error || `Request failed (${r.status})`);
+  return j;
+}
+
+// ── Formatting ──────────────────────────────────────────────────────
+const pad = n => String(n).padStart(2, "0");
+const hm = t => { const d = new Date(t * 1000); return `${pad(d.getHours())}:${pad(d.getMinutes())}`; };
+const hms = t => { const d = new Date(t * 1000); return `${hm(t)}:${pad(d.getSeconds())}`; };
+function ago(t) {
+  const s = Math.max(0, Date.now() / 1000 - t);
+  if (s < 45) return "just now";
+  if (s < 3600) return `${Math.round(s / 60)} min ago`;
+  if (s < 86400) return `${Math.round(s / 3600)} h ago`;
+  return new Date(t * 1000).toLocaleDateString(undefined, { day: "numeric", month: "short" });
+}
+const isoAgo = iso => iso ? ago(new Date(iso).getTime() / 1000) : "never";
+const rate = kb => kb == null ? "–" : kb >= 1024 ? `${(kb / 1024).toFixed(1)} MB/s` : `${Math.round(kb)} KB/s`;
+const num = (v, d = 0) => v == null ? "–" : Number(v).toFixed(d);
+const PRIORITY = { 1: "High", 2: "Normal", 3: "Low" };
+
+// ── Clock ───────────────────────────────────────────────────────────
+function tick() {
+  const d = new Date();
+  $("time").textContent = `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  $("date").textContent = d.toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long" });
+  if (data) {
+    const age = Math.round((Date.now() - lastOk) / 1000);
+    $("subtitle").textContent = (data.reporter_ok ? "Jarvis reporter connected" : "Jarvis reporter offline") +
+      ` · updated ${age < 5 ? "now" : age + " s ago"}`;
+  }
+}
+
+// ── Metric tiles ────────────────────────────────────────────────────
+function sparkline(points, key, max, unit) {
+  const pts = points.filter(p => p[key] != null);
+  if (pts.length < 2) return `<div class="spark"><span class="caption">Collecting…</span></div>`;
+  const t0 = pts[0].ts, t1 = pts[pts.length - 1].ts, W = 300, H = 56;
+  const top = max || Math.max(1, ...pts.map(p => p[key])) * 1.15;
+  const x = t => (t - t0) / Math.max(1, t1 - t0) * W, y = v => H - 4 - Math.min(v, top) / top * (H - 10);
+  const line = pts.map((p, i) => `${i ? "L" : "M"}${x(p.ts).toFixed(1)},${y(p[key]).toFixed(1)}`).join("");
+  const mins = Math.round((t1 - t0) / 60);
+  return `<div class="spark" data-key="${key}" data-unit="${esc(unit)}" data-span="Last ${mins || "<1"} min">
+    <svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" role="img" aria-label="Last ${mins} minutes">
+      <path d="${line}L${W},${H}L0,${H}Z" fill="var(--series)" opacity="0.12"/>
+      <path d="${line}" fill="none" stroke="var(--series)" stroke-width="2" vector-effect="non-scaling-stroke" stroke-linejoin="round"/>
+      <line class="cross" x1="0" x2="0" y1="0" y2="${H}" stroke="var(--text-3)" stroke-width="1" vector-effect="non-scaling-stroke" visibility="hidden"/>
+    </svg><span class="tip"></span></div>`;
+}
+
+function hookSpark(el, points) {
+  const sp = el.querySelector(".spark[data-key]");
+  if (!sp) return;
+  const key = sp.dataset.key, unit = sp.dataset.unit, pts = points.filter(p => p[key] != null);
+  const svg = sp.querySelector("svg"), cross = sp.querySelector(".cross"), tip = sp.querySelector(".tip");
+  const show = e => {
+    const r = svg.getBoundingClientRect(), f = Math.min(1, Math.max(0, (e.clientX - r.left) / r.width));
+    const t = pts[0].ts + f * (pts[pts.length - 1].ts - pts[0].ts);
+    const p = pts.reduce((a, b) => Math.abs(b.ts - t) < Math.abs(a.ts - t) ? b : a);
+    const px = (p.ts - pts[0].ts) / Math.max(1, pts[pts.length - 1].ts - pts[0].ts);
+    cross.setAttribute("x1", px * 300); cross.setAttribute("x2", px * 300); cross.setAttribute("visibility", "visible");
+    tip.style.display = "block"; tip.style.left = `${px * 100}%`;
+    tip.textContent = `${hm(p.ts)} · ${unit === "rate" ? rate(p[key]) : num(p[key], 0) + unit}`;
+  };
+  const hide = () => { cross.setAttribute("visibility", "hidden"); tip.style.display = "none"; };
+  sp.addEventListener("pointermove", show); sp.addEventListener("pointerdown", show); sp.addEventListener("pointerleave", hide);
+}
+
+function meter(pct) {
+  if (pct == null) return `<div class="meter" style="visibility:hidden"></div>`;
+  return `<div class="meter"><i class="${pct >= 95 ? "max" : pct >= 85 ? "high" : ""}" style="width:${Math.min(100, pct)}%"></i></div>`;
+}
+
+function tile(id, label, value, unit, detail, pct, spark) {
+  const span = spark && spark.match(/data-span="([^"]*)"/);
+  $(id).innerHTML = `<div class="label">${label}${span ? `<span>${span[1]}</span>` : ""}</div>
+    <div class="value">${value}${unit ? `<small>${unit}</small>` : ""}</div>${meter(pct)}
+    <div class="detail">${detail}</div>${spark || ""}`;
+}
+
+function renderTiles() {
+  const pts = data.metrics, m = pts[pts.length - 1] || {};
+  const peak = k => { const v = pts.map(p => p[k]).filter(v => v != null); return v.length ? Math.max(...v) : null; };
+  tile("t-cpu", "Processor", num(m.cpu), "%", m.cpu == null ? "No data yet" : `Peak ${num(peak("cpu"))}% in this window`, m.cpu, sparkline(pts, "cpu", 100, "%"));
+  tile("t-mem", "Memory", num(m.mem), "%", m.mem_used == null ? "No data yet" : `${num(m.mem_used, 1)} of ${num(m.mem_total, 1)} GB in use`, m.mem, sparkline(pts, "mem", 100, "%"));
+  tile("t-disk", "Storage", num(m.disk), "%", m.disk_free == null ? "No data yet" : `${num(m.disk_free)} GB free on the system drive`, m.disk, "");
+  if (m.battery != null) {
+    tile("t-power", "Battery", num(m.battery), "%", m.plugged ? "Plugged in" : "On battery", m.battery, sparkline(pts, "battery", 100, "%"));
+  } else {
+    tile("t-power", "Power", m.ts ? "Mains" : "–", "", m.ts ? "No battery on this PC" : "No data yet", null, "");
+  }
+  tile("t-net", "Network", rate(m.net_down).replace(/ (KB|MB)\/s/, ""), m.net_down == null ? "" : (m.net_down >= 1024 ? " MB/s" : " KB/s"),
+       m.net_up == null ? "No data yet" : `Download · upload ${rate(m.net_up)}`, null, sparkline(pts, "net_down", 0, "rate"));
+  ["t-cpu", "t-mem", "t-power", "t-net"].forEach(id => hookSpark($(id), pts));
+}
+
+// ── Tasks ───────────────────────────────────────────────────────────
+const TASK_STATE = { running: ["Running", "accent"], paused: ["Paused", "warning"], queued: ["Queued", ""],
+                     done: ["Done", "good"], failed: ["Failed", "critical"], cancelled: ["Cancelled", ""] };
+const TASK_ACTIONS = { running: ["pause", "cancel"], paused: ["resume", "cancel"], queued: ["raise", "lower", "pause", "cancel"],
+                       done: ["remove"], failed: ["retry", "remove"], cancelled: ["retry", "remove"] };
+const ACTION_LABEL = { pause: "Pause", resume: "Resume", cancel: "Cancel", retry: "Retry", remove: "Remove", raise: "Raise", lower: "Lower" };
+const inTab = t => taskTab === "active" ? ["running", "paused"].includes(t.status)
+  : taskTab === "queued" ? t.status === "queued" : ["done", "failed", "cancelled"].includes(t.status);
+
+function renderTasks() {
+  const all = data.tasks, list = all.filter(inTab);
+  const n = s => all.filter(t => s.includes(t.status)).length;
+  $("taskCount").textContent = `${n(["running", "paused"])} active · ${n(["queued"])} queued`;
+  $("clearDone").hidden = taskTab !== "finished" || !list.length;
+  $("tasks").innerHTML = list.length ? list.map(t => {
+    const [label, cls] = TASK_STATE[t.status] || [t.status, ""];
+    const acts = (TASK_ACTIONS[t.status] || []).filter(a => !(a === "raise" && t.priority === 1) && !(a === "lower" && t.priority === 3));
+    return `<div class="row"><div class="main"><b title="${esc(t.title)}">${esc(t.title)}</b>
+      <span>${PRIORITY[t.priority] || "Normal"} priority · from ${esc(t.source)} · ${ago(t.created)}${t.result ? " · " + esc(t.result.slice(0, 140)) : ""}</span>
+      ${t.status === "running" && t.progress != null ? `<div class="bar"><i style="width:${Math.round(t.progress * 100)}%"></i></div>` : ""}</div>
+      <span class="state ${cls}">${label}</span>
+      <div class="acts">${acts.map(a => `<button data-task="${t.id}" data-act="${a}">${ACTION_LABEL[a]}</button>`).join("")}</div></div>`;
+  }).join("") : `<div class="empty">${taskTab === "active" ? "Nothing running right now." : taskTab === "queued" ? "The queue is empty." : "No finished tasks."}</div>`;
+}
+
+// ── Services and processes ──────────────────────────────────────────
+const SVC = [["jarvis", "Jarvis"], ["friday", "Friday"], ["ollama", "Ollama"], ["reporter", "Reporter"]];
+const SVC_STATE = { running: ["Running", "good"], stopped: ["Stopped", "critical"], restarting: ["Restarting", "warning"], unknown: ["Unknown", ""] };
+function renderServices() {
+  $("services").innerHTML = SVC.map(([key, name]) => {
+    const s = data.services[key] || { status: "unknown" };
+    const [label, cls] = SVC_STATE[s.status] || [s.status, ""];
+    return `<div class="svc" title="${esc(name)}: ${esc(label)}${s.pid ? ", pid " + s.pid : ""}${s.detail ? " (" + esc(s.detail) + ")" : ""}"><b>${name}</b><span class="state ${cls}">${label}</span></div>`;
+  }).join("");
+  const procs = data.processes;
+  $("procNote").textContent = procs.length ? `Top ${procs.length} by processor use` : "";
+  $("procs").innerHTML = procs.length ? procs.map(p => `<tr><td class="name" title="${esc(p.name)} (pid ${p.pid})">${esc(p.name)}</td>
+    <td class="num">${num(p.cpu, 1)}%</td><td class="num">${p.mem_mb >= 1024 ? num(p.mem_mb / 1024, 1) + " GB" : num(p.mem_mb) + " MB"}</td></tr>`).join("")
+    : `<tr><td colspan="3" class="empty">No process data. The reporter needs psutil (run it with Jarvis's Python).</td></tr>`;
+}
+
+// ── Activity ────────────────────────────────────────────────────────
+function renderLog() {
+  const evs = data.events.filter(e => logTab === "all" || (logTab === "warning" ? e.level !== "info" : e.level === "error"));
+  $("log").innerHTML = evs.length ? evs.map(e => `<div class="ev ${e.level}"><time title="${new Date(e.ts * 1000).toLocaleString()}">${hms(e.ts)}</time>
+    <span class="src" title="${esc(e.source)}">${e.level === "info" ? "" : e.level === "error" ? "Error · " : "Warning · "}${esc(e.source)}</span>
+    <span class="msg">${esc(e.message)}</span></div>`).join("") : `<div class="empty">Nothing logged${logTab === "all" ? " yet" : ""}.</div>`;
+}
+
+// ── Jarvis data ─────────────────────────────────────────────────────
+function fact(k, v, d) { return `<div class="fact"><div class="k">${k}</div><div class="v">${v}</div><div class="d" title="${esc(d)}">${esc(d)}</div></div>`; }
+function renderJarvis() {
+  const j = data.jarvis;
+  $("jarvisNote").textContent = j.found ? "Read-only view of Jarvis's files" : "";
+  if (!j.found) { $("jarvis").innerHTML = `<div class="empty">Jarvis's data folder wasn't found at ${esc(j.folder)}. Start Jarvis once to create it.</div>`; return; }
+  const r = j.recall || {}, m = j.memory || {};
+  $("jarvis").innerHTML = `<div class="facts">
+      ${fact("Screen captures today", r.error ? "–" : num(r.today), r.last_ts ? `Last ${isoAgo(r.last_ts)}${r.last_window ? " · " + r.last_window : ""}` : "No captures yet")}
+      ${fact("Screen memory", r.error ? "–" : `${num(r.mb)} MB`, r.frames != null ? `${r.frames} captures in ${r.segments} segments` : "")}
+      ${fact("Conversations today", m.error ? "–" : num(m.today), m.messages != null ? `${m.messages} messages in total` : "")}
+      ${fact("Clipboard history", m.error ? "–" : num(m.clips), m.last_ts ? `Last message ${isoAgo(m.last_ts)}${m.last_device ? " from " + m.last_device : ""}` : "")}
+    </div>
+    <div class="sect">Switches</div>
+    <div class="switches">${(j.switches || []).map(s => `<div><span>${esc(s.label)}</span><span>${s.on ? "On" : "Off"}</span></div>`).join("") || `<div class="empty">No settings file yet.</div>`}</div>
+    <div class="sect">Paired devices</div>
+    <div class="switches">${(j.devices || []).map(d => `<div><span>${esc(d.name)}</span><span>${esc((d.paired_at || "").slice(0, 10))}</span></div>`).join("") || `<div class="empty">None yet.</div>`}</div>`;
+}
+
+// ── Polling ─────────────────────────────────────────────────────────
+function render() {
+  const n = $("notice");
+  n.classList.toggle("show", !data.reporter_ok);
+  n.innerHTML = `<span class="state warning">Reporter offline</span><span>Live metrics and Jarvis's log need the reporter. On the PC, run <b>Shared\\start_jarvis_reporter.bat</b>. Tasks you add are kept and picked up when Jarvis runs.</span>`;
+  renderTiles(); renderTasks(); renderServices(); renderLog(); renderJarvis(); tick();
+}
+
+async function poll() {
+  try {
+    data = await api("/api/station/state");
+    lastOk = Date.now();
+    render();
+  } catch (e) {
+    $("subtitle").textContent = `Can't reach Friday: ${e.message}`;
+  }
+}
+
+// ── Actions ─────────────────────────────────────────────────────────
+function segmented(id, set) {
+  $(id).addEventListener("click", e => {
+    const b = e.target.closest("button[data-v]");
+    if (!b) return;
+    $(id).querySelectorAll("button").forEach(x => x.classList.toggle("on", x === b));
+    set(b.dataset.v); if (data) render();
+  });
+}
+segmented("taskTabs", v => taskTab = v);
+segmented("logTabs", v => logTab = v);
+
+$("tasks").addEventListener("click", async e => {
+  const b = e.target.closest("button[data-act]");
+  if (!b) return;
+  b.disabled = true;
+  try { await api("/api/station/task", { id: +b.dataset.task, action: b.dataset.act }); } catch (err) { alert(err.message); }
+  poll();
+});
+$("clearDone").onclick = async () => { await api("/api/station/task", { action: "clear" }).catch(e => alert(e.message)); poll(); };
+$("addForm").addEventListener("submit", async e => {
+  e.preventDefault();
+  const title = $("taskTitle").value.trim();
+  if (!title) return;
+  try {
+    await api("/api/station/task", { action: "add", title, priority: +$("taskPriority").value });
+    $("taskTitle").value = "";
+    if (taskTab !== "queued") $("taskTabs").querySelector('[data-v="queued"]').click();
+  } catch (err) { alert(err.message); }
+  poll();
+});
+$("fullscreen").onclick = () => document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen().catch(() => {});
+document.addEventListener("fullscreenchange", () => $("fullscreen").textContent = document.fullscreenElement ? "Exit full screen" : "Full screen");
+document.addEventListener("visibilitychange", () => { if (!document.hidden) poll(); });
+
+tick(); setInterval(tick, 1000);
+poll(); setInterval(poll, POLL_MS);
+</script>
+</body>
+</html>
