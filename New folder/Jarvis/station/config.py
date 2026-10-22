@@ -23,7 +23,7 @@ def _bool(name: str, default: bool) -> bool:
 @dataclass
 class StationConfig:
     host:         str  = "0.0.0.0"
-    port:         int  = 8765
+    port:         int  = 8780
     data_dir:     Path = Path("station_data")
     allow_shell:  bool = True                       # God mode terminal from your phone
     ollama_url:   str  = "http://localhost:11434"   # Free local brain
@@ -43,7 +43,7 @@ class StationConfig:
     def from_env(cls) -> "StationConfig":
         return cls(
             host=os.getenv("STATION_HOST", "0.0.0.0"),
-            port=int(os.getenv("STATION_PORT", 8765)),
+            port=int(os.getenv("STATION_PORT", 8780)),
             data_dir=Path(os.getenv("STATION_DATA_DIR", "station_data")),
             allow_shell=_bool("STATION_ALLOW_SHELL", True),
             ollama_url=os.getenv("OLLAMA_URL", "http://localhost:11434").rstrip("/"),

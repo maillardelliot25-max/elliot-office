@@ -19,7 +19,7 @@ sys.path = [p for p in sys.path if Path(p or ".").resolve() != HERE]
 
 import httpx  # noqa: E402
 from mcp.server.fastmcp import FastMCP, Image  # noqa: E402
-STATION = os.getenv("STATION_URL", "http://127.0.0.1:8765").rstrip("/")
+STATION = os.getenv("STATION_URL", "http://127.0.0.1:8780").rstrip("/")
 TOKEN_FILE = Path(os.getenv("STATION_DATA_DIR", HERE.parent / "station_data")) / "claude.token"
 
 mcp = FastMCP(

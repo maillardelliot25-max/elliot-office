@@ -428,3 +428,119 @@ def test_setup_checklist_tracks_progress(station):
     client.post("/api/push/subscribe", json={"subscription": SUB})
     after = client.get("/api/setup").json()
     assert after["ready"] == before + 3 and after["total"] == s["total"]
+
+
+# ── Friday link (two brains side by side) ───────────────────────────────────
+
+class FakeFriday:
+    """Behaves like Friday's API: pairing code on every call, memory, OpenAI-style gateway."""
+
+    def __init__(self, code="PAIR-123"):
+        self.code = code
+        self.memories = [{"id": "1", "text": "Elliot's favourite artist is Usher", "category": "Likes", "added": 0}]
+        self.chats = []
+        self.reply = '{"reply": "Friday-brain answer, sir.", "actions": []}'
+
+    def __call__(self, request: httpx.Request) -> httpx.Response:
+        if request.headers.get("X-Jarvis-Token") != self.code:
+            return httpx.Response(401, json={"error": "Friday isn't paired"})
+        path = request.url.path
+        if path == "/v1/models":
+            return httpx.Response(200, json={"object": "list", "data": [{"id": "llama3.2:3b"}, {"id": "claude-opus-5-5"}]})
+        if path == "/api/memory" and request.method == "GET":
+            return httpx.Response(200, json={"memories": self.memories, "categories": []})
+        if path == "/api/memory":
+            body = json.loads(request.content)
+            self.memories.append({"id": str(len(self.memories) + 1), "text": body["text"], "category": body["category"], "added": 0})
+            return httpx.Response(200, json={"entry": self.memories[-1]})
+        if path == "/v1/chat/completions":
+            body = json.loads(request.content)
+            self.chats.append(body)
+            content = "Friday here: on it." if body["messages"][0]["role"] == "user" else self.reply
+            return httpx.Response(200, json={"choices": [{"message": {"role": "assistant", "content": content}}]})
+        return httpx.Response(404, json={"error": "not found"})
+
+
+def friday_app(tmp_path, friday, brain=None):
+    app = create_app(StationConfig(data_dir=tmp_path), control=FakeControl(tmp_path), brain=brain or FakeBrain(),
+                     friday_transport=httpx.MockTransport(friday))
+    return paired(app), app
+
+
+def test_jarvis_is_on_8780_so_friday_keeps_8765():
+    assert StationConfig().port == 8780 and StationConfig.from_env().port == 8780
+
+
+def test_friday_link_status_and_secret_code(tmp_path):
+    friday = FakeFriday()
+    client, app = friday_app(tmp_path, friday)
+    assert client.get("/api/friday").json()["linked"] is False
+    client.patch("/api/settings", json={"friday_code": "wrong"})
+    assert "rejected" in client.get("/api/friday").json()["detail"]
+    s = client.patch("/api/settings", json={"friday_code": "PAIR-123"}).json()
+    assert s["friday_linked"] and "friday_code" not in s  # the code never goes back to devices
+    st = client.get("/api/friday").json()
+    assert st["online"] and st["models"] == ["llama3.2:3b", "claude-opus-5-5"]
+    assert (tmp_path / "friday.token").exists()  # Friday's key to call Jarvis
+
+
+def test_shared_memory_both_ways(tmp_path):
+    friday, brain = FakeFriday(), FakeBrain()
+    client, app = friday_app(tmp_path, friday, brain)
+    client.patch("/api/settings", json={"friday_code": "PAIR-123"})
+    client.post("/api/chat", json={"message": "play something by my favourite artist"})
+    assert any(m["role"] == "friday" and "Usher" in m["text"] for m in brain.seen["memories"])
+
+    r = client.post("/api/memory/note", json={"text": "Elliot's tablet is a Samsung Tab A9"}).json()
+    assert r["shared_with_friday"] and friday.memories[-1]["text"] == "Elliot's tablet is a Samsung Tab A9"
+
+    client.patch("/api/settings", json={"friday_share_memory": False})
+    before = len(friday.memories)
+    client.post("/api/memory/note", json={"text": "private note"})
+    assert len(friday.memories) == before
+
+
+def test_friday_notes_are_not_echoed_back(tmp_path):
+    friday = FakeFriday()
+    client, app = friday_app(tmp_path, friday)
+    client.patch("/api/settings", json={"friday_code": "PAIR-123"})
+    c = TestClient(app)
+    c.headers["Authorization"] = f"Bearer {(tmp_path / 'friday.token').read_text()}"
+    before = len(friday.memories)
+    assert c.post("/api/memory/note", json={"text": "From Friday: Elliot is flying Tuesday"}).json()["shared_with_friday"] is False
+    assert len(friday.memories) == before
+
+
+def test_think_with_fridays_brain_and_fall_back(tmp_path):
+    friday, brain = FakeFriday(), FakeBrain()
+    client, app = friday_app(tmp_path, friday, brain)
+    client.patch("/api/settings", json={"friday_code": "PAIR-123", "friday_brain": True, "friday_model": "claude-opus-5-5"})
+    r = client.post("/api/chat", json={"message": "what's on my plate today?"}).json()
+    assert r["reply"] == "Friday-brain answer, sir." and r["brain"] == "Friday (claude-opus-5-5)"
+    assert friday.chats[-1]["model"] == "claude-opus-5-5" and friday.chats[-1]["messages"][0]["role"] == "system"
+    assert brain.seen is None  # the local brain wasn't needed
+
+    friday.reply = "```json\n{\"reply\": \"wrapped\", \"actions\": []}\n```"
+    assert client.post("/api/chat", json={"message": "again"}).json()["reply"] == "wrapped"
+
+    client.patch("/api/settings", json={"friday_code": "stale"})  # Friday unreachable → Ollama
+    r = client.post("/api/chat", json={"message": "and now?"}).json()
+    assert r["reply"] == "Sure." and brain.seen is not None
+
+
+def test_ask_friday_from_jarvis_chat(tmp_path):
+    friday = FakeFriday()
+    client, app = friday_app(tmp_path, friday)
+    assert "couldn't reach Friday" in client.post("/api/chat", json={"message": "ask Friday what's trending"}).json()["reply"]
+    client.patch("/api/settings", json={"friday_code": "PAIR-123"})
+    r = client.post("/api/chat", json={"message": "Ask Friday, what's trending on my phone?"}).json()
+    assert r["reply"] == "Friday says: Friday here: on it." and r["brain"] == "friday"
+    assert friday.chats[-1]["messages"] == [{"role": "user", "content": "what's trending on my phone?"}]
+
+
+def test_setup_checklist_shows_friday(tmp_path):
+    client, app = friday_app(tmp_path, FakeFriday())
+    item = {i["key"]: i for i in client.get("/api/setup").json()["items"]}["friday"]
+    assert not item["ok"] and "pairing code" in item["fix"]
+    client.patch("/api/settings", json={"friday_code": "PAIR-123"})
+    assert {i["key"]: i for i in client.get("/api/setup").json()["items"]}["friday"]["ok"]

@@ -28,7 +28,15 @@ DEFAULTS = {
     "notify": True,                # notifications on phone/tablet/Telegram when Jarvis does a job
     "syncthing_url": "http://127.0.0.1:8384",
     "syncthing_api_key": "",
+    # Friday — the everywhere AI that works side by side with Jarvis
+    "friday": True,                # link to Friday when it's running on this PC
+    "friday_url": "http://localhost:8765",
+    "friday_code": "",             # Friday → Settings → Chrome pairing code
+    "friday_share_memory": True,   # read Friday's memory of you; send Jarvis's notes to it
+    "friday_brain": False,         # think with Friday's brain gateway instead of Ollama directly
+    "friday_model": "auto",        # which of Friday's brains ("auto" = Friday's default)
 }
+SECRETS = ("syncthing_api_key", "friday_code")
 
 LIMITS = {
     "recall_every_s": (2, 600),
@@ -81,6 +89,7 @@ class Settings:
 
     def public(self) -> dict:
         """Settings safe to show in the app (the Syncthing key is never sent back)."""
-        out = {k: v for k, v in self.values.items() if k != "syncthing_api_key"}
+        out = {k: v for k, v in self.values.items() if k not in SECRETS}
         out["syncthing_configured"] = bool(self.values["syncthing_api_key"])
+        out["friday_linked"] = bool(self.values["friday_code"])
         return out

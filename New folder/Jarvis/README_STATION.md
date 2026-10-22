@@ -1,5 +1,7 @@
 # Jarvis God Station: control your PC from your phone and tablet
 
+> **Jarvis + Friday:** Friday is the everywhere AI (Chrome, Android, on the go) on port 8765. Jarvis is the home base (this PC, files, screen memory, management and data) on port **8780**. They run side by side; see §13.
+>
 > New here? **[START_HERE.md](START_HERE.md)** is the 6-step version. In the app, **PC → Setup** shows what's left.
 
 Your HP laptop becomes the **God Station**. Your Android phone and tablet become remotes, and Jarvis lives on the PC.
@@ -32,7 +34,7 @@ Shut down, restart, sleep, terminal commands and closing apps **always ask befor
 2. Open this `Jarvis` folder and double-click **`install_station.bat`**.
    Then double-click **`install_extras.bat`** to add the free extras (Ollama brain, Tailscale, Syncthing, Claude app). It asks before each one.
 3. Double-click **`start_station.bat`**. A window opens showing:
-   - the address to open on your phone, e.g. `http://192.168.1.20:8765`
+   - the address to open on your phone, e.g. `http://192.168.1.20:8780`
    - a **6-digit PIN**
 4. If Windows Firewall asks, click **Allow** (Private networks).
 
@@ -52,11 +54,11 @@ Turn the tablet sideways and the screen view goes big, with the controls on the 
 Tailscale makes a private, encrypted network between your devices. Nothing is opened to the public internet.
 
 1. Install **Tailscale** on the PC (tailscale.com/download) and on the phone (Play Store). Sign in with the **same account** on both.
-2. Restart `start_station.bat`. The window now also shows a **Tailscale** address (`http://100.x.x.x:8765`). Use that on your phone from anywhere: mobile data, school, anywhere.
+2. Restart `start_station.bat`. The window now also shows a **Tailscale** address (`http://100.x.x.x:8780`). Use that on your phone from anywhere: mobile data, school, anywhere.
 
 **Recommended: HTTPS** (needed for the 🎙 mic button and a full "Install app"):
 1. In the Tailscale admin page → **DNS** → turn on **MagicDNS** and **HTTPS Certificates**.
-2. On the PC, in Terminal: `tailscale serve --bg 8765`
+2. On the PC, in Terminal: `tailscale serve --bg 8780`
 3. On the phone, open the `https://<your-pc-name>.<your-tailnet>.ts.net` address it prints. Chrome ⋮ → **Install app**.
 
 ## 4. Copy & paste between PC, phone and tablet
@@ -195,7 +197,7 @@ with Jarvis supplying the details and memory.
 
 ```
 OWNER_NAME=Elliot
-STATION_PORT=8765
+STATION_PORT=8780
 STATION_ALLOW_SHELL=true      # false = remove the terminal from the phone
 OLLAMA_MODEL=llama3.2:3b
 STATION_UPLOAD_DIR=C:\Users\Elliot\Downloads\Jarvis
@@ -225,7 +227,7 @@ Everything else (switches, screen memory limits) is in `station_data/settings.js
 - Only paired devices can do anything. The PIN is single-use, and 5 wrong tries generate a new one.
 - Lost your phone? Open the app on another paired device → **PC** → **Paired devices** → Remove.
   Or delete `station_data/devices.json` on the PC to unpair everything.
-- Use Tailscale for outside access. **Never** port-forward 8765 on your router.
+- Use Tailscale for outside access. **Never** port-forward 8780 on your router.
 
 ## Troubleshooting
 
@@ -242,3 +244,23 @@ Everything else (switches, screen memory limits) is in `station_data/settings.js
 | Telegram silent | Check `TELEGRAM_CHAT_ID` is set and see the Telegram line under **PC → Switches**. |
 
 Developers: tests run with `python -m pytest station/tests -q` (from the `Jarvis` folder).
+
+## 13. Friday + Jarvis: two brains side by side
+
+| | Friday | Jarvis |
+|---|---|---|
+| Role | The everywhere AI: Chrome, Android, on the go | The home base: this PC, files, screen memory, management and data |
+| Address | `http://localhost:8765` | `http://localhost:8780` (`STATION_PORT`) |
+
+**Link them:** in Friday → ⚙ Settings, copy the **Chrome pairing code**. In the Jarvis app go to **PC → Friday**, paste it, and tap **Link**.
+
+- **Shared memory** (on): when Jarvis answers, he uses what Friday knows about you, and notes saved to Jarvis also go to Friday's memory.
+  Friday never stores passwords, keys or card numbers.
+- **Think with Friday's brains** (off by default): Jarvis answers using the models and API keys you set up in Friday (pick one in the list).
+  If Friday is closed, Jarvis falls back to Ollama on his own.
+- **Ask Friday:** in Jarvis's chat (or on Telegram), say *"ask Friday what's on my phone's to-do list"*.
+- **Friday can call Jarvis:** Jarvis keeps a key for Friday in `station_data/friday.token`. Friday (on this PC) sends it as
+  `Authorization: Bearer <token>` to Jarvis's API, e.g. `GET /api/recall/search?q=…`, `GET /api/memory/search?q=…`,
+  `POST /api/memory/note`, `GET /api/files?path=…`, `GET /api/system`.
+- **No doubling up:** keep screen memory in Jarvis (Recall) and leave Friday's screen memory off. Use one Chrome form helper,
+  not both: turn the other off (Jarvis: **PC → Switches → Form helper**), or you'll get two pop-ups on every form.

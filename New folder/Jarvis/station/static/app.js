@@ -689,6 +689,7 @@ async function loadSwitches() {
     list.append(switchRow("Auto-copy on this device", "When the app is open, new copies from other devices go straight to this device's clipboard",
       localGet("station_autocopy", "1") === "1", async (on) => localSet("station_autocopy", on ? "1" : "0")));
     loadSync(s);
+    loadFriday();
   } catch (e) { list.innerHTML = `<li class="error">${e.message}</li>`; }
 }
 
@@ -751,6 +752,56 @@ async function notifyRow() {
   });
   if (!supported) row.querySelector("input").disabled = true;
   return row;
+}
+
+// Friday link: shared memory, one brain, ask each other
+async function loadFriday() {
+  const box = $("#fridayBox");
+  let f;
+  try { f = await api("/api/friday"); } catch (e) { box.textContent = e.message; return; }
+  box.innerHTML = "";
+  const status = document.createElement("p");
+  status.className = "hint";
+  status.innerHTML = `<span class="dot ${f.online ? "ok" : "bad"}" style="display:inline-block;margin-right:6px"></span>`;
+  status.append(f.linked ? `Friday: ${f.detail}` : "Not linked yet. Paste Friday's pairing code (Friday → ⚙ Settings → Chrome pairing code).");
+  box.append(status);
+
+  const form = document.createElement("form");
+  form.className = "row";
+  form.innerHTML = `<input placeholder="${f.linked ? "Paste a new pairing code to change it" : "Friday's pairing code"}" autocomplete="off"><button class="btn primary">${f.linked ? "Update" : "Link"}</button>`;
+  form.onsubmit = async (e) => {
+    e.preventDefault();
+    const code = form.querySelector("input").value.trim();
+    if (!code) return;
+    await act(() => api("/api/settings", { method: "PATCH", body: { friday_code: code } }), "Linked with Friday");
+    loadFriday();
+  };
+  box.append(form);
+
+  const ul = document.createElement("ul");
+  ul.className = "switches";
+  const set = (key, label) => async (on) => { await api("/api/settings", { method: "PATCH", body: { [key]: on } }); toast(`${label} ${on ? "on" : "off"}`); loadFriday(); };
+  ul.append(switchRow("Link with Friday", "Jarvis and Friday talk to each other on this PC", f.enabled, set("friday", "Friday link")));
+  ul.append(switchRow("Shared memory", "Jarvis uses what Friday knows about you, and shares notes with Friday", f.share_memory, set("friday_share_memory", "Shared memory")));
+  ul.append(switchRow("Think with Friday's brains", "Jarvis answers using Friday's models and API keys (falls back to Ollama)", f.brain, set("friday_brain", "Friday's brains")));
+  box.append(ul);
+
+  if (f.online && f.models?.length) {
+    const row = document.createElement("div");
+    row.className = "row";
+    row.style.marginTop = "8px";
+    const sel = document.createElement("select");
+    sel.className = "btn grow";
+    ["auto", ...f.models].forEach((m) => sel.append(new Option(m === "auto" ? "Friday's default brain" : m, m, false, m === f.model)));
+    sel.onchange = () => act(() => api("/api/settings", { method: "PATCH", body: { friday_model: sel.value } }), "Brain chosen");
+    row.append(sel);
+    box.append(row);
+  }
+  const tip = document.createElement("p");
+  tip.className = "hint";
+  tip.style.marginTop = "8px";
+  tip.textContent = "Tip: in Jarvis's chat, say “ask Friday …” to hand a question to Friday.";
+  box.append(tip);
 }
 
 // Auto-copy: newest clip from another device goes to this device's clipboard while the app is open

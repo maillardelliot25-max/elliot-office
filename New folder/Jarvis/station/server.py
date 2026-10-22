@@ -22,6 +22,7 @@ from station.assist import PROFILE_FIELDS, Profile, fill_from_profile, greeting
 from station.auth import DeviceAuth
 from station.brain import BrainOffline, LocalBrain
 from station.config import StationConfig
+from station.friday import ASK_FRIDAY, FridayBrain, FridayError, FridayLink
 from station.controls import ControlError, PCControl
 from station.intents import describe, quick_intent
 from station.memory import StationMemory
@@ -109,7 +110,8 @@ class FormBody(BaseModel):
 # ── App ──────────────────────────────────────────────────────────────────────
 
 def create_app(config: StationConfig, control: PCControl | None = None,
-               brain: LocalBrain | None = None, telegram_transport=None, push_sender=None) -> FastAPI:
+               brain: LocalBrain | None = None, telegram_transport=None, push_sender=None,
+               friday_transport=None) -> FastAPI:
     config.data_dir.mkdir(parents=True, exist_ok=True)
     auth = DeviceAuth(config.data_dir)
     memory = StationMemory(config.data_dir / "memory.db")
@@ -122,6 +124,9 @@ def create_app(config: StationConfig, control: PCControl | None = None,
     signature_path = config.data_dir / "signature.png"
     notifier = Notifier(config.data_dir, settings, sender=push_sender)
     auth.ensure_local_token(config.data_dir / "claude.token", "Claude (this PC)")
+    auth.ensure_local_token(config.data_dir / "friday.token", "Friday (this PC)")
+    friday = FridayLink(settings, transport=friday_transport)
+    friday_brain = FridayBrain(friday, config.owner_name)
 
     async def watch_clipboard():
         """Every copy on the PC lands in the shared clipboard history."""
@@ -170,6 +175,7 @@ def create_app(config: StationConfig, control: PCControl | None = None,
     app.state.recall = recall
     app.state.recorder = recorder
     app.state.notifier = notifier
+    app.state.friday = friday
     telegram = None  # set below, once converse/execute exist
 
     def device(authorization: str = Header(default="")) -> str:
@@ -370,10 +376,20 @@ def create_app(config: StationConfig, control: PCControl | None = None,
         """One conversation turn — shared by the app and Telegram."""
         history = memory.recent(8)
         memories = memory.search(message, limit=5, exclude_ids={h["id"] for h in history})
+        memories += await friday.relevant_memories(message)  # what Friday knows about you
         for hit in recall.search(message, limit=3, any_word=True):  # what was on screen
             memories.append({"ts": hit["ts"], "role": "screen",
                              "text": f"in '{hit['window']}': {hit['snippet']}"})
         memory.add("you", message, device_name)
+
+        # 0. "ask friday …" → straight to Friday, the everywhere AI
+        if m := ASK_FRIDAY.match(message):
+            try:
+                reply = "Friday says: " + (await friday.ask(m.group(1).strip())).strip()
+            except FridayError as e:
+                reply = f"I couldn't reach Friday, sir. {e}"
+            memory.add("jarvis", reply, device_name)
+            return {"reply": reply, "actions": [], "brain": "friday"}
 
         # 1. Instant commands — no AI needed
         actions = quick_intent(message)
@@ -383,9 +399,18 @@ def create_app(config: StationConfig, control: PCControl | None = None,
             memory.add("jarvis", reply, device_name)
             return {"reply": reply, "actions": results, "brain": "instant"}
 
-        # 2. The local brain
+        # 2. The brain: Friday's gateway if chosen (falls back to Ollama), else Ollama
+        thinker = brain
         try:
-            out = await brain.reply(message, history, memories, device=device_kind)
+            if settings["friday_brain"] and friday.enabled:
+                try:
+                    out = await friday_brain.reply(message, history, memories, device=device_kind)
+                    thinker = friday_brain
+                except BrainOffline as e:
+                    logger.info(f"[FRIDAY] brain unavailable, using local: {e}")
+                    out = await brain.reply(message, history, memories, device=device_kind)
+            else:
+                out = await brain.reply(message, history, memories, device=device_kind)
         except BrainOffline as e:
             reply = ("My brain is offline, so I can only do instant commands right now "
                      "(open …, lock, volume up, pause, next, show desktop, type …). "
@@ -394,7 +419,7 @@ def create_app(config: StationConfig, control: PCControl | None = None,
 
         results = [await run_in_threadpool(execute, a, False) for a in out["actions"]]
         memory.add("jarvis", out["reply"], device_name)
-        return {"reply": out["reply"], "actions": results, "brain": brain.model}
+        return {"reply": out["reply"], "actions": results, "brain": thinker.model}
 
     if config.telegram_token:
         telegram = TelegramBot(config.telegram_token, config.telegram_chat_id, converse=converse,
@@ -434,6 +459,7 @@ def create_app(config: StationConfig, control: PCControl | None = None,
             autostart = (Path(os.environ.get("APPDATA", "")) / "Microsoft" / "Windows" / "Start Menu" / "Programs"
                          / "Startup" / "Jarvis God Station.lnk").exists()
         tailscale = [ip for label, ip in local_addresses() if ip.startswith("100.")]
+        fstat = await friday.status()
         has_tg = bool(config.telegram_token and config.telegram_chat_id)
 
         checks = [
@@ -458,6 +484,8 @@ def create_app(config: StationConfig, control: PCControl | None = None,
              "Install the Claude desktop app, then double-click setup_claude_link.bat and restart Claude."),
             ("telegram", "Telegram", has_tg, telegram.status if telegram else "not set up",
              "@BotFather → /newbot → put TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID in Jarvis/.env (README §10)."),
+            ("friday", "Friday link (the everywhere AI)", fstat["online"], fstat["detail"],
+             "Start Friday, then paste its pairing code (Friday → Settings) under PC → Friday."),
             ("sync", "Photo / music / file sync (Syncthing)", sync_ok, sync_detail,
              "Install Syncthing (install_extras.bat), share folders, paste its API key under PC → Photos, music & files sync."),
         ]
@@ -517,10 +545,20 @@ def create_app(config: StationConfig, control: PCControl | None = None,
         return memory.recent(limit)
 
     @app.post("/api/memory/note")
-    def memory_note(body: TextBody, device_id: str = Depends(device)):
-        """Lets Claude (or you) save something for Jarvis to remember."""
+    async def memory_note(body: TextBody, device_id: str = Depends(device)):
+        """Lets Claude, Friday (or you) save something for Jarvis to remember."""
         name = auth.devices.get(device_id, {}).get("name", "note")
-        return {"id": memory.add("note", body.text.strip()[:5000], name)}
+        text = body.text.strip()[:5000]
+        shared = False
+        if not name.startswith("Friday"):  # don't echo Friday's own notes back to it
+            shared = await friday.remember(text[:300])
+        return {"id": memory.add("note", text, name), "shared_with_friday": shared}
+
+    @app.get("/api/friday")
+    async def friday_status(_: str = Depends(device)):
+        return {**(await friday.status()), "enabled": settings["friday"], "brain": settings["friday_brain"],
+                "share_memory": settings["friday_share_memory"], "model": settings["friday_model"],
+                "url": settings["friday_url"]}
 
     # ── Switches ─────────────────────────────────────────────────────────────
 

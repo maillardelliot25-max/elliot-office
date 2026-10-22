@@ -1,5 +1,5 @@
 // Jarvis Assist — talks to the God Station on this PC for the pages you visit.
-const DEFAULT_STATION = "http://localhost:8765";
+const DEFAULT_STATION = "http://localhost:8780";
 
 async function getConf() {
   const { station = DEFAULT_STATION, token = "" } = await chrome.storage.local.get(["station", "token"]);

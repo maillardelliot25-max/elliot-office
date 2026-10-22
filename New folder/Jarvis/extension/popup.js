@@ -4,7 +4,7 @@ const send = (msg) => new Promise((res) => chrome.runtime.sendMessage(msg, (r) =
 async function refresh() {
   $("#err").textContent = "";
   const { token, station } = await chrome.storage.local.get(["token", "station"]);
-  $("#station").value = station || "http://localhost:8765";
+  $("#station").value = station || "http://localhost:8780";
   if (!token) { $("#pair").hidden = false; $("#paired").hidden = true; return; }
   const s = await send({ type: "status" });
   if (!s.ok) {
