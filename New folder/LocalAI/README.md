@@ -59,7 +59,9 @@ Both share the same chats and the same memory.
 
 ## 2. Install (one time)
 
-**Windows** (PowerShell):
+**Windows, easiest:** double-click **`Install and start Friday.bat`**. It installs only what's missing (Python, Friday's packages, Ollama, and offline brains sized to your PC's memory, downloading in the background), starts Friday, Friday Lens and Jarvis's reporter, opens Friday in your browser, and puts a **Friday** shortcut on your desktop for next time. Running it again just starts Friday.
+
+**Windows, by hand** (PowerShell):
 ```powershell
 cd "New folder\LocalAI"
 powershell -ExecutionPolicy Bypass -File .\setup-windows.ps1
