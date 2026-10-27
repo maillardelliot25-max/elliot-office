@@ -84,11 +84,20 @@ def network_status():
     return st
 
 
-def friday_code():
+def friday_settings():
     try:
-        return json.loads((FRIDAY_DATA / "settings.json").read_text("utf-8")).get("chrome_token", "")
+        return json.loads((FRIDAY_DATA / "settings.json").read_text("utf-8"))
     except (OSError, ValueError):
-        return ""
+        return {}
+
+
+def friday_code():
+    return friday_settings().get("chrome_token", "")
+
+
+def offline_only():
+    """Friday's "Offline only" switch: then nothing goes to the internet, not even the connection probes."""
+    return bool(friday_settings().get("offline_only"))
 
 
 # ── Sending ──────────────────────────────────────────────────────────────
@@ -134,18 +143,23 @@ class NetDaemon(threading.Thread):
     def __init__(self):
         super().__init__(daemon=True, name="net-daemon")
         self.online = None
+        self.locked = False   # Friday's Offline only switch
         self.since = time.time()
         self.stop_event = threading.Event()
         self._reach = {}
 
     def can_send(self, item):
         p = item["payload"]
+        if self.locked and item["kind"] == "friday_ask":
+            return False   # Friday would only refuse it: internet brains are switched off
         if item["kind"] == "friday_ask":
             friday_up = self._reachable("127.0.0.1", FRIDAY_PORT)
             return friday_up and (self.online or not str(p.get("model", "")).startswith("cloud:"))
         u = urllib.parse.urlparse(p.get("url", ""))
         port = u.port or (443 if u.scheme == "https" else 80)
-        return self._reachable(u.hostname, port) if is_local(u.hostname) else bool(self.online)
+        if is_local(u.hostname):
+            return self._reachable(u.hostname, port)
+        return bool(self.online) and not self.locked
 
     def _reachable(self, host, port):
         key = (host, port)
@@ -154,7 +168,12 @@ class NetDaemon(threading.Thread):
         return self._reach[key]
 
     def check(self):
-        online = internet_up()
+        locked = offline_only()
+        if locked != self.locked:
+            shared_state.log("Offline only is on: nothing is sent to the internet; your own devices still sync." if locked
+                             else "Offline only is off: internet sync allowed again.", source="network")
+            self.locked = locked
+        online = False if locked else internet_up()
         now = time.time()
         if online != self.online:
             if self.online is not None or not online:
@@ -166,11 +185,12 @@ class NetDaemon(threading.Thread):
         try:
             shared_state.DIR.mkdir(parents=True, exist_ok=True)
             tmp = NETWORK_FILE.with_suffix(".tmp")
-            tmp.write_text(json.dumps({"online": online, "since": self.since, "checked": now}), "utf-8")
+            tmp.write_text(json.dumps({"online": online, "since": self.since, "checked": now, "offline_only": locked}), "utf-8")
             os.replace(tmp, NETWORK_FILE)
         except OSError:
             pass
-        shared_state.put_service("internet", "running" if online else "stopped", None, "online" if online else "offline")
+        shared_state.put_service("internet", "running" if online else "stopped", None,
+                                 "offline only" if locked else "online" if online else "offline")
 
     def sync(self, limit=20):
         self._reach = {}

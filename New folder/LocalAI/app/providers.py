@@ -93,6 +93,35 @@ def label_of(provider, settings=None):
 _model_cache = {}  # (provider, key) -> (time, [ids])
 
 
+def is_local_url(url):
+    """This PC, the home network or a Tailscale device (LM Studio, Jan, llama.cpp…): no internet involved."""
+    import ipaddress
+    import urllib.parse
+    host = (urllib.parse.urlparse(url or "").hostname or "").lower()
+    if host in ("localhost", "") or host.endswith((".local", ".lan", ".home", ".ts.net")):
+        return bool(host)
+    try:
+        ip = ipaddress.ip_address(host)
+        return ip.is_private or ip.is_loopback or ip in ipaddress.ip_network("100.64.0.0/10")
+    except ValueError:
+        return False
+
+
+def stays_local(model, settings):
+    """True if talking to this brain never leaves this PC / home network."""
+    provider = provider_of(model)
+    if provider == "ollama":
+        return True
+    brain = custom_brain(settings, provider) if provider.startswith("x-") else None
+    return bool(brain) and is_local_url(brain.get("base_url"))
+
+
+def check_offline_only(model, settings):
+    if (settings or {}).get("offline_only") and not stays_local(model, settings):
+        raise RuntimeError(f"Offline only is on, so {label_of(provider_of(model), settings)} (an internet brain) is blocked. "
+                           "Pick a 💻 brain on this PC, or turn Offline only off in Settings.")
+
+
 def provider_of(model):
     return model.split(":")[1] if model.startswith("cloud:") else "ollama"
 
@@ -151,7 +180,10 @@ def _version_key(name):
 def cloud_models(settings):
     """Cloud models the user's keys unlock. A provider that fails to list is skipped, with a note."""
     out, notes = [], []
-    if settings.get("anthropic_api_key"):
+    offline_only = settings.get("offline_only")
+    if offline_only:
+        notes.append("Offline only is on: internet brains are hidden.")
+    if settings.get("anthropic_api_key") and not offline_only:
         try:
             def fetch():
                 available = {m.id for m in claude_client(settings).models.list()}
@@ -163,7 +195,7 @@ def cloud_models(settings):
             ids, _ = [], notes.append(f"Claude: {short_error(e)} (check the key in Settings)")
         out += [{"name": f"cloud:anthropic:{i}", "label": i, "provider": "anthropic", "caps": CLOUD_CAPS} for i in ids]
     for provider, key_name in (("openai", "openai_api_key"), ("google", "google_api_key")):
-        if not settings.get(key_name):
+        if not settings.get(key_name) or offline_only:
             continue
         try:
             ids = _cached(provider, settings[key_name], lambda: _list_openai_style(settings, provider))
@@ -173,6 +205,8 @@ def cloud_models(settings):
             ids, _ = [], notes.append(f"{PRETTY[provider]}: {short_error(e)} (check the key in Settings)")
         out += [{"name": f"cloud:{provider}:{i}", "label": i, "provider": provider, "caps": CLOUD_CAPS} for i in ids]
     for brain in settings.get("brains") or []:
+        if offline_only and not is_local_url(brain.get("base_url")):
+            continue
         caps = ["completion"] + (["tools"] if brain.get("tools", True) else []) + (["vision"] if brain.get("vision") else [])
         try:
             ids = brain.get("models") or _cached(brain["id"], brain.get("api_key", "") + brain["base_url"],
@@ -329,6 +363,7 @@ def openai_tools(tools):
 # ── One assistant turn ───────────────────────────────────────────────────
 
 def run_round(model, system, messages, tools, opts, settings, emit, stop):
+    check_offline_only(model, settings)
     provider = provider_of(model)
     if provider == "anthropic":
         return claude_round(model_id(model), system, messages, tools, opts, settings, emit, stop)
@@ -532,6 +567,7 @@ def openai_round(provider, model, system, messages, tools, opts, settings, emit,
 def complete(model, prompt, images=(), settings=None, json_mode=True):
     """Single question → text answer, with optional images. No tools, no streaming.
     json_mode: offline models must answer in JSON (for callers that parse the reply)."""
+    check_offline_only(model, settings)
     provider = provider_of(model)
     if provider == "anthropic":
         import anthropic

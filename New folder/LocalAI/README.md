@@ -244,6 +244,25 @@ A full-screen dashboard for the tablet beside your PC: processor, memory, storag
 
 Tasks you add wait in the queue until Jarvis's task runner picks them up. Jarvis claims them with `shared_state.claim_next()`, and pausing or cancelling from the dashboard stops it at its next step (`still_wanted()`).
 
+## 14. Fully offline: no internet, no Wi-Fi router
+
+Everything you need is downloaded once (by `Install and start Friday.bat`), then Friday runs with **no internet at all**.
+
+**What's on your PC after setup:** the offline brains (Ollama), Friday and Friday Lens, Jarvis and its screen memory, the Home Station dashboard, and every library the pages use (math, diagrams and app previews are in `app/vendor`, not loaded from the web). Turn off Wi-Fi and it all keeps working.
+
+**Guarantee nothing leaves the PC:** ⚙ Settings → tick **Offline only**. Internet brains (Claude, ChatGPT, Gemini, online services) are hidden and blocked, web search and Gemini images/video are switched off, and the network daemon stops sending anything to the internet, not even its connection checks. Your 💻 brains, memory, files, phone, tablet and Jarvis keep working. Untick it whenever you want the cloud again.
+
+**Your devices talking with no Wi-Fi router** (pick one; none needs internet):
+- **USB cable (phone ↔ PC):** plug the phone into the PC, then on the phone: Settings → Connections → Mobile Hotspot and Tethering → **USB tethering** (works with mobile data off).
+- **Phone hotspot:** turn mobile data **off**, turn on the phone's **Mobile Hotspot** (with a password), and join it from the PC and the tablet. It's a private network between your own devices.
+- **Tablet as the second screen** over USB needs nothing else: the Home Station page runs on the PC.
+
+Then, in the Friday phone app, tap **Find my PC automatically**. It finds the PC on whichever link is up (USB, hotspot or home Wi-Fi), remembers every address, and switches between them by itself. On the PC, the first time you use a new link, set it to **Private**: Windows Settings → Network & internet → that network (it may be called Ethernet for USB) → **Private network**. Otherwise Windows blocks it.
+
+**Voice with no internet:** download your language for offline speech once. Google app → Settings → Voice → **Offline speech recognition** (Samsung keyboard: Settings → General management → Keyboard → Voice input). Friday's phone app asks for offline recognition first.
+
+**What still needs the internet** (and simply waits until you're back online, via the outbox): Claude, ChatGPT and Gemini, web search, Gemini images and video, downloading new brains, and Tailscale's away-from-home link.
+
 ## What's next
 
 See [NEXT_STEPS.md](NEXT_STEPS.md) for the hand-over: what's built, where everything lives, the next tasks in order (whole-screen form watching, filling desktop apps, signing PDFs…), and how to keep building for free with Claude Code on a local model.

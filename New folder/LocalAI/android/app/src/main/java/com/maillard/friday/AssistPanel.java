@@ -303,6 +303,7 @@ final class AssistPanel {
         Intent i = new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
         i.putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM);
         i.putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true);
+        i.putExtra(RecognizerIntent.EXTRA_PREFER_OFFLINE, true);   // works with no internet once the offline language is downloaded
         recognizer.startListening(i);
     }
 

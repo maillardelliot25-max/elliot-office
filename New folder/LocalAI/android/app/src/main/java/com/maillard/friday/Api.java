@@ -19,16 +19,39 @@ final class Api {
         void onLine(JSONObject event) throws Exception;
     }
 
-    private final String server;
+    private static volatile long lastReached;   // skip the reachability check while the PC answered recently
+    private final Context ctx;
+    private String server;
     private final String token;
 
     Api(Context c) {
+        ctx = c.getApplicationContext();
         server = Prefs.server(c);
         token = Prefs.token(c);
     }
 
+    /**
+     * The address that works right now. Tries the saved one, then every address the PC has used before, then asks
+     * the local networks (USB cable, hotspot, Wi-Fi) where Friday is. So it keeps working with no Wi-Fi router or
+     * internet, and when you move between home Wi-Fi, a USB cable and your hotspot.
+     */
+    private String where() {
+        if (System.currentTimeMillis() - lastReached < 20000 || Discovery.reachable(server)) return server;
+        for (String s : Prefs.known(ctx)) {
+            if (!s.equals(server) && Discovery.reachable(s)) return switchTo(s);
+        }
+        String found = Discovery.find();
+        return found != null ? switchTo(found) : server;
+    }
+
+    private String switchTo(String s) {
+        Prefs.useServer(ctx, s);
+        server = s;
+        return s;
+    }
+
     private HttpURLConnection open(String path, String method, int readTimeoutMs) throws IOException {
-        HttpURLConnection con = (HttpURLConnection) new URL(server + path).openConnection();
+        HttpURLConnection con = (HttpURLConnection) new URL(where() + path).openConnection();
         con.setRequestMethod(method);
         con.setConnectTimeout(6000);
         con.setReadTimeout(readTimeoutMs);
@@ -49,6 +72,7 @@ final class Api {
 
     private static void check(HttpURLConnection con) throws IOException {
         int code = con.getResponseCode();
+        lastReached = System.currentTimeMillis();
         if (code >= 400) {
             String msg = readAll(con.getErrorStream());
             try {
@@ -109,6 +133,13 @@ final class Api {
         try (OutputStream out = con.getOutputStream()) {
             out.write(data);
         }
+    }
+
+    /** Look for the PC on the local networks now (the "Find my PC" button). Returns the address or null. */
+    static String findNow(Context c) {
+        String found = Discovery.find();
+        if (found != null) Prefs.useServer(c, found);
+        return found;
     }
 
     String chatUrl(String chatId) {

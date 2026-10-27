@@ -51,6 +51,11 @@ public class MainActivity extends Activity {
         col.addView(server);
         col.addView(code);
         col.addView(button("Connect", v -> connect()));
+        col.addView(button("Find my PC automatically", v -> findPc()));
+        col.addView(text("No Wi-Fi? Connect the phone to the PC with a USB cable and turn on USB tethering "
+                + "(Settings → Connections → Mobile Hotspot and Tethering → USB tethering), or turn on your phone's hotspot "
+                + "with mobile data off and join it from the PC and tablet. Then tap \"Find my PC automatically\". "
+                + "No internet is needed, and Friday switches between Wi-Fi, USB and hotspot by itself.", 13, R.color.dim, false));
         status = text("", 14, R.color.dim, false);
         col.addView(status);
 
@@ -67,6 +72,8 @@ public class MainActivity extends Activity {
 
         col.addView(heading("4. Talk to it (optional)"));
         col.addView(button("Allow microphone", v -> requestPermissions(new String[]{Manifest.permission.RECORD_AUDIO}, 1)));
+        col.addView(text("For voice with no internet, download your language for offline use: Google app → Settings → Voice → "
+                + "Offline speech recognition (Samsung: Settings → General management → Keyboard → Voice input).", 13, R.color.dim, false));
 
         col.addView(heading("5. \"Sir, I've got this\" form help (optional)"));
         col.addView(text("When you start filling in a form in any app, Friday glows the screen edges and offers to fill it in from what it remembers about you. "
@@ -135,6 +142,28 @@ public class MainActivity extends Activity {
             }
             String finalMsg = msg;
             main.post(() -> status.setText(finalMsg));
+        });
+    }
+
+    private void findPc() {
+        if (Prefs.token(this).isEmpty() && code.getText().toString().trim().isEmpty()) {
+            status.setText("Enter the pairing code first (Friday → Settings on the PC).");
+            return;
+        }
+        status.setText("Looking for Friday on this phone's networks (Wi-Fi, USB, hotspot)…");
+        Handler main = new Handler(Looper.getMainLooper());
+        Executors.newSingleThreadExecutor().execute(() -> {
+            String found = Discovery.find();
+            main.post(() -> {
+                if (found == null) {
+                    status.setText("✗ No PC answered. Check Friday is running with phone access on, and that the phone and PC "
+                            + "share a link (same Wi-Fi, USB tethering on, or the PC joined your hotspot). On the PC, set that "
+                            + "network to Private: Windows Settings → Network & internet → the USB/hotspot network → Private network.");
+                    return;
+                }
+                server.setText(found.replaceFirst("^http://", ""));
+                connect();
+            });
         });
     }
 

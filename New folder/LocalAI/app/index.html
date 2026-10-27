@@ -306,6 +306,7 @@
     <label>Custom instructions (how the AI should respond, in every chat)</label>
     <textarea id="sInstr" placeholder="e.g. Keep answers short. I run Maillard AI, a freelance AI agency."></textarea>
     <label><input type="checkbox" id="sLearn"> Learn what I like automatically from conversations (see 🧠 Memory)</label>
+    <label><input type="checkbox" id="sOffline"> <b>Offline only</b>: nothing leaves this PC. Internet brains, web search and Gemini images/video are switched off; 💻 brains, memory, files, your phone and Jarvis keep working.</label>
     <h3>Friday Lens: ask about your screen</h3>
     <div style="font-size:13px;color:var(--dim);margin-top:6px">Starts with the app. Flick the mouse (or your finger) up from the very bottom edge of the screen, or press the shortcut, and Friday looks at your screen. Restart the app after changing the swipe or shortcut.</div>
     <label><input type="checkbox" id="sSwipe"> Swipe up from the bottom of the screen opens it</label>
@@ -612,19 +613,19 @@ function markdown(text) {
   return html;
 }
 
-// ── Math (KaTeX loads from a CDN on first use; offline, formulas stay as LaTeX text) ──
+// ── Math (KaTeX ships with Friday in /vendor, so it works offline) ──
 let katexReady = null;
 function loadKatex() {
   if (katexReady) return katexReady;
   katexReady = new Promise(ok => {
     const css = document.createElement("link");
-    css.rel = "stylesheet"; css.href = "https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css";
+    css.rel = "stylesheet"; css.href = "/vendor/katex/katex.min.css";
     document.head.append(css);
     const js = document.createElement("script");
-    js.src = "https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js";
+    js.src = "/vendor/katex/katex.min.js";
     js.onload = () => {
       const ar = document.createElement("script");
-      ar.src = "https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js";
+      ar.src = "/vendor/katex/contrib/auto-render.min.js";
       ar.onload = () => ok(true); ar.onerror = () => ok(false);
       document.head.append(ar);
     };
@@ -642,7 +643,7 @@ async function renderMath(el) {
 }
 
 // ── Artifacts ─────────────────────────────────────────────────────────
-// React/Mermaid previews load their libraries from a CDN, so they need internet; HTML/SVG/Markdown work offline.
+// React/Mermaid previews use the libraries in /vendor (shipped with Friday), so every preview works offline.
 function reactDoc(code) {
   let name = "App";
   code = code
@@ -653,10 +654,10 @@ function reactDoc(code) {
     .replace(/^\s*export\s+default\s+(\w+);?\s*$/m, (_, n) => { name = n; return ""; })
     .replace(/^\s*export\s+/gm, "");
   return `<!doctype html><html><head><meta charset="utf-8">
-<script src="https://cdn.tailwindcss.com/3.4.5"><\/script>
-<script src="https://unpkg.com/react@18.3.1/umd/react.production.min.js"><\/script>
-<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js"><\/script>
-<script src="https://unpkg.com/@babel/standalone@7.24.7/babel.min.js"><\/script></head>
+<script src="/vendor/tailwind-browser.js"><\/script>
+<script src="/vendor/react.production.min.js"><\/script>
+<script src="/vendor/react-dom.production.min.js"><\/script>
+<script src="/vendor/babel.min.js"><\/script></head>
 <body><div id="root"></div>
 <script type="text/babel" data-presets="react,typescript" data-filename="App.tsx">
 const { useState, useEffect, useRef, useMemo, useCallback, useReducer, useContext, createContext, Fragment } = React;
@@ -669,7 +670,7 @@ ReactDOM.createRoot(document.getElementById("root")).render(<${name} />);
 function artifactDoc(a) {
   if (["jsx", "tsx", "react"].includes(a.lang)) return reactDoc(a.code);
   if (a.lang === "mermaid") return `<!doctype html><html><body style="margin:0;padding:16px"><pre class="mermaid">${esc(a.code)}</pre>
-<script type="module">import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@10.9.1/dist/mermaid.esm.min.mjs"; mermaid.initialize({ startOnLoad: true });<\/script></body></html>`;
+<script src="/vendor/mermaid.min.js"><\/script><script>mermaid.initialize({ startOnLoad: true });<\/script></body></html>`;
   if (["markdown", "md"].includes(a.lang)) return `<!doctype html><html><body style="font:16px/1.6 system-ui,sans-serif;max-width:760px;margin:24px auto;padding:0 16px;color:#1f1e1d">${markdown(a.code)}</body></html>`;
   return a.code;
 }
@@ -1204,7 +1205,7 @@ function setMode(m) {
   if (m === "video" && !["16:9", "9:16"].includes($("aspect").value)) $("aspect").value = "16:9";
   [...$("aspect").options].forEach(o => o.hidden = m === "video" && !["16:9", "9:16"].includes(o.value));
   $("input").placeholder = PLACEHOLDER[m];
-  $("hint").textContent = HINT[m];
+  $("hint").textContent = settings.offline_only && m === "chat" ? "Offline only is on: nothing leaves this PC. AI can make mistakes." : HINT[m];
   if (!chatId) welcome();
 }
 document.querySelectorAll("#modes button").forEach(b => b.onclick = () => setMode(b.dataset.mode));
@@ -1366,7 +1367,7 @@ function fillSettings(s) {
   $("sName").value = s.name || ""; $("sInstr").value = s.instructions || "";
   $("sWs").value = s.workspace || ""; $("sAsst").value = s.assistant_name || "Friday";
   $("sLearn").checked = s.auto_memory !== false; $("sToken").value = s.chrome_token || "";
-  $("sPhone").checked = !!s.phone_access;
+  $("sPhone").checked = !!s.phone_access; $("sOffline").checked = !!s.offline_only;
   $("sPersona").value = s.persona || "butler";
   $("sScreen").checked = !!s.screen_memory; $("sScreenEvery").value = s.screen_every || 60; $("sScreenKeep").value = s.screen_keep_blocks || 3;
   api("/api/screen_memory").then(m => {
@@ -1429,7 +1430,7 @@ $("sSave").onclick = async () => {
     settings = await api("/api/settings", { method: "POST", body: {
       name: $("sName").value.trim(), instructions: $("sInstr").value,
       assistant_name: $("sAsst").value.trim() || "Friday", auto_memory: $("sLearn").checked,
-      phone_access: $("sPhone").checked, persona: $("sPersona").value,
+      phone_access: $("sPhone").checked, persona: $("sPersona").value, offline_only: $("sOffline").checked,
       jarvis_link: $("sJarvis").checked, jarvis_url: $("sJarvisUrl").value.trim() || "http://localhost:8780",
       jarvis_token: $("sJarvisToken").value.trim(),
       screen_watch: $("sWatch").checked, screen_watch_model: $("sWatchModel").value, screen_watch_every: Math.max(10, +$("sWatchEvery").value || 20),
@@ -1442,7 +1443,7 @@ $("sSave").onclick = async () => {
       anthropic_api_key: $("sAnthropic").value.trim(), openai_api_key: $("sOpenAI").value.trim(),
       math_model: $("sMath").value, auto_python: $("sPy").checked,
     }});
-    $("settings").classList.remove("open"); toast("Settings saved");
+    $("settings").classList.remove("open"); toast("Settings saved"); setMode(mode);
     applyName(); loadModels();
     if (!chatId) welcome();
   } catch (e) { toast(e.message); }

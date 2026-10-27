@@ -42,6 +42,11 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import jarvis_link  # noqa: E402
 import station_dashboard  # noqa: E402
 import memory as memory_store  # noqa: E402
+
+# Windows can map these to odd types in its registry; the browser needs the real ones for offline libraries
+mimetypes.add_type("text/javascript", ".js")
+mimetypes.add_type("text/css", ".css")
+mimetypes.add_type("font/woff2", ".woff2")
 import organizer  # noqa: E402
 import providers  # noqa: E402
 
@@ -68,6 +73,7 @@ DEFAULT_SETTINGS = {
     "lens_hotkey": "<ctrl>+<alt>+<space>",
     "lens_model": "auto",     # "auto" = best model you have that can see images
     "phone_access": False,    # let the Friday Android app (and phone browsers) on your Wi-Fi connect
+    "offline_only": False,    # nothing leaves this PC: internet brains, web search and Gemini are switched off
     "brains": [],             # AI services you added: OpenRouter, Groq, LM Studio… (🧠 AI brains)
     "persona": "butler",      # "butler": a friendly digital servant who calls you "sir"; "standard": plain assistant
     "screen_memory": False,   # Friday Lens saves a screenshot when your screen changes, in 8-hour blocks
@@ -446,13 +452,24 @@ def local_image(prompt, images=(), aspect_ratio=""):
     return [save_media(base64.b64decode(b), "png") for b in r.get("images", [])], ""
 
 
+INTERNET_TOOLS = {"web_search", "fetch_url", "generate_video"}
+
+
+def offline_only_block(what):
+    if load_settings().get("offline_only"):
+        raise RuntimeError(f"Offline only is on, so {what} (it needs the internet) is switched off. "
+                           "Turn Offline only off in Settings to use it.")
+
+
 def generate_image(prompt, images=(), aspect_ratio="", size=""):
     if load_settings()["image_provider"] == "local":
         return local_image(prompt, images, aspect_ratio)
+    offline_only_block("Gemini image generation")
     return gemini_image(prompt, images, aspect_ratio, size)
 
 
 def generate_video(prompt, image=None, aspect_ratio="16:9", progress=lambda msg: None):
+    offline_only_block("video generation")
     s, key = load_settings(), gemini_key()
     instance = {"prompt": prompt}
     if image:
@@ -579,6 +596,8 @@ def last_image(chat):
 
 def run_tool(name, args, chat=None, progress=lambda msg: None, model=""):
     a = args or {}
+    if name in INTERNET_TOOLS:
+        offline_only_block(name.replace("_", " "))
     if name in ("pc_screen_history", "pc_files", "pc_status"):
         progress("Asking Jarvis…")
         return jarvis_link.run(name, a, load_settings(), lambda img: describe_screenshot(img, model))
@@ -826,6 +845,9 @@ def converse(chat, model, opts, emit):
     caps = model_caps(model)
     wants_tools = opts.get("tools") or opts.get("research") or opts.get("math") or opts.get("build")
     tools = TOOLS if wants_tools and "tools" in caps else []
+    if tools and settings.get("offline_only"):   # don't even offer the model tools that need the internet
+        tools = [t for t in tools if t["name"] not in INTERNET_TOOLS
+                 and not (t["name"] == "generate_image" and settings["image_provider"] != "local")]
     if tools and jarvis_link.status(settings)["linked"]:
         tools = tools + jarvis_link.TOOLS
     if opts.get("browser") and "tools" in caps:
@@ -1017,6 +1039,8 @@ class Handler(BaseHTTPRequestHandler):
             self.send_json({"error": "Phone access is off. Turn it on in Friday → Settings on the PC."}, 403)
             return False
         url = urllib.parse.urlparse(self.path)
+        if url.path.startswith("/vendor/") and self.command == "GET":
+            return True   # public open-source libraries; previews in sandboxed frames can't send the cookie
         key = urllib.parse.parse_qs(url.query).get("key", [""])[0] if url.path in ("/", "/index.html", "/station") else ""
         cookie = SimpleCookie(self.headers.get("Cookie") or "")
         presented = self.presented_code() or key or next((cookie[k].value for k in ("friday_key", "jarvis_key") if k in cookie), "")
@@ -1039,6 +1063,12 @@ class Handler(BaseHTTPRequestHandler):
                 name = "station.html" if url.path == "/station" else "index.html"   # /station: the home-station dashboard
                 page = (APP_DIR / name).read_text("utf-8").replace("__FRIDAY_TOKEN__", load_settings()["chrome_token"])
                 self.send_bytes(page.encode(), "text/html; charset=utf-8")
+            elif url.path.startswith("/vendor/"):   # page libraries shipped with Friday (math, diagrams, previews)
+                base = (APP_DIR / "vendor").resolve()
+                p = (base / urllib.parse.unquote(url.path[8:])).resolve()
+                if not p.is_file() or base not in p.parents:
+                    return self.send_json({"error": "not found"}, 404)
+                self.send_file(p)
             elif url.path.startswith("/media/"):
                 name = Path(urllib.parse.unquote(url.path[7:])).name
                 p = MEDIA / name
@@ -1302,7 +1332,8 @@ class Handler(BaseHTTPRequestHandler):
             model = math_model(model)
             if model != b["model"]:
                 emit({"type": "notice", "text": f"Math mode is using {providers.model_id(model)}"})
-        if providers.provider_of(model) in ("anthropic", "openai", "google") and station_dashboard.offline():
+        if providers.provider_of(model) in ("anthropic", "openai", "google") and station_dashboard.offline() \
+                and not load_settings().get("offline_only"):
             return self.save_for_later(chat, model, emit)
         converse(chat, model, opts, emit)
 
@@ -1528,6 +1559,27 @@ def lan_addresses():
 
 
 LISTEN = "127.0.0.1"
+DISCOVERY_PORT = 8765   # UDP, same number as the web port
+
+
+def discovery_responder():
+    """Lets the phone app find this PC on any local link (USB tethering, the phone's hotspot, home Wi-Fi) without
+    knowing its address: it broadcasts "FRIDAY?" and we answer "FRIDAY <port>". Only runs with phone access on,
+    and reveals nothing but that Friday is here; everything else still needs the pairing code."""
+    try:
+        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        sock.bind(("0.0.0.0", DISCOVERY_PORT))
+    except OSError as e:
+        print(f"Phone auto-discovery is off (UDP port {DISCOVERY_PORT} busy: {e}). Type the PC address in the phone app instead.")
+        return
+    while True:
+        try:
+            data, addr = sock.recvfrom(64)
+            if data.strip() == b"FRIDAY?" and load_settings()["phone_access"]:
+                sock.sendto(f"FRIDAY {PORT}".encode(), addr)
+        except OSError:
+            time.sleep(1)
 
 
 def main():
@@ -1539,6 +1591,7 @@ def main():
         sys.exit(f"Port {PORT} is already in use. Is Friday already running, or is another app "
                  f"(e.g. Jarvis Station) using it? Close that app, or start Friday with PORT=<other port>.")
     if LISTEN != "127.0.0.1":
+        threading.Thread(target=discovery_responder, daemon=True).start()
         print("Phone access is ON: devices on your Wi-Fi can connect with the pairing code at",
               ", ".join(f"http://{a}:{PORT}" for a in lan_addresses()) or "this PC's address")
     url = f"http://localhost:{PORT}"
