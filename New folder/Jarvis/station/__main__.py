@@ -27,9 +27,25 @@ def local_addresses() -> list[tuple[str, str]]:
     return out
 
 
+def keep_pc_awake() -> bool:
+    """Stop Windows from going to sleep while Jarvis runs (the screen can still turn off).
+    A sleeping PC is what makes the phone say "unreachable". Set JARVIS_KEEP_AWAKE=0 to turn off."""
+    import os
+    import sys
+    if sys.platform != "win32" or os.getenv("JARVIS_KEEP_AWAKE", "1") == "0":
+        return False
+    try:
+        import ctypes
+        ES_CONTINUOUS, ES_SYSTEM_REQUIRED = 0x80000000, 0x00000001
+        return bool(ctypes.windll.kernel32.SetThreadExecutionState(ES_CONTINUOUS | ES_SYSTEM_REQUIRED))
+    except Exception:
+        return False
+
+
 def main():
     logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(name)s] %(message)s")
     enable_dpi_awareness()
+    awake = keep_pc_awake()
     config = StationConfig.from_env()
 
     print("=" * 60)
@@ -46,6 +62,10 @@ def main():
         pass
     print(f"  Brain: Ollama {config.ollama_model} @ {config.ollama_url}")
     print(f"  Terminal from phone: {'ON' if config.allow_shell else 'OFF'}")
+    if awake:
+        print("  Keeping this PC awake while Jarvis runs (screen may still turn off)")
+    print("  No internet? Turn on this PC's Mobile hotspot, join it from the phone,")
+    print("  then open http://192.168.137.1:" + str(config.port))
     print("=" * 60, flush=True)
 
     from station.server import create_app  # prints the pairing PIN
