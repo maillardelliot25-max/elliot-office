@@ -35,6 +35,28 @@ class FridayError(Exception):
     pass
 
 
+def local_friday_code() -> str:
+    """Friday on this PC keeps its pairing code in LocalAI/app/data/settings.json; find it so no pasting is needed."""
+    from pathlib import Path
+    home = Path.home()
+    found = []
+    for base in ("Downloads", "Documents", "Desktop", "ElliotAI-Workspace"):
+        for pat in ("*/New folder/LocalAI/app/data/settings.json", "*/*/New folder/LocalAI/app/data/settings.json",
+                    "*/LocalAI/app/data/settings.json"):
+            found += (home / base).glob(pat)
+    appdata = Path(__import__("os").getenv("APPDATA", "")) / "Friday" / "data" / "settings.json"
+    if appdata.exists():
+        found.append(appdata)
+    for f in sorted(found, key=lambda p: p.stat().st_mtime, reverse=True):
+        try:
+            code = json.loads(f.read_text("utf-8")).get("chrome_token", "")
+        except (OSError, ValueError):
+            continue
+        if code:
+            return code
+    return ""
+
+
 class FridayLink:
     def __init__(self, settings, transport: httpx.AsyncBaseTransport | None = None):
         self.settings = settings
@@ -47,16 +69,21 @@ class FridayLink:
         return self.settings["friday_url"].rstrip("/")
 
     @property
+    def code(self) -> str:
+        """Friday's pairing code: the one pasted in Jarvis, else read from Friday's own settings on this PC."""
+        return self.settings["friday_code"] or local_friday_code()
+
+    @property
     def enabled(self) -> bool:
-        return bool(self.settings["friday"] and self.settings["friday_code"])
+        return bool(self.settings["friday"] and self.code)
 
     async def _request(self, method: str, path: str, timeout: float = 10, **kwargs):
-        if not self.settings["friday_code"]:
+        if not self.code:
             raise FridayError("Friday isn't linked yet: paste Friday's pairing code under PC → Friday.")
         try:
             async with httpx.AsyncClient(timeout=timeout, transport=self.transport) as c:
                 r = await c.request(method, f"{self.url}{path}",
-                                    headers={"X-Jarvis-Token": self.settings["friday_code"]}, **kwargs)
+                                    headers={"X-Jarvis-Token": self.code}, **kwargs)
         except httpx.HTTPError:
             raise FridayError("Friday isn't running on this PC (or is on another port).")
         if r.status_code == 401:
@@ -73,7 +100,7 @@ class FridayLink:
     # ── Status ───────────────────────────────────────────────────────────────
 
     async def status(self) -> dict:
-        if not self.settings["friday_code"]:
+        if not self.code:
             return {"linked": False, "online": False, "detail": "not linked"}
         try:
             models = (await self._request("GET", "/v1/models", timeout=4)).get("data", [])
