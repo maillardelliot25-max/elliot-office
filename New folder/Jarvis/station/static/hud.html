@@ -1,0 +1,211 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Jarvis HUD</title>
+<link rel="manifest" href="/manifest.json">
+<style>
+  :root { --bg:#03060d; --line:#0e3a5c; --cyan:#38bdf8; --violet:#a78bfa; --text:#d9f2ff; --dim:#6f8fb0; --ok:#34d399; --warn:#fbbf24; }
+  * { box-sizing: border-box; }
+  html, body { margin:0; height:100%; background:radial-gradient(ellipse at 50% 40%, #071a2e 0%, var(--bg) 70%); color:var(--text);
+    font:14px/1.45 "Segoe UI", system-ui, sans-serif; overflow:hidden; }
+  body::before { content:""; position:fixed; inset:0; pointer-events:none; opacity:.25;
+    background:repeating-linear-gradient(0deg, transparent 0 3px, rgba(56,189,248,.05) 3px 4px); }
+  .grid { display:grid; height:100dvh; padding:14px; gap:12px; grid-template-columns: 280px 1fr 300px; grid-template-rows: auto 1fr auto; }
+  header { grid-column:1/-1; display:flex; align-items:center; justify-content:space-between; letter-spacing:.2em; text-transform:uppercase; font-size:12px; color:var(--dim); }
+  header b { color:var(--cyan); letter-spacing:.3em; font-size:14px; }
+  .panel { border:1px solid var(--line); border-radius:12px; background:rgba(4,20,36,.55); padding:12px; overflow:auto; backdrop-filter:blur(4px);
+    box-shadow: inset 0 0 30px rgba(56,189,248,.05); }
+  .panel h3 { margin:0 0 8px; font-size:11px; letter-spacing:.25em; color:var(--cyan); text-transform:uppercase; font-weight:600; }
+  .center { display:flex; flex-direction:column; align-items:center; justify-content:center; position:relative; }
+  canvas#orb { width:min(52vh, 92%); aspect-ratio:1; cursor:pointer; }
+  #greet { font-size:clamp(18px, 3vh, 28px); font-weight:300; letter-spacing:.06em; margin-top:6px; text-align:center; }
+  #state { color:var(--dim); letter-spacing:.3em; font-size:11px; text-transform:uppercase; margin-top:4px; }
+  #said { max-width:640px; text-align:center; color:var(--text); opacity:.9; margin-top:10px; min-height:44px; white-space:pre-wrap; }
+  .stat { margin:8px 0; } .stat span { display:flex; justify-content:space-between; font-size:12px; color:var(--dim); }
+  .bar { height:5px; background:#0b2236; border-radius:3px; overflow:hidden; margin-top:4px; }
+  .bar i { display:block; height:100%; background:linear-gradient(90deg, var(--cyan), var(--violet)); width:0; transition:width .6s; }
+  .agent { border:1px solid var(--line); border-radius:9px; padding:8px 10px; margin-bottom:8px; }
+  .agent b { color:var(--text); } .agent small { color:var(--dim); display:block; }
+  .run { font-size:12px; border-left:2px solid var(--line); padding:2px 0 2px 8px; margin:6px 0; color:var(--dim); white-space:pre-wrap; }
+  .run.working { border-color:var(--warn); } .run.done { border-color:var(--ok); }
+  .run b { color:var(--text); }
+  footer { grid-column:1/-1; display:flex; gap:8px; }
+  input, select { background:#061626; border:1px solid var(--line); color:var(--text); border-radius:9px; padding:10px 12px; font:inherit; }
+  input { flex:1; } button { background:linear-gradient(90deg, var(--cyan), var(--violet)); color:#03060d; border:0; border-radius:9px;
+    padding:10px 14px; font-weight:600; cursor:pointer; } button.ghost { background:none; border:1px solid var(--line); color:var(--text); }
+  #brief { white-space:pre-wrap; font-size:13px; }
+  a { color:var(--cyan); }
+  @media (max-width: 900px) {
+    html, body { overflow:auto; } .grid { grid-template-columns:1fr; grid-template-rows:auto; height:auto; }
+    .center { order:-1; } canvas#orb { width:70vw; }
+  }
+</style>
+</head>
+<body>
+<div class="grid">
+  <header><b>J.A.R.V.I.S.</b><span id="clock"></span><span><a href="/">Controls ›</a></span></header>
+
+  <section class="panel">
+    <h3>System</h3>
+    <div class="stat"><span>CPU <em id="cpuV"></em></span><div class="bar"><i id="cpu"></i></div></div>
+    <div class="stat"><span>Memory <em id="ramV"></em></span><div class="bar"><i id="ram"></i></div></div>
+    <div class="stat"><span>Disk <em id="diskV"></em></span><div class="bar"><i id="disk"></i></div></div>
+    <div class="stat"><span>Battery <em id="batV"></em></span><div class="bar"><i id="bat"></i></div></div>
+    <h3 style="margin-top:16px">Morning brief</h3>
+    <div id="brief">No brief yet. It arrives at 7:30 every morning.</div>
+    <p><button class="ghost" id="briefNow">Brief me now</button></p>
+  </section>
+
+  <section class="center">
+    <canvas id="orb" width="800" height="800" title="Tap to talk"></canvas>
+    <div id="greet">Good evening, sir.</div>
+    <div id="state">standing by · tap the core to talk</div>
+    <div id="said"></div>
+  </section>
+
+  <section class="panel">
+    <h3>The team</h3>
+    <div id="agents"></div>
+    <h3 style="margin-top:12px">Recent work</h3>
+    <div id="runs"></div>
+  </section>
+
+  <footer>
+    <select id="who"><option value="jarvis">Jarvis</option></select>
+    <input id="msg" placeholder="Speak or type… e.g. “Tom, build me a landing page for CaribOps AI”" autocomplete="off">
+    <button id="send">Send</button>
+    <button class="ghost" id="startDay">Start my day</button>
+  </footer>
+</div>
+<script>
+"use strict";
+const $ = (s) => document.querySelector(s);
+let token = ""; try { token = localStorage.getItem("station_token") || sessionStorage.getItem("station_session") || ""; } catch {}
+const api = async (path, body) => {
+  const r = await fetch(path, { method: body ? "POST" : "GET", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+    body: body ? JSON.stringify(body) : undefined });
+  if (r.status === 401) { location.href = "/"; throw new Error("not paired"); }
+  if (!r.ok) throw new Error((await r.json().catch(() => ({}))).detail || r.statusText);
+  return r.json();
+};
+
+// ── Orb: idle / listening / thinking / speaking ──
+const cv = $("#orb"), g = cv.getContext("2d");
+let mode = "idle", t0 = performance.now();
+const COLORS = { idle: [56, 189, 248], listening: [52, 211, 153], thinking: [167, 139, 250], speaking: [56, 189, 248] };
+function setMode(m, label) { mode = m; $("#state").textContent = label || { idle: "standing by · tap the core to talk", listening: "listening…", thinking: "thinking…", speaking: "speaking" }[m]; }
+function draw(now) {
+  const t = (now - t0) / 1000, W = cv.width, c = W / 2, [r, gg, b] = COLORS[mode];
+  g.clearRect(0, 0, W, W);
+  const pulse = mode === "speaking" ? 0.08 * Math.abs(Math.sin(t * 9)) : mode === "listening" ? 0.05 * Math.sin(t * 4) : 0.02 * Math.sin(t * 1.5);
+  const glow = g.createRadialGradient(c, c, 0, c, c, W * 0.42);
+  glow.addColorStop(0, `rgba(${r},${gg},${b},.55)`); glow.addColorStop(0.35, `rgba(${r},${gg},${b},.18)`); glow.addColorStop(1, "rgba(0,0,0,0)");
+  g.fillStyle = glow; g.beginPath(); g.arc(c, c, W * 0.42, 0, 7); g.fill();
+  const rings = [[0.36, 1, 0.5, 60], [0.31, -1.6, 0.35, 24], [0.26, 0.8, 0.7, 90], [0.2, -2.4, 0.4, 12]];
+  rings.forEach(([rad, sp, alpha, dashes], i) => {
+    g.save(); g.translate(c, c); g.rotate(t * sp * (mode === "thinking" ? 2.5 : 1) * 0.3);
+    g.strokeStyle = `rgba(${r},${gg},${b},${alpha})`; g.lineWidth = i % 2 ? 6 : 2;
+    g.setLineDash([Math.PI * 2 * W * rad / dashes * 0.6, Math.PI * 2 * W * rad / dashes * 0.4]);
+    g.beginPath(); g.arc(0, 0, W * rad * (1 + pulse), 0, 7); g.stroke(); g.restore();
+  });
+  const core = g.createRadialGradient(c, c, 0, c, c, W * 0.12 * (1 + pulse * 2));
+  core.addColorStop(0, "#ffffff"); core.addColorStop(0.3, `rgba(${r},${gg},${b},.95)`); core.addColorStop(1, `rgba(${r},${gg},${b},0)`);
+  g.fillStyle = core; g.beginPath(); g.arc(c, c, W * 0.12 * (1 + pulse * 2), 0, 7); g.fill();
+  requestAnimationFrame(draw);
+}
+requestAnimationFrame(draw);
+
+// ── Voice: speak replies; listen when the core is tapped ──
+function speak(text) {
+  if (!text) return;
+  $("#said").textContent = text;
+  if (!("speechSynthesis" in window)) return;
+  const u = new SpeechSynthesisUtterance(text.replace(/[*#_`]/g, "").slice(0, 600));
+  const v = speechSynthesis.getVoices().find((v) => /en-GB/.test(v.lang) && /male|george|ryan|daniel/i.test(v.name))
+         || speechSynthesis.getVoices().find((v) => /en-GB/.test(v.lang));
+  if (v) u.voice = v; u.rate = 1.02; u.pitch = 0.9;
+  u.onstart = () => setMode("speaking"); u.onend = () => setMode("idle");
+  speechSynthesis.cancel(); speechSynthesis.speak(u);
+}
+const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+cv.addEventListener("click", () => {
+  if (!SR) { $("#msg").focus(); setMode("idle", "type below, or say “Hey Jarvis” to the PC"); return; }
+  const rec = new SR(); rec.lang = "en-US"; rec.interimResults = false;
+  rec.onstart = () => setMode("listening");
+  rec.onresult = (e) => { const said = e.results[0][0].transcript; $("#msg").value = said; send(); };
+  rec.onerror = rec.onend = () => { if (mode === "listening") setMode("idle"); };
+  rec.start();
+});
+
+// ── Talk to Jarvis or hand work to an agent ──
+async function send() {
+  const text = $("#msg").value.trim(); if (!text) return;
+  $("#msg").value = "";
+  let who = $("#who").value;
+  const m = text.match(/^(tom|ava|max|chrome)\b[,:]?\s*(.*)$/i);           // "Tom, build…" → Tom
+  if (m) who = m[1].toLowerCase();
+  setMode("thinking");
+  try {
+    if (who === "jarvis") {
+      const r = await api("/api/chat", { message: text, device: "hud" });
+      speak(r.reply || "Done, sir.");
+    } else {
+      await api("/api/agents/run", { agent: who, task: m ? m[2] || text : text });
+      speak(`Right away, sir. I've handed it to ${who[0].toUpperCase() + who.slice(1)}. I'll let you know when it's done.`);
+      setTimeout(loadTeam, 1500);
+    }
+  } catch (e) { setMode("idle"); $("#said").textContent = "⚠ " + e.message; }
+}
+$("#send").onclick = send;
+$("#msg").addEventListener("keydown", (e) => { if (e.key === "Enter") send(); });
+$("#briefNow").onclick = async () => {
+  setMode("thinking", "preparing your brief…");
+  const r = (await api("/api/agents")).routines.find((x) => x.id === "brief");
+  await api("/api/agents/run", { agent: r?.agent || "ava", task: r?.task || "Give me my brief, sir-style." });
+  setTimeout(loadTeam, 1500);
+};
+$("#startDay").onclick = async () => {
+  const apps = (() => { try { return JSON.parse(localStorage.getItem("hud_start") || "null"); } catch { return null; } })()
+            || ["http://localhost:8765", "https://mail.google.com", "https://calendar.google.com"];
+  for (const target of apps) await api("/api/open", { target }).catch(() => {});
+  speak("Your workspace is ready, sir. Friday, your inbox and your calendar are open.");
+};
+
+// ── Live data ──
+async function loadTeam() {
+  const d = await api("/api/agents");
+  $("#agents").innerHTML = d.agents.map((a) => `<div class="agent"><b>${a.name}</b><small>${a.role}</small></div>`).join("");
+  const sel = $("#who"); if (sel.options.length === 1) d.agents.forEach((a) => sel.add(new Option(a.name + " · " + a.role, a.id)));
+  $("#runs").innerHTML = d.runs.slice(0, 8).map((r) => `<div class="run ${r.status}"><b>${r.name}</b> · ${r.status}${r.status === "working" ? "…" : ""}<br>${(r.task || "").slice(0, 90)}${r.status === "done" ? "<br>" + (r.result || "").slice(0, 220).replace(/</g, "&lt;") : ""}</div>`).join("") || "<div class=run>Nothing yet. Ask Tom, Ava or Max.</div>";
+  const fresh = d.runs.find((r) => r.status === "done" && !seen.has(r.id));
+  if (fresh && seen.size) speak(`${fresh.name} is done, sir. ${fresh.result.split("\n")[0].slice(0, 200)}`);
+  d.runs.forEach((r) => r.status === "done" && seen.add(r.id)); if (!seen.size) seen.add("-");
+}
+const seen = new Set();
+async function loadHud() {
+  const h = await api("/api/hud"), s = h.system || {};
+  const set = (id, v, label) => { $("#" + id).style.width = Math.max(0, Math.min(100, v || 0)) + "%"; $("#" + id + "V").textContent = label; };
+  set("cpu", s.cpu_percent, `${Math.round(s.cpu_percent || 0)}%`);
+  set("ram", s.ram_percent, `${Math.round(s.ram_percent || 0)}%`);
+  const disk = (s.disks || [])[0] || s.disk || {}; set("disk", disk.percent, disk.free_gb ? `${disk.free_gb} GB free` : "");
+  const bat = s.battery || {}; set("bat", bat.percent, bat.percent != null ? `${Math.round(bat.percent)}%${bat.plugged ? " ⚡" : ""}` : "—");
+  if (h.brief) $("#brief").textContent = h.brief.result;
+}
+function clock() {
+  const n = new Date(); $("#clock").textContent = n.toLocaleString(undefined, { weekday: "long", hour: "2-digit", minute: "2-digit" });
+}
+const hour = new Date().getHours();
+const greeting = `Good ${hour < 12 ? "morning" : hour < 18 ? "afternoon" : "evening"}, sir.`;
+$("#greet").textContent = greeting;
+setInterval(clock, 1000); clock();
+(async () => {
+  await loadHud().catch(() => {}); await loadTeam().catch(() => {});
+  setInterval(() => loadHud().catch(() => {}), 5000); setInterval(() => loadTeam().catch(() => {}), 6000);
+  const first = sessionStorage.getItem("hud_greeted") !== "1"; sessionStorage.setItem("hud_greeted", "1");
+  if (first) { if (speechSynthesis.getVoices().length === 0) speechSynthesis.onvoiceschanged = () => speak(greeting + " All systems are online."); else speak(greeting + " All systems are online."); }
+})();
+</script>
+</body>
+</html>

@@ -23,6 +23,7 @@ from station import __version__, docs
 from station.assist import PROFILE_FIELDS, Profile, fill_from_profile, greeting
 from station.auth import DeviceAuth
 from station.passkeys import Passkeys, secure_origin
+from station.agents import AGENTS, Team
 from station.hotspot import HotspotKeeper, stop_hotspot
 from station.brain import BrainOffline, ClaudeBrain, LocalBrain
 from station.config import StationConfig
@@ -181,6 +182,7 @@ def create_app(config: StationConfig, control: PCControl | None = None,
         voice.start(asyncio.get_running_loop())
         # Hotspot is opt-in (JARVIS_HOTSPOT=1): it blocks screen mirroring to the tablet, so by default
         # Jarvis is reached over home Wi-Fi and Tailscale instead, and the hotspot is switched off.
+        tasks.append(asyncio.create_task(team.scheduler()))
         if os.name == "nt":
             if os.getenv("JARVIS_HOTSPOT", "0") == "1":
                 hotspot.start()
@@ -202,6 +204,7 @@ def create_app(config: StationConfig, control: PCControl | None = None,
     app.state.friday = friday
     app.state.secure_url = app_secure_url
     telegram = None  # set below, once converse/execute exist
+    team = Team(config.data_dir, friday, brain, notifier)
 
     def trusted_network(request: Request) -> bool:
         """No lock for this PC itself and Elliot's own Tailscale devices (the https address arrives via
@@ -323,6 +326,38 @@ def create_app(config: StationConfig, control: PCControl | None = None,
     def hotspot_info(_: str = Depends(device)):
         """The PC's hotspot (name + password), so the phone apps can join it on their own."""
         return hotspot.state if hotspot.state.get("ssid") else hotspot.check()
+
+    # ── The team: agents and routines ───────────────────────────────────────
+    class AgentBody(BaseModel):
+        agent: str = "max"
+        task: str
+
+    @app.get("/api/agents")
+    def agents_list(_: str = Depends(device)):
+        return {"agents": [{"id": k, "name": v["name"], "role": v["role"]} for k, v in AGENTS.items()],
+                "runs": team.runs[-30:][::-1], "routines": team.routines}
+
+    @app.post("/api/agents/run")
+    async def agents_run(body: AgentBody, _: str = Depends(device)):
+        if not body.task.strip():
+            raise HTTPException(400, "Give the agent a task")
+        team.start_run(body.agent, body.task.strip())
+        return {"ok": True}
+
+    @app.post("/api/routines")
+    def routines_save(body: dict, _: str = Depends(device)):
+        if isinstance(body.get("routines"), list):
+            team.routines = body["routines"]
+            team._save()
+        return {"routines": team.routines}
+
+    @app.get("/api/hud")
+    async def hud_state(_: str = Depends(device)):
+        """Everything the HUD shows in one call."""
+        brief = team.latest("Morning brief") or team.latest()
+        return {"system": await call(control.system_info),
+                "brief": brief, "running": [r for r in team.runs if r["status"] == "working"],
+                "friday": friday.enabled, "owner": config.owner_name}
 
     @app.get("/api/ping")
     def ping(device_id: str = Depends(device)):
