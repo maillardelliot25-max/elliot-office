@@ -21,6 +21,7 @@ import json
 import os
 import queue
 import socket
+import subprocess
 import sys
 import threading
 import time
@@ -189,6 +190,11 @@ class Lens:
         self.showing = False      # read by the watcher thread
         self.offer_parts = []     # the notification card
         self.edges = []           # the glowing screen edges
+        self.full_img = None      # last full capture (for "Select area")
+        self.mon = None
+        self.answer = ""          # the latest reply, for Copy / Read aloud
+        self.cancel = False
+        self.copy_when_done = False
         self.build()
         self.root.after(50, self.pump)
 
@@ -224,6 +230,11 @@ class Lens:
                   activebackground=c["bg"], cursor="hand2").pack(side="right", padx=8)
         tk.Button(head, text="📸 New capture", command=self.recapture, bg=c["bg"], fg=c["dim"], relief="flat", bd=0,
                   activebackground=c["bg"], cursor="hand2").pack(side="right")
+        tk.Button(head, text="✂ Select area", command=self.select_area, bg=c["bg"], fg=c["accent"], relief="flat", bd=0,
+                  activebackground=c["bg"], cursor="hand2").pack(side="right", padx=8)
+        # borderless window: drag it by its header
+        head.bind("<ButtonPress-1>", lambda e: setattr(self, "_drag", (e.x_root - w.winfo_x(), e.y_root - w.winfo_y())))
+        head.bind("<B1-Motion>", lambda e: w.geometry(f"+{e.x_root - self._drag[0]}+{e.y_root - self._drag[1]}"))
 
         body = tk.Frame(card, bg=c["bg"])
         body.pack(fill="both", expand=True, pady=(8, 8))
@@ -241,9 +252,16 @@ class Lens:
                          ("Explain the error", "There's an error or problem on my screen. What does it mean and how do I fix it?"),
                          ("Summarise", "Summarise what's on my screen in a few bullet points."),
                          ("Translate", "Translate the text on my screen into English."),
-                         ("What should I reply?", "Draft a reply to the message on my screen in my usual style.")):
+                         ("What should I reply?", "Draft a reply to the message on my screen in my usual style."),
+                         ("Next step", "What should I do next here? Give me short numbered steps."),
+                         ("Copy text", "COPY")):
             tk.Button(chips, text=label, command=lambda q=q: self.ask(q), bg=c["field"], fg=c["text"], relief="flat",
                       bd=0, padx=8, pady=3, cursor="hand2", activebackground=c["accent"]).pack(side="left", padx=(0, 6))
+        acts = tk.Frame(card, bg=c["bg"])
+        acts.pack(fill="x", pady=(0, 6))
+        for label, fn in (("⧉ Copy answer", self.copy_answer), ("🔊 Read aloud", self.read_aloud), ("■ Stop", self.stop)):
+            tk.Button(acts, text=label, command=fn, bg=c["bg"], fg=c["dim"], relief="flat", bd=0, padx=4,
+                      cursor="hand2", activebackground=c["bg"]).pack(side="left", padx=(0, 10))
 
         row = tk.Frame(card, bg=c["field"])
         row.pack(fill="x")
@@ -271,6 +289,9 @@ class Lens:
                     self.out.see("end")
                 elif kind == "done":
                     self.busy = False
+                    if self.copy_when_done:
+                        self.copy_when_done = False
+                        self.copy_answer()
                 elif kind == "offer":
                     self.offer(*args)
         except queue.Empty:
@@ -293,6 +314,7 @@ class Lens:
                 time.sleep(0.15)   # don't photograph our own window
             img, self.image_b64, mon = capture(x, y)
         self.chat_id = None
+        self.full_img, self.mon = img, mon
         small = img.copy()
         small.thumbnail((220, 150))
         self.photo = ImageTk.PhotoImage(small)
@@ -300,7 +322,7 @@ class Lens:
         self.out.delete("1.0", "end")
         self.out.insert("end", "Ask anything about what's on your screen…", "q")
         width = min(760, mon["width"] - 40)
-        height = 330
+        height = 370
         left = mon["left"] + (mon["width"] - width) // 2
         top = mon["top"] + mon["height"] - height - 70
         self.win.geometry(f"{width}x{height}+{left}+{top}")
@@ -392,8 +414,83 @@ class Lens:
         webbrowser.open(SERVER + (f"/#chat={self.chat_id}" if self.chat_id else "/"))
         self.hide()
 
+    # ── "Select area": drag a box around just the part you mean (like Circle to Search) ──
+    def select_area(self):
+        if self.full_img is None or self.mon is None:
+            return
+        mon, img = self.mon, self.full_img
+        self.win.withdraw()
+        ov = tk.Toplevel(self.root)
+        ov.overrideredirect(True)
+        ov.attributes("-topmost", True)
+        ov.geometry(f"{mon['width']}x{mon['height']}+{mon['left']}+{mon['top']}")
+        cv = tk.Canvas(ov, highlightthickness=0, cursor="crosshair", bg="black")
+        cv.pack(fill="both", expand=True)
+        shown = img.resize((mon["width"], mon["height"]))
+        dim = Image.blend(shown, Image.new("RGB", shown.size, (0, 0, 0)), 0.45)
+        self._ov_photo = ImageTk.PhotoImage(dim)
+        cv.create_image(0, 0, image=self._ov_photo, anchor="nw")
+        cv.create_text(mon["width"] // 2, 40, text="Drag around what you want to ask about  ·  Esc to cancel",
+                       fill="white", font=("Segoe UI", 14, "bold"))
+        accent = self.colours()["accent"]
+        st = {}
+
+        def down(e):
+            st["x0"], st["y0"] = e.x, e.y
+            st["r"] = cv.create_rectangle(e.x, e.y, e.x, e.y, outline=accent, width=3)
+
+        def drag(e):
+            if "r" in st:
+                cv.coords(st["r"], st["x0"], st["y0"], e.x, e.y)
+
+        def up(e):
+            ov.destroy()
+            x0, x1 = sorted((st.get("x0", 0), e.x))
+            y0, y1 = sorted((st.get("y0", 0), e.y))
+            if x1 - x0 < 8 or y1 - y0 < 8:      # a click, not a box: keep the whole screen
+                self.win.deiconify()
+                return
+            sx, sy = img.width / mon["width"], img.height / mon["height"]
+            crop = img.crop((int(x0 * sx), int(y0 * sy), int(x1 * sx), int(y1 * sy)))
+            buf = io.BytesIO()
+            crop.save(buf, "JPEG", quality=90)
+            self.show(preset=(crop, base64.b64encode(buf.getvalue()).decode(), mon))
+            self.full_img = img                  # so you can pick another area from the same screen
+
+        cv.bind("<ButtonPress-1>", down)
+        cv.bind("<B1-Motion>", drag)
+        cv.bind("<ButtonRelease-1>", up)
+        ov.bind("<Escape>", lambda e: (ov.destroy(), self.win.deiconify()))
+        ov.focus_force()
+
+    def copy_answer(self):
+        if self.answer.strip():
+            self.root.clipboard_clear()
+            self.root.clipboard_append(self.answer.strip())
+            self.out.insert("end", "\n✓ Copied", "q")
+
+    def read_aloud(self):
+        text = self.answer.strip()[:3000]
+        if not text:
+            return
+        ps = ("Add-Type -AssemblyName System.Speech; $s = New-Object System.Speech.Synthesis.SpeechSynthesizer; "
+              "$s.Speak([Console]::In.ReadToEnd())")
+        try:
+            p = subprocess.Popen(["powershell", "-NoProfile", "-Command", ps], stdin=subprocess.PIPE,
+                                 creationflags=0x08000000)
+            p.stdin.write(text.encode("utf-8", "replace"))
+            p.stdin.close()
+        except OSError:
+            pass
+
+    def stop(self):
+        self.cancel = True
+
     def ask(self, question):
         question = question.strip()
+        if question == "COPY":    # "Copy text": read every word on screen and put it on the clipboard
+            self.copy_when_done = True
+            question = "Write out all the text in this image exactly as it appears. Output only the text."
         if not question or self.busy:
             return
         self.entry.delete(0, "end")
@@ -401,6 +498,8 @@ class Lens:
             self.out.delete("1.0", "end")
         self.out.insert("end", ("\n\n" if self.chat_id else "") + "› " + question + "\n", "q")
         self.busy = True
+        self.answer = ""
+        self.cancel = False
         threading.Thread(target=self.stream, args=(question,), daemon=True).start()
 
     def stream(self, question):
@@ -424,6 +523,10 @@ class Lens:
                     if ev["type"] == "chat":
                         self.chat_id = ev["id"]
                     elif ev["type"] == "text":
+                        if self.cancel:
+                            say("\n■ Stopped", "q")
+                            break
+                        self.answer += ev["delta"]
                         say(ev["delta"].replace("**", ""))
                     elif ev["type"] == "error":
                         say("\n⚠ " + ev["message"], "err")
