@@ -6,6 +6,7 @@ The phone app talks to these endpoints. Every /api route except
 """
 
 import asyncio
+import os
 import logging
 from datetime import datetime
 from contextlib import asynccontextmanager
@@ -21,6 +22,7 @@ from station import __version__, docs
 from station.assist import PROFILE_FIELDS, Profile, fill_from_profile, greeting
 from station.auth import DeviceAuth
 from station.passkeys import Passkeys, secure_origin
+from station.hotspot import HotspotKeeper
 from station.brain import BrainOffline, ClaudeBrain, LocalBrain
 from station.config import StationConfig
 from station.friday import ASK_FRIDAY, FridayBrain, FridayError, FridayLink
@@ -122,6 +124,7 @@ def create_app(config: StationConfig, control: PCControl | None = None,
     config.data_dir.mkdir(parents=True, exist_ok=True)
     auth = DeviceAuth(config.data_dir)
     passkeys = Passkeys(config.data_dir, config.owner_name)
+    hotspot = HotspotKeeper(config.port)
     app_secure_url = {"url": None}   # set by __main__ once Tailscale's https address is up
     memory = StationMemory(config.data_dir / "memory.db")
     control = control or PCControl(upload_dir=config.upload_dir)
@@ -174,6 +177,8 @@ def create_app(config: StationConfig, control: PCControl | None = None,
         if telegram:
             tasks.append(asyncio.create_task(telegram.run()))
         voice.start(asyncio.get_running_loop())
+        if os.name == "nt" and os.getenv("JARVIS_HOTSPOT", "1") != "0":
+            hotspot.start()
         yield
         voice.stop()
         for task in tasks:
@@ -291,6 +296,11 @@ def create_app(config: StationConfig, control: PCControl | None = None,
             return passkeys.login_verify(body.credential, origin, rp_id)
         except Exception as e:
             raise HTTPException(401, str(e))
+
+    @app.get("/api/hotspot")
+    def hotspot_info(_: str = Depends(device)):
+        """The PC's hotspot (name + password), so the phone apps can join it on their own."""
+        return hotspot.state if hotspot.state.get("ssid") else hotspot.check()
 
     @app.get("/api/ping")
     def ping(device_id: str = Depends(device)):
