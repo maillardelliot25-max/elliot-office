@@ -165,6 +165,31 @@ function createWindow(show) {
   win.on("close", (e) => { if (!quitting) { e.preventDefault(); win.hide(); } });   // close = back to the tray
 }
 
+// ── Jarvis in his own window, signed in automatically with the desktop token Jarvis keeps on this PC ──
+let jwin = null;
+function jarvisToken() {
+  const dir = jarvisDir();
+  try { return dir ? fs.readFileSync(path.join(dir, "station_data", "desktop.token"), "utf8").trim() : ""; } catch { return ""; }
+}
+async function openJarvis(show = true) {
+  if (jwin && !jwin.isDestroyed()) { if (show) { jwin.show(); jwin.focus(); } return; }
+  jwin = new BrowserWindow({
+    width: 1100, height: 820, show, title: "Jarvis", backgroundColor: "#070b14", icon: asset("jarvis.ico"),
+    autoHideMenuBar: true, webPreferences: { contextIsolation: true, sandbox: true },
+  });
+  jwin.on("close", (e) => { if (!quitting) { e.preventDefault(); jwin.hide(); } });
+  jwin.webContents.setWindowOpenHandler(({ url }) => { shell.openExternal(url); return { action: "deny" }; });
+  for (let i = 0; i < 90 && !(await portOpen(JARVIS_PORT)); i++) await sleep(1000);
+  await jwin.loadURL(JARVIS_URL).catch(() => {});
+  const t = jarvisToken();
+  if (t) {
+    const had = await jwin.webContents.executeJavaScript(
+      `(() => { if (localStorage.getItem("station_token")) return true; localStorage.setItem("station_token", ${JSON.stringify(t)}); return false; })()`).catch(() => true);
+    if (!had) jwin.reload();
+  }
+  jwin.webContents.on("did-fail-load", () => setTimeout(() => !jwin.isDestroyed() && jwin.loadURL(JARVIS_URL), 5000));
+}
+
 function openWindow() {
   if (!win || win.isDestroyed()) createWindow(true);
   win.show(); win.focus();
@@ -178,7 +203,7 @@ function buildTray() {
   tray.setToolTip("Friday");
   const menu = () => Menu.buildFromTemplate([
     { label: "Open Friday", click: openWindow },
-    { label: "Open Jarvis", click: () => shell.openExternal(JARVIS_URL) },
+    { label: "Open Jarvis", click: () => openJarvis(true) },
     { type: "separator" },
     { label: "Start with Windows", type: "checkbox", checked: startAtLogin(), click: (i) => setStartAtLogin(i.checked) },
     { label: "Choose Friday folder…", click: async () => {
@@ -212,7 +237,8 @@ else {
     if (!c.loginSet) { setStartAtLogin(true); writeConfig({ ...readConfig(), loginSet: true }); }   // always running: on by default
     powerSaveBlocker.start("prevent-app-suspension");   // keeps the PC from sleeping while Friday runs
     buildTray();
-    createWindow(!process.argv.includes("--hidden"));
+    createWindow(true);          // Friday and Jarvis both open when the PC starts
+    openJarvis(true);
     watchdog();
   });
   app.on("window-all-closed", (e) => e.preventDefault?.());
