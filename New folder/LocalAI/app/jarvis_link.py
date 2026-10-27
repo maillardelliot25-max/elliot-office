@@ -29,14 +29,28 @@ class JarvisError(RuntimeError):
     pass
 
 
+def token_files():
+    """Jarvis's token file: next to Friday, or wherever Jarvis was unzipped (Downloads, Documents, Desktop)."""
+    yield TOKEN_FILE
+    home = Path.home()
+    for base in ("Downloads", "Documents", "Desktop"):
+        for pattern in ("*/New folder/Jarvis/station_data/friday.token", "*/*/New folder/Jarvis/station_data/friday.token",
+                        "*/Jarvis/station_data/friday.token", "Jarvis/station_data/friday.token"):
+            yield from sorted((home / base).glob(pattern), key=lambda p: p.stat().st_mtime, reverse=True)
+
+
 def token(settings):
     t = (settings.get("jarvis_token") or "").strip()
     if t:
         return t
-    try:
-        return TOKEN_FILE.read_text().strip()
-    except OSError:
-        return ""
+    for f in token_files():
+        try:
+            found = f.read_text().strip()
+        except OSError:
+            continue
+        if found:
+            return found
+    return ""
 
 
 def _get(settings, path, params=None, raw=False, timeout=15):
