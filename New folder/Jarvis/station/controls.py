@@ -80,10 +80,22 @@ class PCControl:
     def grab_image(self):
         """The main screen as a PIL image (no cursor)."""
         from PIL import ImageGrab
+        if IS_WINDOWS:   # someone is watching: keep the display awake so it doesn't turn off or lock
+            try:
+                import ctypes
+                ctypes.windll.kernel32.SetThreadExecutionState(0x00000002 | 0x00000001)  # DISPLAY | SYSTEM required
+            except Exception:
+                pass
+        try:
+            return ImageGrab.grab(all_screens=False)
+        except Exception:
+            pass
         try:
             return ImageGrab.grab()
         except Exception as e:
-            raise ControlError(f"Screen capture failed: {e}")
+            raise ControlError("The PC is locked or its screen is asleep, so Jarvis can't see it. "
+                               "Unlock the PC once; while you're watching, Jarvis now keeps the screen awake. "
+                               f"({e})")
 
     def active_window(self) -> str:
         """Title of the window you're using, plus its program name, e.g. 'Inbox - Gmail — chrome'."""

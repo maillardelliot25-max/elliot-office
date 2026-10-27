@@ -168,7 +168,15 @@ async function start() {
   if (!token) return showPair();
   try {
     info = await api("/api/ping");
+    if (info.secure_url) { try { localStorage.setItem("station_secure", info.secure_url); } catch {} }
   } catch (e) {
+    // Home Wi-Fi can't reach the PC (router blocking, or you're out): switch to Jarvis's Tailscale address
+    let secure = ""; try { secure = localStorage.getItem("station_secure") || ""; } catch {}
+    if (secure && !location.href.startsWith(secure) && !(e.message || "").includes("paired")) {
+      $("#screenMsg").textContent = "Home Wi-Fi can't reach your PC. Switching to the Tailscale address…";
+      setTimeout(() => { location.href = secure; }, 1500);
+      return;
+    }
     if (token) { $("#screenMsg").textContent = "Can't reach your PC: " + e.message; }
     if (!token) return;
   }
