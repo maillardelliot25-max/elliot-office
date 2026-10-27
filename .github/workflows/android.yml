@@ -1,5 +1,9 @@
-# Builds the Friday Android app and publishes Friday.apk on the "friday-android" release,
-# so you can download and install it straight from your phone.
+# Builds the Friday Android app. With the release key in GitHub secrets it publishes a signed
+# Friday.apk on the "friday-android" release; without it, it only test-builds (nothing published).
+#
+# Secrets (Settings → Secrets and variables → Actions):
+#   FRIDAY_KEYSTORE_B64       base64 of friday-release.jks (one permanent key: never change it)
+#   FRIDAY_KEYSTORE_PASSWORD  its password
 name: Build Friday Android app
 
 on:
@@ -27,21 +31,56 @@ jobs:
         with:
           gradle-version: "8.11.1"
 
-      - name: Build the app
+      - name: Load the release key
+        id: key
+        env:
+          KS_B64: ${{ secrets.FRIDAY_KEYSTORE_B64 }}
+          KS_PASS: ${{ secrets.FRIDAY_KEYSTORE_PASSWORD }}
+        run: |
+          if [ -n "$KS_B64" ] && [ -n "$KS_PASS" ]; then
+            echo "$KS_B64" | base64 -d > "$RUNNER_TEMP/friday-release.jks"
+            echo "FRIDAY_KEYSTORE_FILE=$RUNNER_TEMP/friday-release.jks" >> "$GITHUB_ENV"
+            echo "FRIDAY_KEYSTORE_PASSWORD=$KS_PASS" >> "$GITHUB_ENV"
+            echo "signed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::warning::Release key secrets not set: test build only, nothing will be published."
+            echo "signed=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Build and lint the release app
         working-directory: New folder/LocalAI/android
-        run: gradle assembleDebug --no-daemon --stacktrace
+        run: gradle assembleRelease lintRelease --no-daemon --stacktrace
+
+      - name: Check the APK (package, permissions, signature)
+        run: |
+          APK="New folder/LocalAI/android/app/build/outputs/apk/release/app-release.apk"
+          BT=$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -1)
+          "$BT/aapt2" dump badging "$APK" | grep -E "^package|uses-permission|application-label:"
+          if "$BT/aapt2" dump permissions "$APK" | grep -E "SMS|CONTACTS|ACCESSIBILITY|SYSTEM_ALERT_WINDOW|REQUEST_INSTALL_PACKAGES"; then
+            echo "::error::Forbidden permission found"; exit 1
+          fi
+          "$BT/apksigner" verify --print-certs "$APK"
+          cp "$APK" Friday.apk
 
       - uses: actions/upload-artifact@v4
         with:
           name: friday-android
-          path: New folder/LocalAI/android/app/build/outputs/apk/debug/app-debug.apk
+          path: Friday.apk
 
       - name: Publish Friday.apk
+        if: steps.key.outputs.signed == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          cp "New folder/LocalAI/android/app/build/outputs/apk/debug/app-debug.apk" Friday.apk
-          gh release view friday-android >/dev/null 2>&1 || gh release create friday-android --prerelease \
-            --title "Friday for Android" \
-            --notes "Latest build of the Friday Android app (branch ${GITHUB_REF_NAME}). On your phone, download Friday.apk, open it and allow installing from your browser."
+          cat > notes.md <<NOTES
+          **Friday for Android** (version 2.0.${GITHUB_RUN_NUMBER}, signed release build)
+
+          1. If you have an older Friday on your phone (from an earlier build), uninstall it first. Jarvis can stay.
+          2. Tap **Friday.apk** below, then Open, and allow installing from your browser if asked.
+          3. Open Friday, tap **Find my PC automatically**, then follow steps 2–4 on the setup screen.
+
+          Future builds install over this one, so there's no need to uninstall again.
+          NOTES
+          gh release view friday-android >/dev/null 2>&1 || gh release create friday-android --title "Friday for Android" --notes-file notes.md
+          gh release edit friday-android --title "Friday for Android" --notes-file notes.md --prerelease=false
           gh release upload friday-android Friday.apk --clobber

@@ -25,8 +25,7 @@ import java.util.concurrent.Executors;
 /** Setup: connect to Friday on your PC, make Friday the phone's assistant, allow the microphone. */
 public class MainActivity extends Activity {
     private EditText server, code;
-    private TextView status, assistantStatus, formStatus;
-    private Button unmute;
+    private TextView status, assistantStatus;
     private float dp;
 
     @Override
@@ -75,29 +74,11 @@ public class MainActivity extends Activity {
         col.addView(text("For voice with no internet, download your language for offline use: Google app → Settings → Voice → "
                 + "Offline speech recognition (Samsung: Settings → General management → Keyboard → Voice input).", 13, R.color.dim, false));
 
-        col.addView(heading("5. \"Sir, I've got this\" form help (optional)"));
-        col.addView(text("When you start filling in a form in any app, Friday glows the screen edges and offers to fill it in from what it remembers about you. "
-                + "It only fills empty boxes, never touches passwords, card or bank details or codes, and never presses Send: you check first.\n"
-                + "Turn on: Accessibility → Installed apps → Friday form helper → On. "
-                + "If Android says it's a restricted setting: Settings → Apps → Friday → ⋮ (top right) → Allow restricted settings, then try again.", 14, R.color.dim, false));
-        col.addView(button("Open Accessibility settings", v -> {
-            try {
-                startActivity(new Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS));
-            } catch (ActivityNotFoundException ignored) {
-            }
-        }));
-        formStatus = text("", 14, R.color.dim, false);
-        col.addView(formStatus);
-        unmute = button("", v -> {
-            Prefs.unmuteAll(this);
-            showFormStatus();
-        });
-        col.addView(unmute);
-
         col.addView(heading("Try it"));
         col.addView(button("Open Friday now", v -> startActivity(new Intent(this, AssistActivity.class))));
 
         ScrollView scroll = new ScrollView(this);
+        scroll.setFitsSystemWindows(true);   // keep clear of the status and navigation bars
         scroll.addView(col);
         setContentView(scroll);
     }
@@ -108,16 +89,9 @@ public class MainActivity extends Activity {
         String current = Settings.Secure.getString(getContentResolver(), "assistant");
         boolean isUs = current != null && current.startsWith(getPackageName());
         assistantStatus.setText(isUs ? "✓ Friday is your assistant." : current == null ? "" : "Friday isn't your assistant yet.");
-        showFormStatus();
         if (Prefs.configured(this) && status.getText().length() == 0) connect();
     }
 
-    private void showFormStatus() {
-        formStatus.setText(FormHelperService.enabled(this) ? "✓ Form help is on." : "Form help is off.");
-        int muted = Prefs.mutedCount(this);
-        unmute.setText("Offer form help again in the " + muted + (muted == 1 ? " app" : " apps") + " I turned it off for");
-        unmute.setVisibility(muted > 0 ? View.VISIBLE : View.GONE);
-    }
 
     private void connect() {
         Prefs.save(this, server.getText().toString(), code.getText().toString());

@@ -6,4 +6,5 @@
     <color name="field">#262624</color>
     <color name="text">#ECEBE6</color>
     <color name="dim">#A6A59F</color>
+    <color name="icon_bg">#1F1E1D</color>
 </resources>

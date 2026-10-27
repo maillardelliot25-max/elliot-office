@@ -1,4 +1,4 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="form_helper_description">When you start filling in a form in any app, Friday offers to fill it in from what it remembers about you, using Friday on your PC. It only fills empty boxes, never touches passwords, card or bank details or one-time codes, stays quiet on sign-in screens, and never presses Send or Submit.</string>
+    <string name="app_name">Friday</string>
 </resources>

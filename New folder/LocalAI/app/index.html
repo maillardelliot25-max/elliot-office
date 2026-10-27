@@ -1453,7 +1453,7 @@ const COLOR_KEYS = { accent: "Accent", bg: "Background", side: "Sidebar", panel:
 const PRESETS = {
   Claude: { theme: "auto" },
   Midnight: { theme: "dark", accent: "#8b7cf6", bg: "#14141c", side: "#0f0f15", panel: "#1d1d28", text: "#e8e6f0", user: "#2a2840" },
-  Friday: { theme: "dark", accent: "#22d3ee", bg: "#07111c", side: "#050c14", panel: "#0c1a2a", text: "#d8f3ff", user: "#0f2a3f", font: "wide" },
+  Friday: { theme: "dark", accent: "#a78bfa", bg: "#070b14", side: "#050810", panel: "#0f1626", text: "#e6edf9", user: "#16203a" },   // sister of the Jarvis app
   Ocean: { theme: "light", accent: "#0e7490", bg: "#f3f8fa", side: "#e3eef2", panel: "#ffffff", text: "#0f2530", user: "#d7eaf0" },
   Forest: { theme: "dark", accent: "#4ade80", bg: "#111a14", side: "#0c130e", panel: "#18241b", text: "#e3efe5", user: "#1f3324" },
   Rose: { theme: "light", accent: "#e11d74", bg: "#fff7fa", side: "#fbe8ef", panel: "#ffffff", text: "#2a1720", user: "#f8dbe6", font: "rounded" },
@@ -1552,8 +1552,8 @@ $("lFile").onchange = async e => {
     fillLook(); applyAppearance(look); toast("Background set. Press Save to keep it.");
   } catch (err) { toast(err.message); }
 };
-$("openLook").onclick = () => { look = { ...(settings.appearance || {}) }; fillLook(); $("settings").classList.remove("open"); $("lookModal").classList.add("open"); };
-$("lCancel").onclick = () => { applyAppearance(settings.appearance || {}); $("lookModal").classList.remove("open"); };
+$("openLook").onclick = () => { look = { ...(Object.keys(settings.appearance || {}).length ? settings.appearance : PRESETS.Friday) }; fillLook(); $("settings").classList.remove("open"); $("lookModal").classList.add("open"); };
+$("lCancel").onclick = () => { applyAppearance(Object.keys(settings.appearance || {}).length ? settings.appearance : PRESETS.Friday); $("lookModal").classList.remove("open"); };
 $("lReset").onclick = () => { look = {}; applyAppearance(look); fillLook(); };
 $("lSave").onclick = async () => {
   try {
@@ -1700,7 +1700,7 @@ document.querySelectorAll(".modal").forEach(m => m.addEventListener("click", e =
 
 (async () => {
   try { settings = await api("/api/settings"); } catch {}
-  applyName(); applyAppearance(settings.appearance || {});
+  applyName(); applyAppearance(Object.keys(settings.appearance || {}).length ? settings.appearance : PRESETS.Friday);
   drawToggles();
   try { await refreshProjects(); } catch {}
   setMode("chat");

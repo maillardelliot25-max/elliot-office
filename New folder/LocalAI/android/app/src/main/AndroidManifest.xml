@@ -15,6 +15,7 @@
         android:label="Friday"
         android:icon="@mipmap/ic_launcher"
         android:roundIcon="@mipmap/ic_launcher"
+        android:allowBackup="false"
         android:theme="@style/AppTheme"
         android:usesCleartextTraffic="true">
 
@@ -67,16 +68,5 @@
             <meta-data android:name="android.speech" android:resource="@xml/recognition_service" />
         </service>
 
-        <!-- "Sir, I've got this": offers to fill forms in any app (turned on by you in Accessibility settings) -->
-        <service
-            android:name=".FormHelperService"
-            android:exported="true"
-            android:label="Friday form helper"
-            android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">
-            <intent-filter>
-                <action android:name="android.accessibilityservice.AccessibilityService" />
-            </intent-filter>
-            <meta-data android:name="android.accessibilityservice" android:resource="@xml/form_helper" />
-        </service>
     </application>
 </manifest>
