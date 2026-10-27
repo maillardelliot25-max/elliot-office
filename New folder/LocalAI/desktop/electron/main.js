@@ -16,6 +16,7 @@ const STATE = app.getPath("userData");
 const CONFIG = path.join(STATE, "config.json");
 const LOG = path.join(STATE, "friday-desktop.log");
 const NO_WINDOW = { windowsHide: true };
+const PY_ENV = { ...process.env, PYTHONUTF8: "1", PYTHONIOENCODING: "utf-8" };   // logs to a file: no emoji crashes
 
 let win = null, tray = null, quitting = false;
 const children = { friday: null, jarvis: null };
@@ -87,7 +88,7 @@ function findPython() {
 function startFriday(py) {
   const dir = fridayAppDir();
   const bundled = dir.startsWith(process.resourcesPath);
-  const env = { ...process.env };
+  const env = { ...PY_ENV };
   if (bundled) env.ELLIOT_AI_DATA = path.join(STATE, "data");
   const out = fs.openSync(path.join(STATE, "friday-server.log"), "a");
   log("starting Friday from", dir);
@@ -105,7 +106,7 @@ function startJarvis() {
   if (!dir) return false;
   const out = fs.openSync(path.join(STATE, "jarvis.log"), "a");
   log("starting Jarvis from", dir);
-  children.jarvis = spawn(path.join(dir, ".venv", "Scripts", "python.exe"), ["-m", "station"], { cwd: dir, ...NO_WINDOW, stdio: ["ignore", out, out] });
+  children.jarvis = spawn(path.join(dir, ".venv", "Scripts", "python.exe"), ["-m", "station"], { cwd: dir, env: PY_ENV, ...NO_WINDOW, stdio: ["ignore", out, out] });
   children.jarvis.on("exit", (c) => { log("Jarvis exited", c); children.jarvis = null; });
   return true;
 }
