@@ -36,9 +36,9 @@ jobs:
           npm run dist
           # Jarvis's own app: same code, built as "Jarvis" (own name, icon, Start entry and install folder)
           npx electron-builder --win nsis --publish never `
-            -c.extraMetadata.name=jarvis-desktop -c.extraMetadata.productName=Jarvis -c.productName=Jarvis `
-            -c.appId=ai.maillard.jarvis.desktop -c.artifactName=Jarvis-Setup.exe -c.win.icon=assets/jarvis.ico `
-            -c.nsis.shortcutName=Jarvis
+            --config.extraMetadata.name=jarvis-desktop --config.extraMetadata.productName=Jarvis --config.productName=Jarvis `
+            --config.appId=ai.maillard.jarvis.desktop --config.artifactName=Jarvis-Setup.exe --config.win.icon=assets/jarvis.ico `
+            --config.nsis.shortcutName=Jarvis
           Get-Item dist\Friday-Setup.exe, dist\Jarvis-Setup.exe | Select-Object Name, Length
 
       - name: Sign (only if a code-signing certificate is configured)
