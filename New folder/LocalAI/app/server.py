@@ -1588,6 +1588,23 @@ def discovery_responder():
             time.sleep(1)
 
 
+def reload_on_update():
+    """When Friday's code is updated on disk, exit; the Friday/Jarvis app restarts her with the new
+    version within seconds, so updates never need a PC restart."""
+    files = lambda: {p: p.stat().st_mtime for p in APP_DIR.glob("*.py")}
+    before = files()
+    while True:
+        time.sleep(5)
+        try:
+            now = files()
+        except OSError:
+            continue
+        if now != before:
+            time.sleep(3)
+            print("Friday was updated: restarting with the new version…", flush=True)
+            os._exit(3)
+
+
 def main():
     global LISTEN
     LISTEN = "0.0.0.0" if load_settings()["phone_access"] else "127.0.0.1"
@@ -1598,6 +1615,7 @@ def main():
                  f"(e.g. Jarvis Station) using it? Close that app, or start Friday with PORT=<other port>.")
     if LISTEN != "127.0.0.1":
         threading.Thread(target=discovery_responder, daemon=True).start()
+        threading.Thread(target=reload_on_update, daemon=True).start()
         print("Phone access is ON: devices on your Wi-Fi can connect with the pairing code at",
               ", ".join(f"http://{a}:{PORT}" for a in lan_addresses()) or "this PC's address")
     url = f"http://localhost:{PORT}"
