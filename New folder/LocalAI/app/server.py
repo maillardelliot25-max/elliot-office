@@ -1124,6 +1124,11 @@ class Handler(BaseHTTPRequestHandler):
             elif url.path == "/api/lan_info":
                 self.send_json({"addresses": [f"{a}:{PORT}" for a in lan_addresses()], "tailscale": tailscale_info(),
                                 "phone_access": load_settings()["phone_access"], "listening_on_wifi": LISTEN != "127.0.0.1"})
+            elif url.path == "/api/hotspot":   # the PC's hotspot, so the phone app can join it automatically
+                try:
+                    self.send_json(jarvis_link._get(load_settings(), "/api/hotspot", timeout=70))
+                except Exception as e:
+                    self.send_json({"on": False, "error": str(e)})
             elif url.path == "/api/station/state":
                 self.send_json(station_dashboard.state())
             elif url.path == "/api/jarvis":

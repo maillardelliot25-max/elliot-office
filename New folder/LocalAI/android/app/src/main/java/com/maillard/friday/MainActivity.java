@@ -121,7 +121,8 @@ public class MainActivity extends Activity {
                 JSONObject s = new Api(this).get("/api/settings");
                 String model = new Api(this).get("/api/lens_model").optString("model", "");
                 msg = "✓ Connected to " + s.optString("assistant_name", "Friday") + " on your PC."
-                        + (model.isEmpty() ? "\n⚠ No model that can see images is set up on the PC yet." : "\nLooks at your screen with: " + model.replaceFirst("^cloud:[a-z]+:", ""));
+                        + (model.isEmpty() ? "\n⚠ No model that can see images is set up on the PC yet." : "\nLooks at your screen with: " + model.replaceFirst("^cloud:[a-z]+:", ""))
+                        + "\n" + Hotspot.register(this);
             } catch (Exception e) {
                 msg = "✗ " + (e.getMessage() == null || e instanceof java.net.ConnectException || e instanceof java.net.SocketTimeoutException
                         ? "Can't reach the PC. Check the address, that Friday is running with phone access on, and that you're on the same Wi-Fi."

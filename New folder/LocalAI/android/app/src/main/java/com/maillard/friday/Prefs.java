@@ -35,6 +35,10 @@ final class Prefs {
         remember(c, server);
     }
 
+    static void rememberAddress(Context c, String server) {
+        remember(c, server);
+    }
+
     /** Every address this PC has answered on: home Wi-Fi, USB cable, the phone's hotspot, Tailscale. */
     static java.util.Set<String> known(Context c) {
         return sp(c).getStringSet("servers", java.util.Collections.emptySet());
