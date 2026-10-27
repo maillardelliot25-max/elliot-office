@@ -1532,7 +1532,7 @@ def tailscale_info():
     except (OSError, subprocess.SubprocessError):
         serve = ""
     return {"installed": True, "running": st.get("BackendState") == "Running", "ip": ip,
-            "https": f"https://{name}" if name else "", "serving": bool(name) and f":{PORT}" in serve}
+            "https": f"https://{name}:8443" if name else "", "serving": bool(name) and f":{PORT}" in serve}
 
 
 def tailscale_serve():
@@ -1540,7 +1540,8 @@ def tailscale_serve():
     exe = tailscale_cli()
     if not exe:
         raise ValueError("Tailscale isn't installed on this PC. Get it at tailscale.com/download.")
-    r = subprocess.run([exe, "serve", "--bg", str(PORT)], capture_output=True, text=True, timeout=60)
+    # Port 8443: Jarvis already uses https://<pc>.ts.net (443), so Friday lives at https://<pc>.ts.net:8443
+    r = subprocess.run([exe, "serve", "--bg", "--https=8443", str(PORT)], capture_output=True, text=True, timeout=60)
     out = (r.stdout + r.stderr).strip()
     if r.returncode != 0:
         raise ValueError(out[-600:] or "tailscale serve failed")
