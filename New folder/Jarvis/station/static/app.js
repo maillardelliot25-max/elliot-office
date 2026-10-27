@@ -50,6 +50,12 @@ const fpSupported = () => window.isSecureContext && !!window.PublicKeyCredential
 
 function showPair() {
   $("#app").classList.add("hidden"); $("#pair").classList.remove("hidden");
+  // Fingerprint is set up on the PC: never ask for a PIN. On a plain http address, jump to the secure one.
+  fetch("/api/passkey/status").then((r) => r.json()).then((st) => {
+    if (!st.registered) return;
+    if (!fpSupported() && st.secure_url) { location.href = st.secure_url; return; }
+    if (fpSupported() && !fpLock()) { try { localStorage.setItem("station_lock", "passkey"); } catch {} showPair(); }
+  }).catch(() => {});
   const fp = fpLock() && fpSupported();
   $("#fpUnlock").classList.toggle("hidden", !fp);
   $("#pairForm").classList.toggle("hidden", fp);
