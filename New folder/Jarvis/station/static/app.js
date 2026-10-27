@@ -18,7 +18,7 @@ async function api(path, { method = "GET", body, form, raw = false } = {}) {
   if (form) payload = form;
   else if (body !== undefined) { headers["Content-Type"] = "application/json"; payload = JSON.stringify(body); }
   const r = await fetch(path, { method, headers, body: payload });
-  if (r.status === 401) { logout(); throw new Error("This device isn't paired"); }
+  if (r.status === 401) { if (token) logout(); else showPair(); throw new Error("This device isn't paired"); }
   if (!r.ok) {
     let msg = r.statusText;
     try { msg = (await r.json()).detail || msg; } catch {}
@@ -171,7 +171,9 @@ $$(".tabs button").forEach((b) => b.addEventListener("click", () => go(b.dataset
 // ── Start ──────────────────────────────────────────────────────────────────
 
 async function start() {
-  if (!token) return showPair();
+  if (!token) {   // no lock on your own devices: try straight in
+    try { const r = await fetch("/api/ping"); if (!r.ok) return showPair(); } catch { return showPair(); }
+  }
   try {
     info = await api("/api/ping");
     if (info.secure_url) { try { localStorage.setItem("station_secure", info.secure_url); } catch {} }

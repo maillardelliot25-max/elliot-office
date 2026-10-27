@@ -203,9 +203,24 @@ def create_app(config: StationConfig, control: PCControl | None = None,
     app.state.secure_url = app_secure_url
     telegram = None  # set below, once converse/execute exist
 
-    def device(authorization: str = Header(default="")) -> str:
+    def trusted_network(request: Request) -> bool:
+        """No lock for this PC itself and Elliot's own Tailscale devices (the https address arrives via
+        Tailscale on this PC, so it counts as local). Set JARVIS_NO_LOCK=0 to bring the PIN back."""
+        if os.getenv("JARVIS_NO_LOCK", "1") == "0":
+            return False
+        import ipaddress
+        try:
+            ip = ipaddress.ip_address((request.client.host if request.client else "") or "0.0.0.0")
+        except ValueError:
+            return False
+        return ip.is_loopback or ip in ipaddress.ip_network("100.64.0.0/10") \
+            or ip in ipaddress.ip_network("fd7a:115c:a1e0::/48")
+
+    def device(request: Request, authorization: str = Header(default="")) -> str:
         token = authorization.removeprefix("Bearer ").strip()
         device_id = auth.check(token) or passkeys.check(token)
+        if not device_id and trusted_network(request):
+            return "trusted"
         if not device_id:
             raise HTTPException(401, "Not paired. Enter the PIN shown on your PC.")
         return device_id
