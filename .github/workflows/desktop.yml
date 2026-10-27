@@ -34,7 +34,12 @@ jobs:
         run: |
           npm install --no-audit --no-fund
           npm run dist
-          Get-Item dist\Friday-Setup.exe | Select-Object Name, Length
+          # Jarvis's own app: same code, built as "Jarvis" (own name, icon, Start entry and install folder)
+          npx electron-builder --win nsis --publish never `
+            -c.extraMetadata.name=jarvis-desktop -c.extraMetadata.productName=Jarvis -c.productName=Jarvis `
+            -c.appId=ai.maillard.jarvis.desktop -c.artifactName=Jarvis-Setup.exe -c.win.icon=assets/jarvis.ico `
+            -c.nsis.shortcutName=Jarvis
+          Get-Item dist\Friday-Setup.exe, dist\Jarvis-Setup.exe | Select-Object Name, Length
 
       - name: Sign (only if a code-signing certificate is configured)
         if: ${{ env.SIGN_PFX != '' }}
@@ -62,12 +67,21 @@ jobs:
           Get-Content "$env:APPDATA\Friday\friday-desktop.log" -ErrorAction SilentlyContinue
           if (-not $ok) { Get-Content "$env:APPDATA\Friday\friday-server.log" -Tail 40 -ErrorAction SilentlyContinue; throw "Friday didn't start" }
           "Friday desktop app started Friday's server"
+          Start-Process "New folder\LocalAI\desktop\electron\dist\Jarvis-Setup.exe" -ArgumentList "/S" -Wait
+          $jexe = (Get-ChildItem "$env:LOCALAPPDATA\Programs" -Recurse -Filter Jarvis.exe -Depth 2 | Select-Object -First 1).FullName
+          if (-not $jexe) { throw "Jarvis.exe wasn't installed" }
+          "Installed: $jexe"
+          Start-Process $jexe; Start-Sleep 10
+          if (-not (Get-Process Jarvis -ErrorAction SilentlyContinue)) { throw "Jarvis app didn't stay running" }
+          "Jarvis desktop app runs"
           Get-Process Friday, python -ErrorAction SilentlyContinue | Stop-Process -Force
 
       - uses: actions/upload-artifact@v4
         with:
           name: friday-desktop
-          path: New folder/LocalAI/desktop/electron/dist/Friday-Setup.exe
+          path: |
+            New folder/LocalAI/desktop/electron/dist/Friday-Setup.exe
+            New folder/LocalAI/desktop/electron/dist/Jarvis-Setup.exe
 
       - name: Publish on the friday-desktop release
         env:
@@ -83,3 +97,5 @@ jobs:
           gh release view friday-desktop *> $null; if ($LASTEXITCODE -ne 0) { gh release create friday-desktop --title "Friday for Windows" --notes-file notes.md }
           gh release edit friday-desktop --title "Friday for Windows" --notes-file notes.md
           gh release upload friday-desktop "New folder\LocalAI\desktop\electron\dist\Friday-Setup.exe" --clobber
+          gh release view jarvis-desktop *> $null; if ($LASTEXITCODE -ne 0) { gh release create jarvis-desktop --title "Jarvis for Windows" --notes "Jarvis in his own window with a tray icon. Starts with Windows and keeps Jarvis (and Friday) running. Download Jarvis-Setup.exe and open it." }
+          gh release upload jarvis-desktop "New folder\LocalAI\desktop\electron\dist\Jarvis-Setup.exe" --clobber

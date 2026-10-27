@@ -25,6 +25,15 @@ function log(...a) { try { fs.appendFileSync(LOG, `${new Date().toISOString()} $
 function readConfig() { try { return JSON.parse(fs.readFileSync(CONFIG, "utf8")); } catch { return {}; } }
 function writeConfig(c) { try { fs.mkdirSync(STATE, { recursive: true }); fs.writeFileSync(CONFIG, JSON.stringify(c, null, 2)); } catch {} }
 const asset = (f) => path.join(__dirname, "assets", f);
+// One codebase, two sister apps: Friday-Setup.exe and Jarvis-Setup.exe (built with productName "Jarvis")
+const MODE = app.getName() === "Jarvis" ? "jarvis" : "friday";
+const PROGRAMS = path.join(process.env.LOCALAPPDATA || "", "Programs");
+const SISTER_EXE = MODE === "jarvis" ? path.join(PROGRAMS, "friday-desktop", "Friday.exe") : path.join(PROGRAMS, "jarvis-desktop", "Jarvis.exe");
+const sisterInstalled = () => fs.existsSync(SISTER_EXE);
+function openSister() {      // the other app if it's installed, else its page in the browser
+  if (sisterInstalled()) spawn(SISTER_EXE, [], { detached: true, stdio: "ignore" }).unref();
+  else shell.openExternal(MODE === "jarvis" ? FRIDAY_URL : JARVIS_URL);
+}
 
 function portOpen(port) {
   return new Promise((res) => {
@@ -199,11 +208,13 @@ const startAtLogin = () => app.getLoginItemSettings({ args: ["--hidden"] }).open
 function setStartAtLogin(on) { app.setLoginItemSettings({ openAtLogin: on, args: ["--hidden"] }); }
 
 function buildTray() {
-  tray = new Tray(nativeImage.createFromPath(asset("tray.png")));
-  tray.setToolTip("Friday");
+  const J = MODE === "jarvis";
+  tray = new Tray(nativeImage.createFromPath(asset(J ? "jarvis-tray.png" : "tray.png")));
+  tray.setToolTip(J ? "Jarvis" : "Friday");
   const menu = () => Menu.buildFromTemplate([
-    { label: "Open Friday", click: openWindow },
-    { label: "Open Jarvis", click: () => openJarvis(true) },
+    J ? { label: "Open Jarvis", click: () => openJarvis(true) } : { label: "Open Friday", click: openWindow },
+    J ? { label: "Open Friday", click: openSister }
+      : { label: "Open Jarvis", click: () => (sisterInstalled() ? openSister() : openJarvis(true)) },
     { type: "separator" },
     { label: "Start with Windows", type: "checkbox", checked: startAtLogin(), click: (i) => setStartAtLogin(i.checked) },
     { label: "Choose Friday folder…", click: async () => {
@@ -212,11 +223,11 @@ function buildTray() {
       } },
     { label: "Restart Friday", click: restartFriday },
     { type: "separator" },
-    { label: "Quit (Friday and Jarvis keep running)", click: () => { quitting = true; app.quit(); } },
+    { label: `Quit ${J ? "Jarvis" : "Friday"} app (Friday and Jarvis keep running)`, click: () => { quitting = true; app.quit(); } },
   ]);
   tray.setContextMenu(menu());
   tray.on("right-click", () => tray.setContextMenu(menu()));
-  tray.on("click", openWindow);
+  tray.on("click", () => (J ? openJarvis(true) : openWindow()));
 }
 
 function restartFriday() {
@@ -228,8 +239,8 @@ function restartFriday() {
 // ── Start ───────────────────────────────────────────────────────────────────
 if (!app.requestSingleInstanceLock()) app.quit();
 else {
-  app.on("second-instance", openWindow);
-  app.setAppUserModelId("ai.maillard.friday.desktop");
+  app.on("second-instance", () => (MODE === "jarvis" ? openJarvis(true) : openWindow()));
+  app.setAppUserModelId(MODE === "jarvis" ? "ai.maillard.jarvis.desktop" : "ai.maillard.friday.desktop");
   app.whenReady().then(() => {
     session.defaultSession.setPermissionRequestHandler((wc, perm, cb) =>
       cb(["media", "microphone", "clipboard-read", "clipboard-sanitized-write", "notifications", "fullscreen"].includes(perm)));
@@ -237,8 +248,9 @@ else {
     if (!c.loginSet) { setStartAtLogin(true); writeConfig({ ...readConfig(), loginSet: true }); }   // always running: on by default
     powerSaveBlocker.start("prevent-app-suspension");   // keeps the PC from sleeping while Friday runs
     buildTray();
-    createWindow(true);          // Friday and Jarvis both open when the PC starts
-    openJarvis(true);
+    // Each app opens its own window when the PC starts; Friday also opens Jarvis if the Jarvis app isn't installed
+    if (MODE === "jarvis") openJarvis(true);
+    else { createWindow(true); if (!sisterInstalled()) openJarvis(true); }
     watchdog();
   });
   app.on("window-all-closed", (e) => e.preventDefault?.());

@@ -1,7 +1,7 @@
 {
   "name": "friday-desktop",
   "productName": "Friday",
-  "version": "2.0.2",
+  "version": "2.1.0",
   "description": "Friday, Elliot's AI, as a Windows app. Keeps Friday and Jarvis running.",
   "author": "Maillard AI",
   "main": "main.js",
