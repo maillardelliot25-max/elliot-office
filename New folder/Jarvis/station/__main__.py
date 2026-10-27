@@ -55,6 +55,27 @@ def install_bundled_wheels():
                     "--no-index", "--find-links", str(wheels), "webauthn"], timeout=180)
 
 
+def reload_on_update():
+    """Updates apply by themselves: when Jarvis's code changes on disk, exit; the Jarvis/Friday app
+    (or start_station.bat's loop) starts him again within seconds with the new code. No PC restart."""
+    import os
+    import time
+    from pathlib import Path
+    here = Path(__file__).resolve().parent
+    files = lambda: {p: p.stat().st_mtime for p in here.glob("*.py")}
+    before = files()
+    while True:
+        time.sleep(5)
+        try:
+            now = files()
+        except OSError:
+            continue
+        if now != before:
+            time.sleep(3)              # let the rest of the update finish copying
+            print("  Jarvis was updated: restarting with the new version…", flush=True)
+            os._exit(3)
+
+
 def main():
     import sys
     for stream in (sys.stdout, sys.stderr):   # emoji in the banner must not crash Jarvis when output goes to a log file
@@ -114,6 +135,7 @@ def main():
                 pass
     import threading
     threading.Thread(target=publish_https, daemon=True).start()
+    threading.Thread(target=reload_on_update, daemon=True).start()
 
     uvicorn.run(app, host=config.host, port=config.port, log_level="warning")
 
