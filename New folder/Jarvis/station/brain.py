@@ -77,13 +77,19 @@ class LocalBrain:
             async with httpx.AsyncClient(timeout=3) as client:
                 r = await client.get(f"{self.url}/api/tags")
                 r.raise_for_status()
-                names = [m.get("name", "") for m in r.json().get("models", [])]
+                models = r.json().get("models", [])
+                names = [m.get("name", "") for m in models]
+                sizes = {m.get("name", ""): m.get("size", 0) for m in models}
         except Exception:
             return {"online": False, "model": self.model, "installed": False}
         installed = any(n == self.model or n.split(":")[0] == self.model for n in names)
         if not installed:
             # Share whatever brain is already on the PC (e.g. Friday's qwen3) instead of downloading another
-            chat = [n for n in names if "embed" not in n and "-vl" not in n]
+            # Smallest first: a 30B model on a 16 GB PC freezes it. Skip anything over ~9 GB.
+            chat = sorted((n for n in names if "embed" not in n and "-vl" not in n and sizes.get(n, 0) < 9e9),
+                          key=lambda n: sizes.get(n, 0))
+            prefer = [n for n in chat if n.startswith(("qwen3:8b", "qwen3:4b", "llama3"))]
+            chat = prefer + [n for n in chat if n not in prefer]
             if chat:
                 self.model, installed = chat[0], True
         return {"online": True, "model": self.model, "installed": installed, "available": names}
