@@ -56,6 +56,12 @@ def install_bundled_wheels():
 
 
 def main():
+    import sys
+    for stream in (sys.stdout, sys.stderr):   # emoji in the banner must not crash Jarvis when output goes to a log file
+        try:
+            stream.reconfigure(encoding="utf-8", errors="replace")
+        except Exception:
+            pass
     try:
         install_bundled_wheels()
     except Exception as e:
