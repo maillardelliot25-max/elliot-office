@@ -319,6 +319,34 @@ function speakReply(text) {
   speechSynthesis.speak(u);
 }
 
+// ---- Store-and-forward: messages typed while the PC is unreachable wait here and send on reconnect
+const OUTQ = "jarvis-outq";
+const qGet = () => { try { return JSON.parse(localStorage.getItem(OUTQ) || "[]"); } catch { return []; } };
+const qSet = (q) => { try { localStorage.setItem(OUTQ, JSON.stringify(q)); } catch {} };
+let qDelay = 2000, qTimer = null, qBusy = false;
+async function flushQueue() {
+  clearTimeout(qTimer);
+  const q = qGet();
+  if (!q.length || qBusy) return;
+  qBusy = true;
+  try {
+    while (q.length) {
+      const res = await api("/api/chat", { method: "POST", body: q[0] });
+      q.shift(); qSet(q);
+      const el = addMsg("jarvis", res.reply, "sent from queue");
+      renderActions(el, res.actions);
+    }
+    qDelay = 2000;
+    toast("Queued messages delivered");
+  } catch {
+    qDelay = Math.min(qDelay * 2, 60000);          // exponential backoff, max 1 min
+    qTimer = setTimeout(flushQueue, qDelay);
+  } finally { qBusy = false; }
+}
+window.addEventListener("online", flushQueue);
+document.addEventListener("visibilitychange", () => { if (!document.hidden) flushQueue(); });
+setTimeout(flushQueue, 1500);
+
 async function sendChat(text, spoken = false) {
   text = text.trim();
   if (!text) return;
@@ -333,7 +361,11 @@ async function sendChat(text, spoken = false) {
     if (res.brain === "offline") checkBrain();
   } catch (e) {
     thinking.remove();
-    addMsg("jarvis", "⚠ " + e.message);
+    if (e instanceof TypeError) {               // network down → keep it and send later
+      const q = qGet(); q.push({ message: text, device: $("#deviceName").value || "phone" }); qSet(q);
+      addMsg("jarvis", `📥 PC unreachable — queued (${q.length}). It sends itself when the link is back.`);
+      qTimer = setTimeout(flushQueue, qDelay);
+    } else addMsg("jarvis", "⚠ " + e.message);
   }
 }
 
@@ -659,6 +691,12 @@ async function loadSetup() {
       li.innerHTML = `<span class="mark">${i.ok ? "✓" : "○"}</span><span></span><small></small>`;
       li.children[1].textContent = `${i.label} — ${i.detail}`;
       li.children[2].textContent = i.ok ? "" : i.fix;
+      if (!i.ok && /model missing/.test(i.detail)) {
+        const b = document.createElement("button");
+        b.textContent = "⬇ Download brain now (~2 GB)";
+        b.onclick = () => act(() => api("/api/brain/pull", { method: "POST" }), "Downloading on the PC — takes a few minutes");
+        li.append(b);
+      }
       card.querySelector("ul").append(li);
     });
   } catch (e) { card.textContent = e.message; }
@@ -811,6 +849,7 @@ async function loadFriday() {
   const set = (key, label) => async (on) => { await api("/api/settings", { method: "PATCH", body: { [key]: on } }); toast(`${label} ${on ? "on" : "off"}`); loadFriday(); };
   ul.append(switchRow("Link with Friday", "Jarvis and Friday talk to each other on this PC", f.enabled, set("friday", "Friday link")));
   ul.append(switchRow("Shared memory", "Jarvis uses what Friday knows about you, and shares notes with Friday", f.share_memory, set("friday_share_memory", "Shared memory")));
+  ul.append(switchRow("Think with Claude (your API key)", "Off = 100% free/local. On = uses ANTHROPIC_API_KEY from Jarvis/.env, falls back to Ollama", !!f.claude_brain, set("claude_brain", "Claude brain")));
   ul.append(switchRow("Think with Friday's brains", "Jarvis answers using Friday's models and API keys (falls back to Ollama)", f.brain, set("friday_brain", "Friday's brains")));
   box.append(ul);
 

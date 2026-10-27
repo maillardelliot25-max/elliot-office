@@ -20,7 +20,7 @@ from pydantic import BaseModel
 from station import __version__, docs
 from station.assist import PROFILE_FIELDS, Profile, fill_from_profile, greeting
 from station.auth import DeviceAuth
-from station.brain import BrainOffline, LocalBrain
+from station.brain import BrainOffline, ClaudeBrain, LocalBrain
 from station.config import StationConfig
 from station.friday import ASK_FRIDAY, FridayBrain, FridayError, FridayLink
 from station.controls import ControlError, PCControl
@@ -128,6 +128,7 @@ def create_app(config: StationConfig, control: PCControl | None = None,
     auth.ensure_local_token(config.data_dir / "friday.token", "Friday (this PC)")
     friday = FridayLink(settings, transport=friday_transport)
     friday_brain = FridayBrain(friday, config.owner_name)
+    claude_brain = ClaudeBrain(config.anthropic_key, config.claude_model, config.owner_name)
 
     async def watch_clipboard():
         """Every copy on the PC lands in the shared clipboard history."""
@@ -371,6 +372,21 @@ def create_app(config: StationConfig, control: PCControl | None = None,
 
     # ── Jarvis chat + memory ─────────────────────────────────────────────────
 
+    @app.post("/api/brain/pull")
+    async def brain_pull(_: str = Depends(device)):
+        """Download the local model through Ollama (one tap from the phone)."""
+        import asyncio, httpx as _hx
+
+        async def _pull():
+            try:
+                async with _hx.AsyncClient(timeout=None) as c:
+                    await c.post(f"{config.ollama_url}/api/pull", json={"model": config.ollama_model, "stream": False})
+                logger.info(f"[BRAIN] pulled {config.ollama_model}")
+            except Exception as e:
+                logger.warning(f"[BRAIN] pull failed: {e}")
+        asyncio.create_task(_pull())
+        return {"ok": True, "model": config.ollama_model}
+
     @app.get("/api/brain")
     async def brain_status(_: str = Depends(device)):
         return await brain.status()
@@ -405,7 +421,14 @@ def create_app(config: StationConfig, control: PCControl | None = None,
         # 2. The brain: Friday's gateway if chosen (falls back to Ollama), else Ollama
         thinker = brain
         try:
-            if settings["friday_brain"] and friday.enabled:
+            if settings["claude_brain"] and config.anthropic_key:
+                try:
+                    out = await claude_brain.reply(message, history, memories, device=device_kind)
+                    thinker = claude_brain
+                except BrainOffline as e:
+                    logger.info(f"[CLAUDE] unavailable, using local: {e}")
+                    out = await brain.reply(message, history, memories, device=device_kind)
+            elif settings["friday_brain"] and friday.enabled:
                 try:
                     out = await friday_brain.reply(message, history, memories, device=device_kind)
                     thinker = friday_brain
@@ -576,7 +599,7 @@ def create_app(config: StationConfig, control: PCControl | None = None,
 
     @app.get("/api/friday")
     async def friday_status(_: str = Depends(device)):
-        return {**(await friday.status()), "enabled": settings["friday"], "brain": settings["friday_brain"],
+        return {**(await friday.status()), "enabled": settings["friday"], "brain": settings["friday_brain"], "claude_brain": settings["claude_brain"],
                 "share_memory": settings["friday_share_memory"], "model": settings["friday_model"],
                 "url": settings["friday_url"]}
 

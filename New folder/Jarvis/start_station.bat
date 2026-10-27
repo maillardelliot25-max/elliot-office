@@ -6,5 +6,19 @@ if not exist .venv\Scripts\python.exe (
   if /i not "%~1"=="/quiet" pause
   exit /b 1
 )
+rem Already running? Then don't start a second copy.
+netstat -ano | findstr /r /c:":8780 .*LISTENING" >nul && (
+  echo Jarvis is already running.
+  timeout /t 4 >nul
+  exit /b 0
+)
+rem Watchdog: if the station ever stops or crashes, restart it (backoff up to 60s).
+set WAIT=5
+:loop
 .venv\Scripts\python.exe -m station
-if /i not "%~1"=="/quiet" pause
+echo.
+echo  Station stopped - restarting in %WAIT%s (close this window to stop Jarvis for good)
+timeout /t %WAIT% >nul
+set /a WAIT=WAIT*2
+if %WAIT% gtr 60 set WAIT=60
+goto loop

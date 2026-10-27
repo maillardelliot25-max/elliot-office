@@ -27,6 +27,8 @@ class StationConfig:
     data_dir:     Path = Path("station_data")
     allow_shell:  bool = True                       # God mode terminal from your phone
     ollama_url:   str  = "http://localhost:11434"   # Free local brain
+    anthropic_key: str = ""
+    claude_model: str = "claude-sonnet-5-5"
     ollama_model: str  = "llama3.2:3b"              # Small enough for a CPU-only laptop
     owner_name:   str  = "Boss"
     upload_dir:   Path = field(default_factory=lambda: Path.home() / "Downloads" / "Jarvis")
@@ -48,6 +50,8 @@ class StationConfig:
             allow_shell=_bool("STATION_ALLOW_SHELL", True),
             ollama_url=os.getenv("OLLAMA_URL", "http://localhost:11434").rstrip("/"),
             ollama_model=os.getenv("OLLAMA_MODEL", "llama3.2:3b"),
+            anthropic_key=os.getenv("ANTHROPIC_API_KEY", "").strip(),
+            claude_model=os.getenv("CLAUDE_MODEL", "claude-sonnet-5-5").strip(),
             owner_name=os.getenv("OWNER_NAME", "Boss"),
             upload_dir=Path(os.getenv("STATION_UPLOAD_DIR", str(Path.home() / "Downloads" / "Jarvis"))),
             clipboard_history=_bool("STATION_CLIPBOARD_HISTORY", True),

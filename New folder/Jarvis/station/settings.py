@@ -36,7 +36,8 @@ DEFAULTS = {
     "friday_code": "",             # Friday → Settings → Chrome pairing code
     "friday_share_memory": True,   # read Friday's memory of you; send Jarvis's notes to it
     "friday_brain": False,         # think with Friday's brain gateway instead of Ollama directly
-    "friday_model": "auto",        # which of Friday's brains ("auto" = Friday's default)
+    "friday_model": "auto",
+    "claude_brain": False,         # use your own Anthropic key (ANTHROPIC_API_KEY in .env); OFF = 100% free/local        # which of Friday's brains ("auto" = Friday's default)
 }
 SECRETS = ("syncthing_api_key", "friday_code")
 

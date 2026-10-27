@@ -81,6 +81,11 @@ class LocalBrain:
         except Exception:
             return {"online": False, "model": self.model, "installed": False}
         installed = any(n == self.model or n.split(":")[0] == self.model for n in names)
+        if not installed:
+            # Share whatever brain is already on the PC (e.g. Friday's qwen3) instead of downloading another
+            chat = [n for n in names if "embed" not in n and "-vl" not in n]
+            if chat:
+                self.model, installed = chat[0], True
         return {"online": True, "model": self.model, "installed": installed, "available": names}
 
     async def reply(self, message: str, history: list[dict], memories: list[dict],
@@ -112,6 +117,10 @@ class LocalBrain:
                 r = await client.post(f"{self.url}/api/chat", json=payload)
         except httpx.HTTPError as e:
             raise BrainOffline(str(e))
+        if r.status_code == 404 and (await self.status()).get("installed"):
+            payload["model"] = self.model
+            async with httpx.AsyncClient(timeout=180) as client:
+                r = await client.post(f"{self.url}/api/chat", json=payload)
         if r.status_code == 404:
             raise BrainOffline(f"Model '{self.model}' is not installed. On the PC run: ollama pull {self.model}")
         r.raise_for_status()
@@ -121,6 +130,47 @@ class LocalBrain:
     async def fill_form(self, url: str, title: str, fields: list[dict], profile: dict,
                         memories: list[dict]) -> list[dict]:
         return await fill_form(self, url, title, fields, profile, memories)
+
+
+class ClaudeBrain:
+    """Optional paid brain (bring your own Anthropic key). Only used when the
+    'claude_brain' switch is ON and ANTHROPIC_API_KEY is set; any error falls back to Ollama."""
+
+    def __init__(self, api_key: str, model: str, owner: str):
+        self.api_key = api_key
+        self.model = model
+        self.owner = owner
+
+    async def reply(self, message: str, history: list[dict], memories: list[dict],
+                    device: str = "phone") -> dict:
+        if not self.api_key:
+            raise BrainOffline("No ANTHROPIC_API_KEY in .env")
+        mem_text = ""
+        if memories:
+            mem_text = "\nThings from past conversations that may be relevant:\n" + "\n".join(
+                f"- [{m['ts'][:10]}] {m['role']}: {m['text'][:300]}" for m in memories) + "\n"
+        system = SYSTEM_PROMPT.format(owner=self.owner, device=device or "phone", memories=mem_text,
+                                      now=datetime.now().strftime("%A %d %B %Y, %H:%M"))
+        msgs = [{"role": "assistant" if h["role"] == "jarvis" else "user", "content": h["text"]} for h in history]
+        msgs.append({"role": "user", "content": message})
+        # The API needs strictly alternating roles starting with "user"
+        merged: list[dict] = []
+        for m in msgs:
+            if merged and merged[-1]["role"] == m["role"]:
+                merged[-1]["content"] += "\n" + m["content"]
+            elif merged or m["role"] == "user":
+                merged.append(dict(m))
+        try:
+            async with httpx.AsyncClient(timeout=120) as client:
+                r = await client.post("https://api.anthropic.com/v1/messages", json={
+                    "model": self.model, "max_tokens": 1024, "system": system, "messages": merged,
+                }, headers={"x-api-key": self.api_key, "anthropic-version": "2023-06-01"})
+            r.raise_for_status()
+            text = "".join(b.get("text", "") for b in r.json().get("content", []) if b.get("type") == "text")
+        except (httpx.HTTPError, ValueError) as e:
+            raise BrainOffline(f"Claude unavailable: {e}")
+        start, end = text.find("{"), text.rfind("}")
+        return parse_reply(text[start:end + 1] if start >= 0 < end else text)
 
 
 class BrainOffline(Exception):
