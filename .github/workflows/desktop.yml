@@ -50,9 +50,11 @@ jobs:
         run: |
           python -m pip install --quiet anthropic openai pypdf pillow psutil
           Start-Process "New folder\LocalAI\desktop\electron\dist\Friday-Setup.exe" -ArgumentList "/S" -Wait
-          $exe = "$env:LOCALAPPDATA\Programs\Friday\Friday.exe"
-          if (-not (Test-Path $exe)) { throw "Friday.exe wasn't installed" }
-          if (-not (Test-Path "$env:LOCALAPPDATA\Programs\Friday\resources\LocalAI\app\server.py")) { throw "Friday's files weren't bundled" }
+          $exe = (Get-ChildItem "$env:LOCALAPPDATA\Programs" -Recurse -Filter Friday.exe -Depth 2 | Select-Object -First 1).FullName
+          if (-not $exe) { throw "Friday.exe wasn't installed" }
+          "Installed: $exe"
+          if (-not (Test-Path (Join-Path (Split-Path $exe) "resources\LocalAI\app\server.py"))) { throw "Friday's files weren't bundled" }
+          if (-not (Test-Path "$env:USERPROFILE\Desktop\Friday.lnk")) { "Note: no desktop shortcut found (runner profile)" }
           Get-Process Friday -ErrorAction SilentlyContinue | Stop-Process -Force
           Start-Process $exe -ArgumentList "--hidden"
           $ok = $false
