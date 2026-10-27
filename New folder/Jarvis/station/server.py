@@ -137,6 +137,7 @@ def create_app(config: StationConfig, control: PCControl | None = None,
     notifier = Notifier(config.data_dir, settings, sender=push_sender)
     auth.ensure_local_token(config.data_dir / "claude.token", "Claude (this PC)")
     auth.ensure_local_token(config.data_dir / "friday.token", "Friday (this PC)")
+    auth.ensure_local_token(config.data_dir / "desktop.token", "Desktop app (this PC)")   # signs the Friday desktop app's Jarvis window in
     friday = FridayLink(settings, transport=friday_transport)
     friday_brain = FridayBrain(friday, config.owner_name)
     claude_brain = ClaudeBrain(config.anthropic_key, config.claude_model, config.owner_name)
