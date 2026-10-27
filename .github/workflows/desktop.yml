@@ -1,0 +1,72 @@
+# Packages the Friday Windows desktop app (tray launcher + Friday) as Friday-Desktop.zip
+# on the "friday-desktop" release, after checking it on a real Windows runner.
+name: Build Friday desktop app
+
+on:
+  push:
+    paths:
+      - "New folder/LocalAI/desktop/**"
+      - "New folder/LocalAI/app/**"
+      - "New folder/LocalAI/install-and-start.ps1"
+      - ".github/workflows/desktop.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Test the launcher and Friday's server
+        shell: pwsh
+        run: |
+          python -m pip install --quiet pystray pillow anthropic openai pypdf psutil
+          python -m py_compile "New folder/LocalAI/desktop/friday_desktop.pyw"
+          # The launcher starts Friday's server; check the server comes up and answers.
+          $env:ELLIOT_AI_DATA = "$env:RUNNER_TEMP\friday-data"
+          $p = Start-Process python -ArgumentList "server.py","--no-browser" -WorkingDirectory "New folder/LocalAI/app" -PassThru
+          $ok = $false
+          foreach ($i in 1..60) { try { Invoke-WebRequest http://127.0.0.1:8765 -UseBasicParsing -TimeoutSec 2 | Out-Null; $ok = $true; break } catch { Start-Sleep 1 } }
+          Stop-Process $p -Force
+          if (-not $ok) { throw "Friday's server didn't start" }
+          python -c "from PIL import Image; Image.open(r'New folder/LocalAI/desktop/assets/tray.png'); Image.open(r'New folder/LocalAI/desktop/assets/icon.ico')"
+
+      - name: Package Friday-Desktop.zip
+        shell: pwsh
+        run: |
+          $out = "$env:RUNNER_TEMP\Friday"
+          New-Item -ItemType Directory "$out\LocalAI" | Out-Null
+          Copy-Item "New folder/LocalAI/app", "New folder/LocalAI/desktop" -Destination "$out\LocalAI" -Recurse
+          Copy-Item "New folder/LocalAI/install-and-start.ps1", "New folder/LocalAI/Install and start Friday.bat" -Destination "$out\LocalAI"
+          if (Test-Path "New folder/Shared") { Copy-Item "New folder/Shared" -Destination $out -Recurse }
+          Get-ChildItem $out -Recurse -Directory -Filter __pycache__ | Remove-Item -Recurse -Force
+          Compress-Archive -Path "$out\*" -DestinationPath Friday-Desktop.zip
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: friday-desktop
+          path: Friday-Desktop.zip
+
+      - name: Publish on the friday-desktop release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cat > notes.md <<'NOTES'
+          **Friday for Windows**: its own window, a tray icon, and Friday running in the background.
+
+          1. Download **Friday-Desktop.zip**, right-click it → Properties → tick **Unblock** → OK, then Extract All.
+          2. Open the extracted **LocalAI\desktop** folder and double-click **friday_desktop.pyw**.
+          3. Friday opens in its own window and adds **Friday** to the Start menu and desktop. Right-click the tray icon to turn on **Start with Windows**.
+
+          Works with Smart App Control on: it only runs programs Windows already trusts (Python and Microsoft Edge).
+          NOTES
+          gh release view friday-desktop >/dev/null 2>&1 || gh release create friday-desktop --title "Friday for Windows" --notes-file notes.md
+          gh release edit friday-desktop --title "Friday for Windows" --notes-file notes.md
+          gh release upload friday-desktop Friday-Desktop.zip --clobber

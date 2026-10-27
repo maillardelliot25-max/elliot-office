@@ -76,6 +76,8 @@ if (Get-Command ollama -ErrorAction SilentlyContinue) {
     } else { Ok "Brains ready: $($models -join ', ')" }
 } else { Warn "Ollama didn't install; Friday still works with API keys. Run this again later to retry." }
 
+if ($env:FRIDAY_DESKTOP) { Ok "Done. The Friday app starts Friday itself."; exit 0 }   # run by the desktop app: it starts the server
+
 # 3. Start Friday, its screen helper, and Jarvis's reporter (dashboard data + offline sync)
 Say "Starting Friday"
 if (Port-Open 8765) { Ok "Friday is already running" }
