@@ -119,4 +119,17 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except BaseException:   # leave a note next to Jarvis's data so a crash can be diagnosed
+        import traceback
+        from datetime import datetime
+        from pathlib import Path
+        try:
+            from station.config import StationConfig
+            d = StationConfig.from_env().data_dir
+        except Exception:
+            d = Path("station_data")
+        with open(Path(d) / "crash.log", "a", encoding="utf-8") as f:
+            f.write(f"\n--- {datetime.now().isoformat(timespec='seconds')}\n{traceback.format_exc()}")
+        raise
