@@ -23,17 +23,73 @@ import httpx
 logger = logging.getLogger("jarvis.station.agents")
 
 AGENTS = {
-    "tom": {"name": "Tom", "role": "Developer",
-            "prompt": "You are Tom, Elliot's senior developer agent. Plan and write working code, name files, "
-                      "give exact commands. Be concise and practical."},
-    "ava": {"name": "Ava", "role": "Research & marketing",
-            "prompt": "You are Ava, Elliot's research and marketing agent (Caribbean market, CaribOps AI). Find "
-                      "angles, summarise trends, draft posts and outreach. Bullet points, no fluff."},
-    "max": {"name": "Max", "role": "Operations",
-            "prompt": "You are Max, Elliot's operations agent. Turn goals into checklists with owners and dates, "
-                      "spot risks, keep things moving. Short and direct."},
-    "chrome": {"name": "Chrome", "role": "Browser (via Friday in Chrome)",
+    "ava": {"name": "Ava", "role": "Marketing & events brain · social media manager",
+            "knowledge": ["Knowledge/Elliot - Marketing & Events.md", "Clients"],
+            "prompt": """You are Ava, Elliot's head of marketing, events and social media. You run social media for his
+clients like a top agency social media manager: content calendars, creative concepts, hooks, captions, reels/TikTok
+ideas, carousel outlines, hashtags, posting times for Trinidad & Tobago/Caribbean audiences, community replies,
+influencer and activation ideas, campaign reports. You also plan live events and brand activations.
+Be bold and creative but on-brand for each client. Write captions ready to post. Use British English.
+Never use the word "fete" (say festival, cooler experience, live event). Call Elliot "sir".
+Know Elliot's background and his clients from the notes below and use them."""},
+    "tom": {"name": "Tom", "role": "Top-tier developer · IT · all tech",
+            "knowledge": ["Knowledge/Elliot - IT & Tech.md"],
+            "prompt": """You are Tom, a world-class principal engineer and IT expert: full-stack web and mobile
+(React, Next.js, Tailwind, Node, Python/FastAPI, Supabase, Vercel, Android/Kotlin/Java, Electron), UI/UX that looks
+premium, DevOps, networking (TCP/IP, LAN/Wi-Fi), Windows/M365/Azure/AWS admin, cybersecurity, data (SQL, Power BI).
+You help Elliot (1) build top-level websites and apps: give complete, working, production-quality code, file by
+file, plus exact run/deploy commands; (2) land and succeed in IT analyst / support / network / security roles:
+interview prep, technical answers, labs to practise, certification paths, tailored resume bullets from his real
+experience only; (3) proactively suggest better architecture, tools and ideas. Be direct, expert and practical.
+Call Elliot "sir". Know Elliot's real background from the notes below."""},
+    "max": {"name": "Max", "role": "Chief of staff · reports on every agent",
+            "knowledge": [],
+            "prompt": """You are Max, Elliot's chief of staff. You oversee every AI agent he has (Jarvis, Friday, Tom,
+Ava, Chrome, routines). When asked for a report, summarise what each agent did, what's finished, what failed,
+what's waiting on Elliot, and the next best actions, from the activity log below. Short, clear, numbered.
+Call Elliot "sir"."""},
+    "chrome": {"name": "Chrome", "role": "Browser (via Friday in Chrome)", "knowledge": [],
                "prompt": "You plan browser tasks step by step for Friday's Chrome side panel to carry out."},
+}
+
+KNOWLEDGE_SEED = {
+    "Knowledge/Elliot - Marketing & Events.md": """# Elliot Maillard: marketing, brand & events
+Edit this note: Ava reads it before every job.
+
+- Based in Arouca, Trinidad and Tobago. Founder of CaribOps AI and NetOps.
+- Diplomas: Event Management, Marketing, Digital Marketing, Graphic Design.
+- R.O.A.D. Concepts and Events Management: Event Coordinator, Project Manager & Brand Manager; 2 years Brand Manager
+  for R.O.A.D.'s Carnival supply shop / merchandise line.
+- Blue Mojito (ready-to-drink cocktail brand): Brand Manager & Head Mixologist; bar stock and operations,
+  activations, event and positioning decisions.
+- Own private bar & mixology business for events and catering (since 2021).
+- Marketing project for a Carnival band (Tribe-style).
+- Real productions: Great Race National Parade, Rise Sunrise Cooler Experience, Squid Game themed entrance,
+  ANSA McAL campaigns.
+- Interests: live events and festival production, projection mapping for clubs/outdoor/brand activations,
+  Caribbean-market entrepreneurship.
+- Background in graphic design, brand management, marketing consulting, event coordination, social media management.
+- Rules: never use the word "fete"; British English.
+""",
+    "Knowledge/Elliot - IT & Tech.md": """# Elliot Maillard: IT & tech
+Edit this note: Tom reads it before every job.
+
+- Systems and Network Technician, Club Royal Caribbean Casino.
+- Security Systems Analyst, SWAT (private security company).
+- Founder of CaribOps AI and NetOps: AI, automation and app development (Friday & Jarvis, MAILLARD AI,
+  Pink.TT, SafetyLingo, Rundown news site, Caribbean-market platforms).
+- Certifications: Certificate in Information Technology (IT Support), Basic Networking (LAN/Wi-Fi, TCP/IP),
+  Microsoft Azure Fundamentals (AZ-900), Microsoft 365 Fundamentals (MS-900), AWS Cloud Foundations,
+  Cisco Introduction to Cybersecurity, Fortinet Certified Fundamentals (FCF), Power BI Data Analyst training,
+  CCTV Surveillance Operator.
+- No degree (Certificate in IT). Prefers single-file HTML builds, Supabase backend, Vercel hosting,
+  autonomous systems that need little manual input.
+- Job hunting: IT analyst / support / network / cybersecurity roles; IT resumes list only IT/tech roles.
+""",
+    "Clients/README.md": """# Clients
+One note per client (e.g. "Blue Mojito.md"): brand voice, audience, platforms, goals, do's and don'ts,
+posting schedule. Ava reads every note in this folder before social media and marketing jobs.
+""",
 }
 
 DEFAULT_ROUTINES = [
@@ -42,8 +98,8 @@ DEFAULT_ROUTINES = [
              "ventures (CaribOps AI, Friday/Jarvis, job applications), one idea worth trying today, "
              "and a motivating closing line. Under 120 words."},
     {"id": "evening", "name": "Evening wrap-up", "time": "19:30", "agent": "max", "enabled": True,
-     "task": "Give Elliot (call him sir) a two-line evening wrap-up and the single most important thing "
-             "to start tomorrow with."},
+     "task": "Give Elliot (call him sir) his evening report on every agent: what got done today, what's "
+             "waiting on him, and the single most important thing to start tomorrow with."},
 ]
 
 
@@ -55,6 +111,30 @@ def vault_dir() -> Path:
     (d / "Daily").mkdir(parents=True, exist_ok=True)
     (d / "Agents").mkdir(parents=True, exist_ok=True)
     return d
+
+
+def seed_vault():
+    v = vault_dir()
+    for rel, text in KNOWLEDGE_SEED.items():
+        p = v / rel
+        p.parent.mkdir(parents=True, exist_ok=True)
+        if not p.exists():
+            p.write_text(text, "utf-8")
+
+
+def knowledge(agent: dict, limit: int = 12000) -> str:
+    """The agent's notes from the Obsidian vault (files or whole folders), so you can teach it by editing notes."""
+    v, parts = vault_dir(), []
+    for rel in agent.get("knowledge", []):
+        p = v / rel
+        files = sorted(p.glob("*.md")) if p.is_dir() else [p]
+        for f in files:
+            try:
+                parts.append(f"### {f.relative_to(v)}\n{f.read_text('utf-8')}")
+            except OSError:
+                pass
+    text = "\n\n".join(parts)
+    return ("\n\nNOTES FROM ELLIOT'S VAULT:\n" + text[:limit]) if text else ""
 
 
 def write_note(run: dict):
@@ -83,6 +163,10 @@ class Team:
         self.runs: list[dict] = self._load(self.runs_path, [])
         self.routines: list[dict] = self._load(self.routines_path, DEFAULT_ROUTINES)
         self._lock = threading.Lock()
+        try:
+            seed_vault()
+        except OSError:
+            pass
 
     @staticmethod
     def _load(path, default):
@@ -121,7 +205,11 @@ class Team:
         self.runs.append(run)
         self._save()
         try:
-            prompt = agent["prompt"] + f"\nToday is {datetime.now():%A %d %B %Y, %H:%M}."
+            prompt = agent["prompt"] + f"\nToday is {datetime.now():%A %d %B %Y, %H:%M}." + knowledge(agent)
+            if agent_id == "max":
+                log = [f"- {r['started'][:16]} {r['name']} [{r['status']}] {r['task'][:120]} => {(r.get('result') or '')[:200]}"
+                       for r in self.runs[-40:] if r is not run]
+                prompt += "\n\nACTIVITY LOG (newest last):\n" + ("\n".join(log) or "No agent activity yet.")
             run["result"], run["brain"] = await self.think(prompt, task)
             run["status"] = "done"
         except Exception as e:
