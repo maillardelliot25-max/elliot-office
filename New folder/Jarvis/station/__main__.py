@@ -89,8 +89,15 @@ def main():
     app = create_app(config)
 
     def publish_https():   # secure Tailscale address: needed for fingerprint unlock on the phone
+        import time
         from station import tailnet
-        url = tailnet.serve(config.port)
+        if not tailnet.tailscale_exe():
+            return
+        url = None
+        while not url:            # keeps trying: the internet or Tailscale may not be up yet
+            url = tailnet.serve(config.port)
+            if not url:
+                time.sleep(60)
         app.state.secure_url["url"] = url
         if url:
             print(f"  Secure address (fingerprint unlock, works anywhere): {url}", flush=True)
