@@ -6,7 +6,7 @@ const $$ = (s) => document.querySelectorAll(s);
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 let token = "";
-try { token = localStorage.getItem("station_token") || ""; } catch {}
+try { token = localStorage.getItem("station_token") || sessionStorage.getItem("station_session") || ""; } catch {}
 let activeTab = "screen";
 let info = {};
 
@@ -45,13 +45,86 @@ async function act(fn, okMsg) {
 
 // ── Pairing ────────────────────────────────────────────────────────────────
 
-function showPair() { $("#app").classList.add("hidden"); $("#pair").classList.remove("hidden"); }
+const fpLock = () => { try { return localStorage.getItem("station_lock") === "passkey"; } catch { return false; } };
+const fpSupported = () => window.isSecureContext && !!window.PublicKeyCredential;
+
+function showPair() {
+  $("#app").classList.add("hidden"); $("#pair").classList.remove("hidden");
+  const fp = fpLock() && fpSupported();
+  $("#fpUnlock").classList.toggle("hidden", !fp);
+  $("#pairForm").classList.toggle("hidden", fp);
+  $("#pinHint").classList.toggle("hidden", fp);
+  if (fp && !showPair.tried) { showPair.tried = true; fpUnlock(); }
+}
 
 function logout() {
   token = "";
-  try { localStorage.removeItem("station_token"); } catch {}
+  try { localStorage.removeItem("station_token"); sessionStorage.removeItem("station_session"); } catch {}
   showPair();
 }
+
+// ── Fingerprint unlock (passkeys) ──────────────────────────────────────────
+const b64u = {
+  dec: (s) => Uint8Array.from(atob(s.replace(/-/g, "+").replace(/_/g, "/") + "===".slice((s.length + 3) % 4)), (c) => c.charCodeAt(0)),
+  enc: (buf) => btoa(String.fromCharCode(...new Uint8Array(buf))).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, ""),
+};
+function credJSON(c) {
+  const r = c.response, out = { id: c.id, rawId: b64u.enc(c.rawId), type: c.type,
+    response: { clientDataJSON: b64u.enc(r.clientDataJSON) }, clientExtensionResults: c.getClientExtensionResults() };
+  if (r.attestationObject) { out.response.attestationObject = b64u.enc(r.attestationObject); out.response.transports = r.getTransports ? r.getTransports() : []; }
+  if (r.authenticatorData) {
+    out.response.authenticatorData = b64u.enc(r.authenticatorData);
+    out.response.signature = b64u.enc(r.signature);
+    if (r.userHandle) out.response.userHandle = b64u.enc(r.userHandle);
+  }
+  out.authenticatorAttachment = c.authenticatorAttachment || undefined;
+  return out;
+}
+async function postJSON(path, body, auth = false) {
+  const headers = { "Content-Type": "application/json" };
+  if (auth) headers.Authorization = `Bearer ${token}`;
+  const r = await fetch(path, { method: "POST", headers, body: JSON.stringify(body || {}) });
+  const data = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(data.detail || r.statusText);
+  return data;
+}
+function useSession(t) {
+  token = t;
+  try { sessionStorage.setItem("station_session", t); localStorage.removeItem("station_token"); } catch {}
+}
+async function fpUnlock() {
+  $("#fpError").textContent = "";
+  try {
+    const o = await postJSON("/api/passkey/login/options");
+    const cred = await navigator.credentials.get({ publicKey: {
+      ...o, challenge: b64u.dec(o.challenge),
+      allowCredentials: (o.allowCredentials || []).map((c) => ({ ...c, id: b64u.dec(c.id) })) } });
+    useSession((await postJSON("/api/passkey/login", { credential: credJSON(cred) })).token);
+    start();
+  } catch (e) { $("#fpError").textContent = e.name === "NotAllowedError" ? "Cancelled. Tap the button to try again." : e.message; }
+}
+async function fpSetup() {
+  if (!fpSupported()) {
+    const st = await fetch("/api/passkey/status").then((r) => r.json()).catch(() => ({}));
+    return toast(st.secure_url ? `Open Jarvis at ${st.secure_url} to use your fingerprint.` : "Fingerprint needs Jarvis's secure Tailscale address. Turn on Tailscale on the PC.", true);
+  }
+  try {
+    const o = await postJSON("/api/passkey/register/options", {}, true);
+    const cred = await navigator.credentials.create({ publicKey: {
+      ...o, challenge: b64u.dec(o.challenge), user: { ...o.user, id: b64u.dec(o.user.id) },
+      excludeCredentials: (o.excludeCredentials || []).map((c) => ({ ...c, id: b64u.dec(c.id) })) } });
+    const data = await postJSON("/api/passkey/register", { credential: credJSON(cred), device: $("#deviceName").value || "Phone" }, true);
+    try { localStorage.setItem("station_lock", "passkey"); } catch {}
+    useSession(data.token);
+    toast("Fingerprint unlock is on. No more PIN on this device.");
+    loadDevices();
+  } catch (e) { toast(e.name === "NotAllowedError" ? "Cancelled" : e.message, true); }
+}
+$("#fpBtn").addEventListener("click", fpUnlock);
+$("#fpSetup").addEventListener("click", fpSetup);
+$("#usePin").addEventListener("click", (e) => {
+  e.preventDefault(); $("#fpUnlock").classList.add("hidden"); $("#pairForm").classList.remove("hidden"); $("#pinHint").classList.remove("hidden");
+});
 
 const UA = navigator.userAgent;
 $("#deviceName").value = /iPad|Tablet/i.test(UA) || (/Android/i.test(UA) && !/Mobile/i.test(UA)) ? "Tablet"
@@ -104,6 +177,7 @@ async function start() {
   $("#hostName").textContent = info.host || "God Station";
   $("#connDot").className = "dot " + (info.ok ? "ok" : "bad");
   $("#shellBox").classList.toggle("hidden", !info.allow_shell);
+  $("#fpSetup").classList.toggle("hidden", !!info.fingerprint);
   checkBrain();
   if (new URLSearchParams(location.search).has("share")) { activeTab = "clip"; handleShared(); }
   go(activeTab);

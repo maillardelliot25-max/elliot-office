@@ -12,6 +12,8 @@ netstat -ano | findstr /r /c:":8780 .*LISTENING" >nul && (
   timeout /t 4 >nul
   exit /b 0
 )
+rem Add anything new this version needs (quick when nothing is missing).
+.venv\Scripts\python.exe -m pip install --quiet --disable-pip-version-check -r requirements-station.txt
 rem Watchdog: if the station ever stops or crashes, restart it (backoff up to 60s).
 set WAIT=5
 :loop

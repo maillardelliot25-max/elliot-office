@@ -18,7 +18,13 @@
   <div class="pair-card">
     <div class="logo">J</div>
     <h1>Jarvis Station</h1>
-    <p class="muted">Enter the 6-digit PIN shown in the God Station window on your PC.</p>
+    <div id="fpUnlock" class="hidden">
+      <p class="muted">Touch the fingerprint sensor to unlock.</p>
+      <button class="btn primary big" id="fpBtn" type="button">Unlock with fingerprint</button>
+      <p id="fpError" class="error"></p>
+      <p><a href="#" id="usePin" class="muted">Use the PIN instead</a></p>
+    </div>
+    <p class="muted" id="pinHint">Enter the 6-digit PIN shown in the God Station window on your PC.</p>
     <form id="pairForm">
       <input id="pinInput" class="pin" inputmode="numeric" pattern="[0-9]*" maxlength="6" placeholder="••••••" autocomplete="one-time-code" required>
       <input id="deviceName" placeholder="Device name (e.g. Elliot's phone)" maxlength="60">
@@ -212,6 +218,7 @@
 
     <h2>Paired devices</h2>
     <ul class="procs" id="deviceList"></ul>
+    <button class="btn primary wide" id="fpSetup">Unlock with fingerprint instead of PIN</button>
     <button class="btn danger wide" id="unpairBtn">Unpair this device</button>
   </section>
 

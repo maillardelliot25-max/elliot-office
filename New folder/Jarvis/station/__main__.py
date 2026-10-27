@@ -70,6 +70,21 @@ def main():
 
     from station.server import create_app  # prints the pairing PIN
     app = create_app(config)
+
+    def publish_https():   # secure Tailscale address: needed for fingerprint unlock on the phone
+        from station import tailnet
+        url = tailnet.serve(config.port)
+        app.state.secure_url["url"] = url
+        if url:
+            print(f"  Secure address (fingerprint unlock, works anywhere): {url}", flush=True)
+            try:
+                with open(config.data_dir / "addresses.txt", "a") as f:
+                    f.write(f"{'Secure (Tailscale https)':<28} {url}\n")
+            except OSError:
+                pass
+    import threading
+    threading.Thread(target=publish_https, daemon=True).start()
+
     uvicorn.run(app, host=config.host, port=config.port, log_level="warning")
 
 

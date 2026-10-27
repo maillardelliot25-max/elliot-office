@@ -13,3 +13,4 @@ pypdf>=4.0
 reportlab>=4.0
 mcp>=1.10,<2
 pywebpush>=2.0
+webauthn>=2.2,<3

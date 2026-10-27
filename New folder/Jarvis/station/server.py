@@ -11,7 +11,7 @@ from datetime import datetime
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import Depends, FastAPI, File, Form, Header, HTTPException, Query, UploadFile
+from fastapi import Depends, FastAPI, File, Form, Header, HTTPException, Query, Request, UploadFile
 from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
@@ -20,6 +20,7 @@ from pydantic import BaseModel
 from station import __version__, docs
 from station.assist import PROFILE_FIELDS, Profile, fill_from_profile, greeting
 from station.auth import DeviceAuth
+from station.passkeys import Passkeys, secure_origin
 from station.brain import BrainOffline, ClaudeBrain, LocalBrain
 from station.config import StationConfig
 from station.friday import ASK_FRIDAY, FridayBrain, FridayError, FridayLink
@@ -47,6 +48,11 @@ def needs_confirm(action: dict) -> bool:
 
 
 # ── Request bodies ───────────────────────────────────────────────────────────
+
+class PasskeyBody(BaseModel):
+    credential: dict
+    device: str = "Phone"
+    retire_pin_pairing: bool = True
 
 class PairBody(BaseModel):
     pin: str
@@ -115,6 +121,8 @@ def create_app(config: StationConfig, control: PCControl | None = None,
                friday_transport=None, voice_parts: dict | None = None) -> FastAPI:
     config.data_dir.mkdir(parents=True, exist_ok=True)
     auth = DeviceAuth(config.data_dir)
+    passkeys = Passkeys(config.data_dir, config.owner_name)
+    app_secure_url = {"url": None}   # set by __main__ once Tailscale's https address is up
     memory = StationMemory(config.data_dir / "memory.db")
     control = control or PCControl(upload_dir=config.upload_dir)
     brain = brain or LocalBrain(config.ollama_url, config.ollama_model, config.owner_name)
@@ -180,11 +188,12 @@ def create_app(config: StationConfig, control: PCControl | None = None,
     app.state.recorder = recorder
     app.state.notifier = notifier
     app.state.friday = friday
+    app.state.secure_url = app_secure_url
     telegram = None  # set below, once converse/execute exist
 
     def device(authorization: str = Header(default="")) -> str:
         token = authorization.removeprefix("Bearer ").strip()
-        device_id = auth.check(token)
+        device_id = auth.check(token) or passkeys.check(token)
         if not device_id:
             raise HTTPException(401, "Not paired. Enter the PIN shown on your PC.")
         return device_id
@@ -239,11 +248,56 @@ def create_app(config: StationConfig, control: PCControl | None = None,
             raise HTTPException(401, "Wrong PIN. Check the God Station window on your PC.")
         return {"token": token, "owner": config.owner_name}
 
+    # ── Fingerprint unlock (passkeys) ───────────────────────────────────────
+    def passkey_page(request: Request) -> tuple[str, str]:
+        if not passkeys.available():
+            raise HTTPException(503, "Fingerprint unlock needs an update on the PC: run install_station.bat.")
+        page = secure_origin(request.headers.get("origin"))
+        if not page:
+            raise HTTPException(400, "Fingerprint unlock only works on Jarvis's secure address: "
+                                     + (app_secure_url["url"] or "https://<your-pc>.ts.net (turn on Tailscale)"))
+        return page
+
+    @app.get("/api/passkey/status")
+    def passkey_status():
+        return {"available": passkeys.available(), "registered": bool(passkeys.keys),
+                "secure_url": app_secure_url["url"]}
+
+    @app.post("/api/passkey/register/options")
+    def passkey_register_options(request: Request, _: str = Depends(device)):
+        _, rp_id = passkey_page(request)
+        return Response(passkeys.register_options(rp_id), media_type="application/json")
+
+    @app.post("/api/passkey/register")
+    def passkey_register(body: PasskeyBody, request: Request, device_id: str = Depends(device)):
+        origin, rp_id = passkey_page(request)
+        try:
+            session = passkeys.register_verify(body.credential, origin, rp_id, body.device)
+        except Exception as e:
+            raise HTTPException(400, f"Fingerprint setup failed: {e}")
+        if body.retire_pin_pairing and device_id in auth.devices and not device_id.startswith("local-"):
+            auth.revoke(device_id)   # from now on this phone gets in with its fingerprint only
+        return session
+
+    @app.post("/api/passkey/login/options")
+    def passkey_login_options(request: Request):
+        _, rp_id = passkey_page(request)
+        return Response(passkeys.login_options(rp_id), media_type="application/json")
+
+    @app.post("/api/passkey/login")
+    def passkey_login(body: PasskeyBody, request: Request):
+        origin, rp_id = passkey_page(request)
+        try:
+            return passkeys.login_verify(body.credential, origin, rp_id)
+        except Exception as e:
+            raise HTTPException(401, str(e))
+
     @app.get("/api/ping")
     def ping(device_id: str = Depends(device)):
         import socket
         return {"ok": True, "owner": config.owner_name, "host": socket.gethostname(),
-                "allow_shell": config.allow_shell, "version": __version__, "device_id": device_id}
+                "allow_shell": config.allow_shell, "version": __version__, "device_id": device_id,
+                "secure_url": app_secure_url["url"], "fingerprint": device_id.startswith("fp-")}
 
     @app.get("/api/devices")
     def devices(_: str = Depends(device)):
