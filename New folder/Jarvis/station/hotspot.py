@@ -43,6 +43,25 @@ $c = $m.GetCurrentAccessPointConfiguration()
 """
 
 
+PS_STOP = PS.split("try { [Windows.Networking")[0] + r"""
+if ($m.TetheringOperationalState -eq 'On') {
+  $r = Await ($m.StopTetheringAsync()) ([Windows.Networking.NetworkOperators.NetworkOperatorTetheringOperationResult])
+}
+@{ on = ($m.TetheringOperationalState -eq 'On') } | ConvertTo-Json -Compress
+"""
+
+
+def stop_hotspot():
+    """Hotspot off: it shares the Wi-Fi card with Screen mirroring (Samsung Second Screen / Miracast)."""
+    if os.name != "nt":
+        return
+    try:
+        subprocess.run(["powershell", "-NoProfile", "-NonInteractive", "-Command", PS_STOP], capture_output=True,
+                       text=True, timeout=60, creationflags=NO_WINDOW)
+    except Exception as e:
+        logger.info(f"[HOTSPOT] couldn't switch off: {e}")
+
+
 class HotspotKeeper:
     def __init__(self, port: int, interval: int = 60):
         self.port = port

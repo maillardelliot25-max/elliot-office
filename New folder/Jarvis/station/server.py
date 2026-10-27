@@ -6,6 +6,7 @@ The phone app talks to these endpoints. Every /api route except
 """
 
 import asyncio
+import threading
 import os
 import logging
 from datetime import datetime
@@ -22,7 +23,7 @@ from station import __version__, docs
 from station.assist import PROFILE_FIELDS, Profile, fill_from_profile, greeting
 from station.auth import DeviceAuth
 from station.passkeys import Passkeys, secure_origin
-from station.hotspot import HotspotKeeper
+from station.hotspot import HotspotKeeper, stop_hotspot
 from station.brain import BrainOffline, ClaudeBrain, LocalBrain
 from station.config import StationConfig
 from station.friday import ASK_FRIDAY, FridayBrain, FridayError, FridayLink
@@ -178,8 +179,13 @@ def create_app(config: StationConfig, control: PCControl | None = None,
         if telegram:
             tasks.append(asyncio.create_task(telegram.run()))
         voice.start(asyncio.get_running_loop())
-        if os.name == "nt" and os.getenv("JARVIS_HOTSPOT", "1") != "0":
-            hotspot.start()
+        # Hotspot is opt-in (JARVIS_HOTSPOT=1): it blocks screen mirroring to the tablet, so by default
+        # Jarvis is reached over home Wi-Fi and Tailscale instead, and the hotspot is switched off.
+        if os.name == "nt":
+            if os.getenv("JARVIS_HOTSPOT", "0") == "1":
+                hotspot.start()
+            else:
+                threading.Thread(target=stop_hotspot, daemon=True).start()
         yield
         voice.stop()
         for task in tasks:
