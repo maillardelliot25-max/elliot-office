@@ -37,6 +37,8 @@
     padding:10px 14px; font-weight:600; cursor:pointer; } button.ghost { background:none; border:1px solid var(--line); color:var(--text); }
   #brief { white-space:pre-wrap; font-size:13px; }
   a { color:var(--cyan); }
+  body.wall footer, body.wall header a { display:none; }
+  body.wall .grid { grid-template-rows: auto 1fr; }
   @media (max-width: 900px) {
     html, body { overflow:auto; } .grid { grid-template-columns:1fr; grid-template-rows:auto; height:auto; }
     .center { order:-1; } canvas#orb { width:70vw; }
@@ -81,6 +83,7 @@
 </div>
 <script>
 "use strict";
+if (new URLSearchParams(location.search).has("wall")) document.body.classList.add("wall");
 const $ = (s) => document.querySelector(s);
 let token = ""; try { token = localStorage.getItem("station_token") || sessionStorage.getItem("station_session") || ""; } catch {}
 const api = async (path, body) => {
