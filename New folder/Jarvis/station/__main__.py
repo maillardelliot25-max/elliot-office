@@ -42,7 +42,24 @@ def keep_pc_awake() -> bool:
         return False
 
 
+def install_bundled_wheels():
+    """Packages new versions need ship in ./wheels, so they install with no internet."""
+    import importlib.util
+    import subprocess
+    import sys
+    from pathlib import Path
+    wheels = Path(__file__).resolve().parent.parent / "wheels"
+    if importlib.util.find_spec("webauthn") or not wheels.is_dir():
+        return
+    subprocess.run([sys.executable, "-m", "pip", "install", "--quiet", "--disable-pip-version-check",
+                    "--no-index", "--find-links", str(wheels), "webauthn"], timeout=180)
+
+
 def main():
+    try:
+        install_bundled_wheels()
+    except Exception as e:
+        print(f"  (couldn't install bundled packages: {e})")
     logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(name)s] %(message)s")
     enable_dpi_awareness()
     awake = keep_pc_awake()

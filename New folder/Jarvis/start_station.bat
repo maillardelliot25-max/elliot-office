@@ -13,7 +13,7 @@ netstat -ano | findstr /r /c:":8780 .*LISTENING" >nul && (
   exit /b 0
 )
 rem Add anything new this version needs (quick when nothing is missing).
-.venv\Scripts\python.exe -m pip install --quiet --disable-pip-version-check -r requirements-station.txt
+.venv\Scripts\python.exe -c "import webauthn" 2>nul || .venv\Scripts\python.exe -m pip install --quiet --disable-pip-version-check --no-index --find-links wheels webauthn
 rem Watchdog: if the station ever stops or crashes, restart it (backoff up to 60s).
 set WAIT=5
 :loop
