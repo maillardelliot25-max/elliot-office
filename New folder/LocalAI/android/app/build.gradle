@@ -23,6 +23,20 @@ android {
         versionName "2.0.${runNumber}"
     }
 
+    // "jarvis" updates the app already on Elliot's phone (com.maillard.jarvis) in place, keeping its settings;
+    // "friday" is the standalone sister app.
+    flavorDimensions 'app'
+    productFlavors {
+        jarvis {
+            dimension 'app'
+            applicationId 'com.maillard.jarvis'
+        }
+        friday {
+            dimension 'app'
+            applicationId 'ai.maillard.friday'
+        }
+    }
+
     signingConfigs {
         if (haveReleaseKey) {
             release {

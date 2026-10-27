@@ -49,11 +49,11 @@ jobs:
 
       - name: Build and lint the release app
         working-directory: New folder/LocalAI/android
-        run: gradle assembleRelease lintRelease --no-daemon --stacktrace
+        run: gradle assembleRelease lintFridayRelease --no-daemon --stacktrace
 
       - name: Check the APK (package, permissions, signature)
         run: |
-          APK="New folder/LocalAI/android/app/build/outputs/apk/release/app-release.apk"
+          APK="New folder/LocalAI/android/app/build/outputs/apk/friday/release/app-friday-release.apk"
           BT=$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -1)
           "$BT/aapt2" dump badging "$APK" | grep -E "^package|uses-permission|application-label:"
           if "$BT/aapt2" dump permissions "$APK" | grep -E "SMS|CONTACTS|ACCESSIBILITY|SYSTEM_ALERT_WINDOW|REQUEST_INSTALL_PACKAGES"; then
@@ -66,6 +66,11 @@ jobs:
         with:
           name: friday-android
           path: Friday.apk
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: jarvis-android-update
+          path: New folder/LocalAI/android/app/build/outputs/apk/jarvis/release/app-jarvis-release.apk
 
       - name: Publish Friday.apk
         if: steps.key.outputs.signed == 'true'

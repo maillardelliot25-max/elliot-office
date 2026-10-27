@@ -76,7 +76,7 @@ public class MainActivity extends Activity {
 
         col.addView(heading("Try it"));
         col.addView(button("Open Friday now", v -> startActivity(new Intent(this, AssistActivity.class))));
-        col.addView(button("Open Jarvis", v -> openJarvis()));
+        col.addView(button("Open Jarvis Station", v -> openJarvis()));
 
         ScrollView scroll = new ScrollView(this);
         scroll.setFitsSystemWindows(true);   // keep clear of the status and navigation bars
@@ -96,7 +96,8 @@ public class MainActivity extends Activity {
 
     /** Jarvis, Friday's sister app, runs on the same PC (port 8780): open his app, else his page. */
     private void openJarvis() {
-        Intent app = getPackageManager().getLaunchIntentForPackage("com.maillard.jarvis");
+        Intent app = getPackageName().equals("com.maillard.jarvis") ? null
+                : getPackageManager().getLaunchIntentForPackage("com.maillard.jarvis");
         if (app != null) { startActivity(app); return; }
         String host = Prefs.server(this).replaceFirst("^https?://", "").replaceFirst("[:/].*$", "");
         if (host.isEmpty()) { status.setText("Connect to your PC first."); return; }
