@@ -124,9 +124,18 @@ function draw(now) {
 requestAnimationFrame(draw);
 
 // ── Voice: speak replies; listen when the core is tapped ──
-function speak(text) {
+let voiceAudio = null;
+async function speak(text) {
   if (!text) return;
   $("#said").textContent = text;
+  try {   // Jarvis's real voice (British neural) from the PC
+    const r = await fetch("/api/tts?text=" + encodeURIComponent(text.replace(/[*#_`]/g, "").slice(0, 1000)), { headers: { Authorization: `Bearer ${token}` } });
+    if (r.ok) {
+      voiceAudio?.pause(); voiceAudio = new Audio(URL.createObjectURL(await r.blob()));
+      voiceAudio.onplay = () => setMode("speaking"); voiceAudio.onended = () => setMode("idle");
+      await voiceAudio.play(); return;
+    }
+  } catch {}
   if (!("speechSynthesis" in window)) return;
   const u = new SpeechSynthesisUtterance(text.replace(/[*#_`]/g, "").slice(0, 600));
   const v = speechSynthesis.getVoices().find((v) => /en-GB/.test(v.lang) && /male|george|ryan|daniel/i.test(v.name))

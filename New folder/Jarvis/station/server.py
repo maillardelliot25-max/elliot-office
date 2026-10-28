@@ -794,6 +794,29 @@ def create_app(config: StationConfig, control: PCControl | None = None,
         out["telegram_status"] = telegram.status if telegram else "not set up (add TELEGRAM_BOT_TOKEN to .env)"
         return out
 
+    tts_state = {"installing": False}
+
+    @app.get("/api/tts")
+    async def tts(text: str = Query(..., max_length=1200), _: str = Depends(device)):
+        """Jarvis's movie-style British voice (Microsoft neural 'Ryan', free). Phone/HUD fall back to the
+        browser voice if this isn't available (no internet, or still installing)."""
+        try:
+            import edge_tts
+        except ImportError:
+            if not tts_state["installing"]:
+                tts_state["installing"] = True
+                import subprocess, sys
+                subprocess.Popen([sys.executable, "-m", "pip", "install", "--quiet", "edge-tts"])
+            raise HTTPException(503, "voice installing")
+        buf = bytearray()
+        try:
+            async for chunk in edge_tts.Communicate(text, "en-GB-RyanNeural", rate="+4%", pitch="-4Hz").stream():
+                if chunk["type"] == "audio":
+                    buf += chunk["data"]
+        except Exception as e:
+            raise HTTPException(503, f"voice unavailable: {e}")
+        return Response(bytes(buf), media_type="audio/mpeg", headers={"Cache-Control": "no-store"})
+
     @app.get("/api/settings")
     def get_settings(_: str = Depends(device)):
         return settings_view()
