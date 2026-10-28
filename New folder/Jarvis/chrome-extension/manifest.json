@@ -1,0 +1,13 @@
+{
+  "manifest_version": 3,
+  "name": "Jarvis",
+  "version": "1.0",
+  "description": "Jarvis in Chrome: HUD, live screen and chat in the side panel; right-click to send anything to Jarvis.",
+  "icons": { "128": "icon.png" },
+  "action": { "default_title": "Open Jarvis" },
+  "side_panel": { "default_path": "panel.html" },
+  "background": { "service_worker": "bg.js" },
+  "permissions": ["sidePanel", "contextMenus", "notifications"],
+  "host_permissions": ["http://localhost:8780/*"],
+  "commands": { "_execute_action": { "suggested_key": { "default": "Alt+J" } } }
+}
