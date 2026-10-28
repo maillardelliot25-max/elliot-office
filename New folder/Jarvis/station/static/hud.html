@@ -37,7 +37,8 @@
     padding:10px 14px; font-weight:600; cursor:pointer; } button.ghost { background:none; border:1px solid var(--line); color:var(--text); }
   #brief { white-space:pre-wrap; font-size:13px; }
   a { color:var(--cyan); }
-  body.wall footer, body.wall header a { display:none; }
+  body.wall:not(.embed) footer, body.wall header a { display:none; }
+  body.embed .grid { grid-template-rows: auto 1fr auto; }
   body.wall .grid { grid-template-rows: auto 1fr; }
   @media (max-width: 900px) {
     html, body { overflow:auto; } .grid { grid-template-columns:1fr; grid-template-rows:auto; height:auto; }
@@ -83,7 +84,9 @@
 </div>
 <script>
 "use strict";
-if (new URLSearchParams(location.search).has("wall")) document.body.classList.add("wall");
+const qs = new URLSearchParams(location.search);
+if (qs.has("wall") || qs.has("embed")) document.body.classList.add("wall");
+if (qs.has("embed")) document.body.classList.add("embed");
 const $ = (s) => document.querySelector(s);
 let token = ""; try { token = localStorage.getItem("station_token") || sessionStorage.getItem("station_session") || ""; } catch {}
 const api = async (path, body) => {
@@ -146,6 +149,16 @@ cv.addEventListener("click", () => {
 async function send() {
   const text = $("#msg").value.trim(); if (!text) return;
   $("#msg").value = "";
+  const local = statusAnswer(text);
+  if (local) { speak(local); return; }
+  const appQ = text.toLowerCase().match(/how(?:'s| is| are)\s+(?:the\s+)?([\w.]+)(?:\s+app)?\s+(?:going|doing|running)/);
+  if (appQ && !/^(you|it|things|everything|we)$/.test(appQ[1])) {
+    try {
+      const ps = await api("/api/processes"), hit = ps.filter((p) => (p.name || "").toLowerCase().includes(appQ[1]));
+      if (hit.length) { const cpu = hit.reduce((a, p) => a + (p.cpu || p.cpu_percent || 0), 0), mem = hit.reduce((a, p) => a + (p.mem_mb || p.memory_mb || 0), 0);
+        speak(`${appQ[1]} is running, sir: ${hit.length} process${hit.length > 1 ? "es" : ""}, about ${Math.round(cpu)} percent CPU${mem ? " and " + Math.round(mem) + " megabytes of memory" : ""}.`); return; }
+    } catch {}
+  }
   let who = $("#who").value;
   const m = text.match(/^(tom|ava|max|chrome)\b[,:]?\s*(.*)$/i);           // "Tom, build…" → Tom
   if (m) who = m[1].toLowerCase();
@@ -178,7 +191,7 @@ $("#startDay").onclick = async () => {
 
 // ── Live data ──
 async function loadTeam() {
-  const d = await api("/api/agents");
+  const d = await api("/api/agents"); lastTeam = d;
   $("#agents").innerHTML = d.agents.map((a) => `<div class="agent"><b>${a.name}</b><small>${a.role}</small></div>`).join("");
   const sel = $("#who"); if (sel.options.length === 1) d.agents.forEach((a) => sel.add(new Option(a.name + " · " + a.role, a.id)));
   $("#runs").innerHTML = d.runs.slice(0, 8).map((r) => `<div class="run ${r.status}"><b>${r.name}</b> · ${r.status}${r.status === "working" ? "…" : ""}<br>${(r.task || "").slice(0, 90)}${r.status === "done" ? "<br>" + (r.result || "").slice(0, 220).replace(/</g, "&lt;") : ""}</div>`).join("") || "<div class=run>Nothing yet. Ask Tom, Ava or Max.</div>";
@@ -187,8 +200,31 @@ async function loadTeam() {
   d.runs.forEach((r) => r.status === "done" && seen.add(r.id)); if (!seen.size) seen.add("-");
 }
 const seen = new Set();
+let lastSys = {}, lastTeam = { agents: [], runs: [] };
+// "How's the CPU?", "How's Ava doing?", "System status" → answered instantly from live stats
+function statusAnswer(q) {
+  q = q.toLowerCase(); const s = lastSys, pc = (v) => `${Math.round(v || 0)} percent`;
+  const asks = /how|what|status|going|doing|check|report|level|usage/.test(q);
+  if (!asks) return "";
+  const parts = [];
+  const all = /system|pc|computer|laptop|everything|stats|status report/.test(q);
+  if (all || /cpu|processor/.test(q)) parts.push(`CPU is at ${pc(s.cpu_percent)}`);
+  if (all || /memory|ram/.test(q)) parts.push(`memory is at ${pc(s.ram_percent)}`);
+  if (all || /disk|storage|space/.test(q)) { const d = (s.disks || [])[0] || s.disk || {}; parts.push(`disk is ${pc(d.percent)} full${d.free_gb ? ", " + d.free_gb + " gigabytes free" : ""}`); }
+  if (all || /battery|power|charg/.test(q)) { const b = s.battery || {}; parts.push(b.percent != null ? `battery is at ${pc(b.percent)}${b.plugged ? " and charging" : ""}` : "there's no battery reading"); }
+  const names = { ava: /ava|marketing|social|events?/, tom: /tom|developer|dev\b|it\b|website|code/, max: /max|report/ };
+  for (const a of lastTeam.agents) {
+    if (!(names[a.id] || new RegExp(a.id)).test(q) && !(all || /agents?|team/.test(q))) continue;
+    const r = lastTeam.runs.find((x) => x.agent === a.id || x.name === a.name);
+    parts.push(r ? `${a.name} is ${r.status === "working" ? "working on " + (r.task || "").slice(0, 80) : r.status === "done" ? "done with her last job" .replace("her", a.id === "ava" ? "her" : "his") : "standing by; the last job hit a problem, so ask again"}` : `${a.name} is standing by`);
+  }
+  if (/app|program|running|open/.test(q) && s.processes) parts.push(`${s.processes} programs running`);
+  if (!parts.length) return "";
+  const t = parts.join(", ") + ".";
+  return t[0].toUpperCase() + t.slice(1) + " Sir.";
+}
 async function loadHud() {
-  const h = await api("/api/hud"), s = h.system || {};
+  const h = await api("/api/hud"), s = h.system || {}; lastSys = s;
   const set = (id, v, label) => { $("#" + id).style.width = Math.max(0, Math.min(100, v || 0)) + "%"; $("#" + id + "V").textContent = label; };
   set("cpu", s.cpu_percent, `${Math.round(s.cpu_percent || 0)}%`);
   set("ram", s.ram_percent, `${Math.round(s.ram_percent || 0)}%`);

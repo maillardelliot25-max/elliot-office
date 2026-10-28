@@ -7,7 +7,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 let token = "";
 try { token = localStorage.getItem("station_token") || sessionStorage.getItem("station_session") || ""; } catch {}
-let activeTab = "screen";
+let activeTab = window.innerWidth >= 900 ? "hud" : "screen";   // PC/tablet opens on the HUD, phone on the live screen
 let info = {};
 
 // ── API ────────────────────────────────────────────────────────────────────
@@ -160,6 +160,7 @@ function go(tab) {
   $$(".tab").forEach((s) => s.classList.toggle("on", s.dataset.tab === tab));
   $$(".tabs button").forEach((b) => b.classList.toggle("on", b.dataset.go === tab));
   if (tab === "screen") screenLoop();
+  if (tab === "hud" && !$("#hudFrame").src) $("#hudFrame").src = "/hud.html?embed=1";
   if (tab === "jarvis") { loadHistory(); setTimeout(() => $("#chatInput").focus(), 50); }
   if (tab === "files" && !files.loaded) openDir("");
   if (tab === "clip") { loadClips(); loadOutbox(); }
@@ -167,6 +168,7 @@ function go(tab) {
   if (tab === "recall") loadRecall();
 }
 $$(".tabs button").forEach((b) => b.addEventListener("click", () => go(b.dataset.go)));
+window.addEventListener("message", (e) => { if (e.origin === location.origin && e.data?.go) go(e.data.go); });
 
 // ── Start ──────────────────────────────────────────────────────────────────
 

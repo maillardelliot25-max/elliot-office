@@ -37,9 +37,12 @@
 <!-- ── MAIN APP ────────────────────────────────────────────── -->
 <main id="app" class="hidden">
   <header class="topbar">
-    <div class="brand"><span class="dot" id="connDot"></span><span id="hostName">God Station</span> <a href="/hud.html" style="margin-left:10px;font-size:12px;color:var(--accent);text-decoration:none;border:1px solid var(--line);border-radius:999px;padding:2px 10px">◉ HUD</a></div>
+    <div class="brand"><span class="dot" id="connDot"></span><span id="hostName">God Station</span></div>
     <div class="pill" id="brainPill">brain…</div>
   </header>
+
+  <!-- HUD (Iron Man) -->
+  <section class="tab" data-tab="hud"><iframe id="hudFrame" title="Jarvis HUD" allow="microphone; autoplay"></iframe></section>
 
   <!-- SCREEN -->
   <section class="tab" data-tab="screen">
@@ -223,6 +226,7 @@
   </section>
 
   <nav class="tabs">
+    <button data-go="hud"><span>◉</span>HUD</button>
     <button data-go="screen" class="on"><span>🖥</span>Screen</button>
     <button data-go="jarvis"><span>✦</span>Jarvis</button>
     <button data-go="files"><span>🗂</span>Files</button>
