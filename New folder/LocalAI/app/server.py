@@ -927,6 +927,50 @@ def ask_user(cid, emit, stop):
 
 # ── HTTP ─────────────────────────────────────────────────────────────────
 
+_tts_installing = []
+
+
+FRIDAY_LINES = ["Hi boss, what can I do for you?", "On it, boss.", "Done, boss.", "Good morning, boss.",
+                "Good afternoon, boss.", "Good evening, boss.", "I'm offline right now, but I'm still here, boss."]
+
+
+def friday_voice(text: str) -> bytes | None:
+    """FRIDAY's voice: a friendly Irish woman (like Kerry Condon's F.R.I.D.A.Y.) — Microsoft neural 'Emily', free.
+    Every sentence is saved, so anything said before (and the common lines) still plays offline."""
+    import hashlib
+    vdir = DATA / "voice"
+    vdir.mkdir(parents=True, exist_ok=True)
+    f = vdir / (hashlib.sha1(text.strip().lower().encode()).hexdigest()[:16] + ".mp3")
+    if f.exists():
+        return f.read_bytes()
+    audio = _friday_voice_online(text)
+    if audio:
+        f.write_bytes(audio)
+    return audio
+
+
+def _friday_voice_online(text: str) -> bytes | None:
+    try:
+        import edge_tts
+    except ImportError:
+        if not _tts_installing:
+            _tts_installing.append(1)
+            subprocess.Popen([sys.executable, "-m", "pip", "install", "--quiet", "edge-tts"])
+        return None
+    import asyncio
+
+    async def run():
+        buf = bytearray()
+        async for c in edge_tts.Communicate(text, "en-IE-EmilyNeural", rate="+6%", pitch="+2Hz").stream():
+            if c["type"] == "audio":
+                buf += c["data"]
+        return bytes(buf)
+    try:
+        return asyncio.run(run()) or None
+    except Exception:
+        return None
+
+
 class Handler(BaseHTTPRequestHandler):
     def log_message(self, *a):
         pass
@@ -1085,6 +1129,12 @@ class Handler(BaseHTTPRequestHandler):
                 if ctype.startswith("text/") or ctype in ("application/javascript", "application/json"):
                     ctype += "; charset=utf-8"
                 self.send_bytes(p.read_bytes(), ctype)
+            elif url.path == "/api/tts":
+                text = urllib.parse.parse_qs(url.query).get("text", [""])[0][:1200]
+                audio = friday_voice(text)
+                if not audio:
+                    return self.send_json({"error": "voice unavailable"}, 503)
+                self.send_bytes(audio, "audio/mpeg")
             elif url.path == "/api/zip":
                 root = safe_path(urllib.parse.parse_qs(url.query).get("path", [""])[0])
                 if root.is_file():
@@ -1588,6 +1638,12 @@ def discovery_responder():
             time.sleep(1)
 
 
+def warm_voice():
+    time.sleep(40)
+    for line in FRIDAY_LINES:
+        friday_voice(line)
+
+
 def reload_on_update():
     """When Friday's code is updated on disk, exit; the Friday/Jarvis app restarts her with the new
     version within seconds, so updates never need a PC restart."""
@@ -1613,9 +1669,10 @@ def main():
     except OSError:
         sys.exit(f"Port {PORT} is already in use. Is Friday already running, or is another app "
                  f"(e.g. Jarvis Station) using it? Close that app, or start Friday with PORT=<other port>.")
+    threading.Thread(target=reload_on_update, daemon=True).start()
+    threading.Thread(target=warm_voice, daemon=True).start()
     if LISTEN != "127.0.0.1":
         threading.Thread(target=discovery_responder, daemon=True).start()
-        threading.Thread(target=reload_on_update, daemon=True).start()
         print("Phone access is ON: devices on your Wi-Fi can connect with the pairing code at",
               ", ".join(f"http://{a}:{PORT}" for a in lan_addresses()) or "this PC's address")
     url = f"http://localhost:{PORT}"

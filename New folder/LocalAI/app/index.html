@@ -753,7 +753,12 @@ $("mic").onclick = () => {
   rec.start(); $("mic").classList.add("on");
 };
 function plain(text) { return text.replace(/```[\s\S]*?```/g, " (code) ").replace(/!\[[^\]]*\]\([^)]*\)/g, "").replace(/[#*_`>|]/g, ""); }
-function say(text) {
+let fridayAudio = null;
+async function say(text) {
+  try {   // FRIDAY's own voice (friendly Irish, neural) from the PC
+    const r = await fetch("/api/tts?text=" + encodeURIComponent(plain(text).slice(0, 1000)), { headers: HEADERS });
+    if (r.ok) { fridayAudio?.pause(); fridayAudio = new Audio(URL.createObjectURL(await r.blob())); await fridayAudio.play(); return; }
+  } catch {}
   if (!window.speechSynthesis) return;
   speechSynthesis.cancel();
   speechSynthesis.speak(new SpeechSynthesisUtterance(plain(text)));
@@ -1218,7 +1223,7 @@ $("toolsBtn").onclick = () => { tools = !tools; setPref("tools", tools); drawTog
 $("thinkBtn").onclick = () => { think = !think; setPref("think", think); drawToggles(); };
 $("researchBtn").onclick = () => { research = !research; drawToggles(); if (research) toast("Research mode: the AI will search the web many times and write a cited report"); };
 $("mathBtn").onclick = () => { math = !math; drawToggles(); if (math) toast("Math mode: step-by-step, checked with Python, on your best reasoning model"); };
-$("speakBtn").onclick = () => { speak = !speak; setPref("speak", speak); drawToggles(); if (!speak) window.speechSynthesis?.cancel(); };
+$("speakBtn").onclick = () => { speak = !speak; setPref("speak", speak); drawToggles(); if (!speak) window.speechSynthesis?.cancel(); fridayAudio?.pause(); };
 const input = $("input");
 input.oninput = () => { input.style.height = "auto"; input.style.height = input.scrollHeight + "px"; };
 input.onkeydown = e => { if (e.key === "Enter" && !e.shiftKey && !e.isComposing) { e.preventDefault(); $("send").click(); } };
