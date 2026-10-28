@@ -269,10 +269,39 @@ def create_app(config: StationConfig, control: PCControl | None = None,
         except ControlError as e:
             raise HTTPException(400, str(e))
 
+    def find_and_open(query: str) -> dict:
+        """Search Elliot's own folders for a file whose name has all the words; open the newest match."""
+        import time
+        words = [w for w in query.lower().replace("_", " ").split() if w not in ("my", "the", "a", "file")]
+        if not words:
+            raise ControlError("What file should I look for?")
+        home, hits, t0 = Path.home(), [], time.time()
+        roots = [home / d for d in ("Desktop", "Documents", "Downloads", "OneDrive", "Pictures")]
+        skip = {"node_modules", ".git", ".venv", "AppData", "__pycache__", "site-packages"}
+        for root in roots:
+            for dirpath, dirs, names in os.walk(root):
+                dirs[:] = [d for d in dirs if d not in skip and not d.startswith(".")]
+                for n in names:
+                    low = n.lower()
+                    if all(w in low for w in words):
+                        hits.append(Path(dirpath) / n)
+                if time.time() - t0 > 8:
+                    break
+        if not hits and len(words) > 1:      # loosen: any word, prefer documents
+            return find_and_open(max(words, key=len))
+        if not hits:
+            raise ControlError(f"I couldn't find a file with “{query}” in its name.")
+        doc = (".pdf", ".docx", ".doc", ".pptx", ".xlsx", ".txt")
+        hits.sort(key=lambda p: (p.suffix.lower() in doc, p.stat().st_mtime), reverse=True)
+        control.open(str(hits[0]))
+        return {"opened": str(hits[0]), "others": [str(h) for h in hits[1:5]]}
+
     def run_action_sync(action: dict) -> dict:
         t = action.get("type")
         if t == "open":
             return control.open(action.get("target", ""))
+        if t == "find":
+            return find_and_open(action.get("target", ""))
         if t == "type":
             return control.type_text(action.get("text", ""))
         if t == "hotkey":

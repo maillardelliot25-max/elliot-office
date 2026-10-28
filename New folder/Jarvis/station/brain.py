@@ -19,7 +19,7 @@ import httpx
 
 logger = logging.getLogger("jarvis.station.brain")
 
-ACTION_TYPES = ["open", "type", "hotkey", "volume", "media", "power", "shell"]
+ACTION_TYPES = ["open", "find", "type", "hotkey", "volume", "media", "power", "shell"]
 
 RESPONSE_SCHEMA = {
     "type": "object",
@@ -54,6 +54,7 @@ Answer ONLY with JSON: {{"reply": "...", "actions": [...]}}
 
 Actions you can use:
 - {{"type": "open", "target": "<app name, file path or https:// URL>"}}
+- {{"type": "find", "target": "<words in the file name, e.g. hse resume>"}}  (searches the PC and opens the best match)
 - {{"type": "type", "text": "<text to type>"}}
 - {{"type": "hotkey", "keys": ["ctrl", "c"]}}
 - {{"type": "volume", "action": "up|down|mute"}}
@@ -61,6 +62,7 @@ Actions you can use:
 - {{"type": "power", "action": "lock|sleep|shutdown|restart|cancel"}}
 - {{"type": "shell", "command": "<PowerShell command>"}}
 
+To open one of {owner}'s files, ALWAYS use "find" — never guess a file path.
 Only take actions {owner} asked for. Never invent facts — if you don't know, say so.
 {memories}
 Now: {now}"""
@@ -185,10 +187,20 @@ class BrainOffline(Exception):
 
 def parse_reply(content: str) -> dict:
     """Turn the model's output into {"reply", "actions"}, tolerating sloppy JSON."""
+    import re
     try:
         data = json.loads(content)
     except (json.JSONDecodeError, TypeError):
-        return {"reply": (content or "").strip() or "…", "actions": []}
+        text = content or ""
+        m = re.search(r"\{[\s\S]*\}", text)          # model wrapped its JSON in chatter / ```json fences
+        try:
+            data = json.loads(m.group(0)) if m else None
+        except json.JSONDecodeError:
+            data = None
+        if not isinstance(data, dict):
+            return {"reply": re.sub(r"```[\s\S]*?```", "", text).strip() or "…", "actions": []}
+        if not data.get("reply"):
+            data["reply"] = re.sub(r"```[\s\S]*?```|\{[\s\S]*\}", "", text).strip() or "On it."
     if not isinstance(data, dict):
         return {"reply": str(data), "actions": []}
     actions = [a for a in data.get("actions") or [] if isinstance(a, dict) and a.get("type") in ACTION_TYPES]

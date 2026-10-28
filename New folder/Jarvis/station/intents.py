@@ -68,6 +68,8 @@ def quick_intent(text: str) -> list[dict] | None:
     if not t:
         return None
 
+    if m := re.match(r"^(?:find|search for|look for|pull up)\s+(?:my|the)\s+(.+?)[.!?]*$", original, re.IGNORECASE):
+        return [{"type": "find", "target": m.group(1)}]       # "find my HSE resume" → search the PC for it
     if m := re.match(r"^(?:open|launch|start|go to)\s+(.+?)[.!?]*$", original, re.IGNORECASE):
         return [{"type": "open", "target": _open_target(m.group(1))}]
 
@@ -116,6 +118,8 @@ def describe(action: dict) -> str:
     t = action.get("type")
     if t == "open":
         return f"Open {action.get('target', '')}"
+    if t == "find":
+        return f"Find {action.get('target', '')}"
     if t == "type":
         return f"Type “{action.get('text', '')[:40]}”"
     if t == "hotkey":
