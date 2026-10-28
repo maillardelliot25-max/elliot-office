@@ -24,7 +24,6 @@ from station.assist import PROFILE_FIELDS, Profile, fill_from_profile, greeting
 from station.auth import DeviceAuth
 from station.passkeys import Passkeys, secure_origin
 from station.agents import AGENTS, Team
-from station.desktop_hud import DesktopHUD
 from station.hotspot import HotspotKeeper, stop_hotspot
 from station.brain import BrainOffline, ClaudeBrain, LocalBrain
 from station.config import StationConfig
@@ -184,7 +183,6 @@ def create_app(config: StationConfig, control: PCControl | None = None,
         # Hotspot is opt-in (JARVIS_HOTSPOT=1): it blocks screen mirroring to the tablet, so by default
         # Jarvis is reached over home Wi-Fi and Tailscale instead, and the hotspot is switched off.
         tasks.append(asyncio.create_task(team.scheduler()))
-        DesktopHUD(config.port, config.data_dir).start()       # Jarvis becomes the desktop itself
         if os.name == "nt":
             if os.getenv("JARVIS_HOTSPOT", "0") == "1":
                 hotspot.start()

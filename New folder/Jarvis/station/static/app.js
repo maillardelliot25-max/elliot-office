@@ -188,10 +188,6 @@ async function start() {
     if (token) { $("#screenMsg").textContent = "Can't reach your PC: " + e.message; }
     if (!token) return;
   }
-  // The Jarvis desktop app opens on the HUD (once per session); the controls are one click away
-  if (/Electron/.test(navigator.userAgent) && !sessionStorage.getItem("hud_seen")) {
-    sessionStorage.setItem("hud_seen", "1"); location.href = "/hud.html"; return;
-  }
   $("#pair").classList.add("hidden");
   $("#app").classList.remove("hidden");
   $("#hostName").textContent = info.host || "God Station";
