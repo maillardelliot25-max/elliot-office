@@ -173,6 +173,7 @@ $$(".tabs button").forEach((b) => b.addEventListener("click", () => go(b.dataset
 async function start() {
   if (!token) {   // no lock on your own devices: try straight in
     try { const r = await fetch("/api/ping"); if (!r.ok) return showPair(); } catch { return showPair(); }
+    token = "trusted";   // your own device (Tailscale / this PC): no pairing needed; the live screen etc. run normally
   }
   try {
     info = await api("/api/ping");
