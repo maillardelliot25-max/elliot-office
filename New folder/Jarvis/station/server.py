@@ -190,6 +190,22 @@ def create_app(config: StationConfig, control: PCControl | None = None,
             except Exception as e:
                 logger.info(f"[BRAIN] watchdog: {e}")
 
+    async def keep_brain_alive():
+        """The brain must always be on: if Ollama stops answering, start it again (checked every 30 s)."""
+        import shutil
+        import subprocess
+        exe = shutil.which("ollama") or str(Path(os.getenv("LOCALAPPDATA", "")) / "Programs" / "Ollama" / "ollama.exe")
+        while True:
+            await asyncio.sleep(30)
+            try:
+                st = await brain.status()
+                if st.get("online") is False and Path(exe).exists():
+                    logger.warning("[BRAIN] Ollama is down: starting it again")
+                    subprocess.Popen([exe, "serve"], creationflags=0x08000000 if os.name == "nt" else 0,
+                                     stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            except Exception as e:
+                logger.info(f"[BRAIN] watchdog: {e}")
+
     @asynccontextmanager
     async def lifespan(_app):
         tasks = [asyncio.create_task(watch_clipboard()), asyncio.create_task(watch_screen())]
@@ -199,6 +215,7 @@ def create_app(config: StationConfig, control: PCControl | None = None,
         # Hotspot is opt-in (JARVIS_HOTSPOT=1): it blocks screen mirroring to the tablet, so by default
         # Jarvis is reached over home Wi-Fi and Tailscale instead, and the hotspot is switched off.
         tasks.append(asyncio.create_task(team.scheduler()))
+        tasks.append(asyncio.create_task(keep_brain_alive()))
         tasks.append(asyncio.create_task(keep_brain_alive()))
         if os.name == "nt":
             if os.getenv("JARVIS_HOTSPOT", "0") == "1":
