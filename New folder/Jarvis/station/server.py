@@ -215,6 +215,7 @@ def create_app(config: StationConfig, control: PCControl | None = None,
         # Hotspot is opt-in (JARVIS_HOTSPOT=1): it blocks screen mirroring to the tablet, so by default
         # Jarvis is reached over home Wi-Fi and Tailscale instead, and the hotspot is switched off.
         tasks.append(asyncio.create_task(team.scheduler()))
+        tasks.append(asyncio.create_task(app.state.warm_voice()))
         tasks.append(asyncio.create_task(keep_brain_alive()))
         tasks.append(asyncio.create_task(keep_brain_alive()))
         if os.name == "nt":
@@ -250,7 +251,7 @@ def create_app(config: StationConfig, control: PCControl | None = None,
             ip = ipaddress.ip_address((request.client.host if request.client else "") or "0.0.0.0")
         except ValueError:
             return False
-        return ip.is_loopback or ip in ipaddress.ip_network("100.64.0.0/10") \
+        return ip.is_loopback or ip.is_private or ip in ipaddress.ip_network("100.64.0.0/10") \
             or ip in ipaddress.ip_network("fd7a:115c:a1e0::/48")
 
     def device(request: Request, authorization: str = Header(default="")) -> str:
@@ -808,14 +809,41 @@ def create_app(config: StationConfig, control: PCControl | None = None,
                 import subprocess, sys
                 subprocess.Popen([sys.executable, "-m", "pip", "install", "--quiet", "edge-tts"])
             raise HTTPException(503, "voice installing")
-        buf = bytearray()
+        audio = await jarvis_voice(text)
+        if not audio:
+            raise HTTPException(503, "voice unavailable offline for this sentence")
+        return Response(audio, media_type="audio/mpeg", headers={"Cache-Control": "no-store"})
+
+    VOICE_DIR = config.data_dir / "voice"
+    COMMON = ["Good morning, sir. All systems are online.", "Good afternoon, sir. All systems are online.",
+              "Good evening, sir. All systems are online.", "Right away, sir.", "Done, sir.", "On it, sir.",
+              "Your workspace is ready, sir. Friday, your inbox and your calendar are open.",
+              "I'm offline right now, sir, but everything on this PC still works."]
+
+    async def jarvis_voice(text: str) -> bytes | None:
+        """Ryan's voice; every sentence is saved, so anything said before (and the common lines) works offline."""
+        import hashlib
+        VOICE_DIR.mkdir(parents=True, exist_ok=True)
+        f = VOICE_DIR / (hashlib.sha1(text.strip().lower().encode()).hexdigest()[:16] + ".mp3")
+        if f.exists():
+            return f.read_bytes()
         try:
+            import edge_tts
+            buf = bytearray()
             async for chunk in edge_tts.Communicate(text, "en-GB-RyanNeural", rate="+4%", pitch="-4Hz").stream():
                 if chunk["type"] == "audio":
                     buf += chunk["data"]
-        except Exception as e:
-            raise HTTPException(503, f"voice unavailable: {e}")
-        return Response(bytes(buf), media_type="audio/mpeg", headers={"Cache-Control": "no-store"})
+        except Exception:
+            return None
+        if buf:
+            f.write_bytes(bytes(buf))
+        return bytes(buf) or None
+
+    async def warm_voice():
+        await asyncio.sleep(30)
+        for line in COMMON:
+            await jarvis_voice(line)
+    app.state.warm_voice = warm_voice
 
     @app.get("/api/settings")
     def get_settings(_: str = Depends(device)):
