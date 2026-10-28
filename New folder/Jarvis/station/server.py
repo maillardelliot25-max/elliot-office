@@ -930,6 +930,13 @@ def create_app(config: StationConfig, control: PCControl | None = None,
 
     # ── The app itself ───────────────────────────────────────────────────────
 
+    @app.middleware("http")
+    async def always_fresh(request: Request, call_next):   # phone/browser must never run an old copy of the app
+        r = await call_next(request)
+        if not request.url.path.startswith("/api/"):
+            r.headers["Cache-Control"] = "no-cache"
+        return r
+
     app.mount("/", StaticFiles(directory=STATIC_DIR, html=True), name="app")
     return app
 

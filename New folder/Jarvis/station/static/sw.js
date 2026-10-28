@@ -1,9 +1,9 @@
 /* Caches the app shell so it opens instantly. Live data (/api) always comes from the PC. */
-const CACHE = "jarvis-station-v17";
+const CACHE = "jarvis-station-v18";
 const SHELL = ["/", "/index.html", "/style.css", "/app.js", "/manifest.json", "/icon-192.png", "/icon-512.png"];
 
 self.addEventListener("install", (e) => {
-  e.waitUntil(caches.open(CACHE).then((c) => c.addAll(SHELL)).then(() => self.skipWaiting()));
+  e.waitUntil(caches.open(CACHE).then((c) => c.addAll(SHELL.map((u) => new Request(u, { cache: "reload" })))).then(() => self.skipWaiting()));
 });
 
 self.addEventListener("activate", (e) => {
@@ -55,7 +55,7 @@ self.addEventListener("fetch", (e) => {
   if (e.request.method !== "GET" || url.pathname.startsWith("/api/")) return;
   // Network first (so updates land), cache as fallback
   e.respondWith(
-    fetch(e.request)
+    fetch(e.request.mode === "navigate" ? e.request : new Request(e.request, { cache: "no-cache" }))
       .then((r) => {
         const copy = r.clone();
         caches.open(CACHE).then((c) => c.put(e.request, copy));
