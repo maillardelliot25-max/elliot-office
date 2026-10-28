@@ -32,6 +32,7 @@ class DesktopHUD:
         self.url = f"http://localhost:{port}/hud.html?wall=1"
         self.profile = Path(data_dir) / "hud-browser"
         self.proc = None
+        self.failed = False
 
     # ── Win32 ──
     def _user32(self):
@@ -90,7 +91,7 @@ class DesktopHUD:
                 return
             self.proc = subprocess.Popen([edge, f"--app={self.url}", f"--user-data-dir={self.profile}", "--no-first-run",
                                           "--no-default-browser-check", "--autoplay-policy=no-user-gesture-required",
-                                          "--disable-features=CalculateNativeWinOcclusion", "--start-fullscreen"])
+                                          "--disable-features=CalculateNativeWinOcclusion", "--window-position=-32000,-32000"])
             for _ in range(40):
                 time.sleep(0.5)
                 if hwnd := self._hud_window():
@@ -106,11 +107,17 @@ class DesktopHUD:
         u.SetParent(hwnd, worker)
         w, h = u.GetSystemMetrics(0), u.GetSystemMetrics(1)
         u.SetWindowPos(hwnd, 0, 0, 0, w, h, 0x0040)   # SWP_SHOWWINDOW
+        if not self._attached(hwnd):
+            # Couldn't get behind the icons on this Windows build: never leave a full-screen window over the PC
+            u.PostMessageW(hwnd, 0x0010, 0, 0)   # WM_CLOSE
+            self.failed = True
+            logger.warning("[HUD] couldn't attach to the desktop on this Windows build; desktop HUD off")
+            return
         logger.info("[HUD] Jarvis HUD is now the desktop wallpaper")
 
     def run(self):
         time.sleep(8)       # let the server start first
-        while True:
+        while not self.failed:
             try:
                 self.ensure()
             except Exception as e:
@@ -118,5 +125,5 @@ class DesktopHUD:
             time.sleep(30)
 
     def start(self):
-        if os.name == "nt" and os.getenv("JARVIS_DESKTOP_HUD", "1") != "0":
+        if os.name == "nt" and os.getenv("JARVIS_DESKTOP_HUD", "0") == "1":
             threading.Thread(target=self.run, daemon=True, name="desktop-hud").start()
