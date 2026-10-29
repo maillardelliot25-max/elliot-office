@@ -1016,6 +1016,7 @@ async function loadModels() {
     $("sMath").innerHTML = `<option value="auto">Auto: best ChatGPT model, else Claude, else Gemini</option>` +
       models.filter(m => m.provider !== "ollama").map(m => `<option value="${esc(m.name)}">${esc(m.label)}</option>`).join("");
     $("oModel").innerHTML = $("model").innerHTML;
+    if (!pref("smart_v1")) { setPref("smart_v1", "1"); setPref("model", "smart"); }   // Smart brain on by default (once)
     const want = pref("model", settings.default_model);
     if (models.some(m => m.name === want)) $("model").value = want;
     renderBrainBtn();

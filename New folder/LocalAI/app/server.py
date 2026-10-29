@@ -222,7 +222,52 @@ def ollama(path, body=None, stream=False, timeout=600):
     return urllib.request.urlopen(req, timeout=timeout)
 
 
+SMART = "smart"
+_TASKS = [   # (task, words that signal it, preferred brains in order — first one you have wins)
+    ("code", r"```|\b(code|bug|error|debug|function|python|javascript|html|css|react|api|sql|script|app|website|deploy|git)\b",
+     [r"claude.*(opus|sonnet)", r"cloud:.*(kimi|qwen.*coder|deepseek|llama-3\.3|gpt-oss)", r"gpt-5|gpt-4", r"gemini.*pro",
+      r"^qwen2\.5-coder", r"^qwen3-coder(?!:30b)", r"^qwen3:8b"]),
+    ("reason", r"\b(why|plan|strategy|analy[sz]e|compare|pros and cons|decide|calculate|solve|math|prove|budget|forecast)\b",
+     [r"claude.*(opus|sonnet)", r"gemini.*pro", r"gpt-5|o\d", r"cloud:.*(deepseek|kimi|qwen3)", r"^qwen3:8b", r"^deepseek-r1"]),
+    ("write", r"\b(write|draft|email|caption|post|bio|cover letter|resume|cv|essay|proposal|pitch|slogan|rewrite|reply to)\b",
+     [r"claude", r"gpt-5|gpt-4", r"gemini", r"cloud:.*(llama|kimi|qwen)", r"^qwen3:8b"]),
+    ("quick", r"^.{0,60}$",
+     [r"cloud:.*(llama-3\.\d-8b|llama.*instant|gemma|kimi)", r"gemini.*flash", r"claude.*haiku", r"^qwen3:8b", r"^phi4-mini"]),
+    ("general", r"", [r"claude.*sonnet", r"gemini.*(pro|flash)", r"gpt", r"cloud:", r"^qwen3:8b", r"^phi4-mini"]),
+]
+
+
+def smart_pick(text: str, has_images: bool, opts: dict | None = None) -> tuple[str, str]:
+    """Friday's 'Smart' brain: look at what you asked and pick the best brain you have for it.
+    Cloud brains are used only if you added their keys and offline-only is off; huge local brains
+    (>12 GB, e.g. qwen3-coder:30b) are skipped because they freeze the laptop."""
+    opts = opts or {}
+    avail = [m for m in list_models()["models"] if m["name"] != SMART and not (m["provider"] == "ollama" and m.get("size", 0) > 12e9)]
+    if not avail:
+        return "", "no brains"
+    if has_images:
+        v = [m for m in avail if "vision" in m["caps"]]
+        v.sort(key=lambda m: m["provider"] == "ollama")          # cloud vision first, else local
+        if v:
+            return v[0]["name"], "you sent a picture"
+    low = (text or "").lower()
+    task = "code" if opts.get("build") else "reason" if opts.get("math") or opts.get("think") else None
+    for name, pattern, prefs in _TASKS:
+        if task and name != task:
+            continue
+        if task or re.search(pattern, low):
+            for pref in prefs:
+                hit = next((m for m in avail if re.search(pref, m["name"].split(":", 2)[-1] if m["provider"] != "ollama" else m["name"])
+                            or re.search(pref, m["name"])), None)
+                if hit:
+                    return hit["name"], {"code": "coding", "reason": "thinking it through", "write": "writing",
+                                         "quick": "quick answer", "general": "general"}[name]
+    return avail[0]["name"], "general"
+
+
 def model_caps(name):
+    if name == SMART:
+        return ["completion", "tools", "vision"]
     if name.startswith("cloud:"):
         return providers.CLOUD_CAPS
     if name not in _caps:
@@ -246,7 +291,10 @@ def list_models():
         local = []
         notes.append(f"Local models unavailable: can't reach Ollama at {OLLAMA}. Is it running?")
     cloud, cloud_notes = providers.cloud_models(load_settings())
-    return {"models": local + cloud, "notes": notes + cloud_notes}
+    smart = [{"name": SMART, "label": "✨ Smart: best brain for each reply", "provider": SMART, "provider_label": "Smart",
+              "caps": ["completion", "tools", "vision"], "offline": True, "size": 0,
+              "summary": "Picks the best brain you have for each message: coding, writing, thinking, pictures or quick chat"}]
+    return {"models": (smart if local or cloud else []) + local + cloud, "notes": notes + cloud_notes}
 
 
 SCREENS = DATA / "screen_memory"
@@ -265,7 +313,7 @@ def watch_model():
     choice = load_settings()["screen_watch_model"]
     if choice and choice != "auto":
         return choice
-    return next((m["name"] for m in list_models()["models"] if m["offline"] and "vision" in m["caps"]), "")
+    return next((m["name"] for m in list_models()["models"] if m["offline"] and "vision" in m["caps"] and m["name"] != SMART), "")
 
 
 def screen_check(image):
@@ -302,7 +350,9 @@ def autofill(b):
     s = load_settings()
     model = b.get("model") or "auto"
     if model == "auto":
-        model = s["default_model"] or next((m["name"] for m in list_models()["models"]), "")
+        model = s["default_model"] or SMART
+    if model == SMART:
+        model = smart_pick("write fill form", False)[0]
     if not model:
         raise ValueError("No AI brain is set up yet.")
     fields = b.get("fields") or []
@@ -1383,6 +1433,13 @@ class Handler(BaseHTTPRequestHandler):
     def run_chat(self, chat, b, emit):
         opts = {k: bool(b.get(k)) for k in ("tools", "think", "research", "math", "build", "browser", "autopilot")}
         model = b["model"]
+        if model == SMART:
+            last = next((m for m in reversed(chat["messages"]) if m["role"] == "user"), {})
+            model, why = smart_pick(last.get("content", ""), bool(last.get("images")), opts)
+            if not model:
+                return emit({"type": "error", "message": "No AI brain is available yet."})
+            emit({"type": "notice", "text": f"✨ {providers.model_id(model)} ({why})"})
+            b = {**b, "model": model}
         if opts["math"]:
             model = math_model(model)
             if model != b["model"]:
@@ -1427,8 +1484,10 @@ class Handler(BaseHTTPRequestHandler):
         """OpenAI-style chat for your other systems (device manager, scripts, Friday…): any brain, plus
         Friday's memory of you when they don't send their own system prompt."""
         model = b.get("model") or ""
-        if model in ("", "auto", "default", "friday", "jarvis"):
-            model = load_settings()["default_model"] or next((m["name"] for m in list_models()["models"]), "")
+        if model in ("", "auto", "default", "friday", "jarvis", SMART):
+            last = next((m.get("content") for m in reversed(b.get("messages") or []) if m.get("role") == "user"), "")
+            model = load_settings()["default_model"] if model != SMART and load_settings()["default_model"] not in ("", SMART) \
+                else smart_pick(last if isinstance(last, str) else json.dumps(last), False)[0]
         system, msgs = [], []
         for m in b.get("messages") or []:
             content = m.get("content")
