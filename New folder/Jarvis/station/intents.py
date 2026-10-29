@@ -68,6 +68,14 @@ def quick_intent(text: str) -> list[dict] | None:
     if not t:
         return None
 
+    if m := re.match(r"^(?:start|launch|open|run)\s+(aider|opencode|open code|goose|cline)(?:\s+(?:in|on)\s+(.+?))?[.!?]*$", original, re.IGNORECASE):
+        tool = m.group(1).lower().replace(" ", "")          # local coding agents, each in its own terminal tab
+        where = (m.group(2) or "").strip()
+        from pathlib import Path
+        folder = where if re.match(r"^[A-Za-z]:\\", where) else str(Path.home() / "Projects" / where)
+        cmd = (f'New-Item -ItemType Directory -Force "{folder}" | Out-Null; '
+               f'Start-Process wt -ArgumentList \'new-tab --title {tool} powershell -NoExit -ExecutionPolicy Bypass -File C:\\Tools\\safe.ps1 {tool} "{folder}"\'')
+        return [{"type": "shell", "command": cmd}]
     if m := re.match(r"^(?:find|search for|look for|pull up)\s+(?:my|the)\s+(.+?)[.!?]*$", original, re.IGNORECASE):
         return [{"type": "find", "target": m.group(1)}]       # "find my HSE resume" → search the PC for it
     if m := re.match(r"^(?:open|launch|start|go to)\s+(.+?)[.!?]*$", original, re.IGNORECASE):
