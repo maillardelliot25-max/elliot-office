@@ -225,9 +225,8 @@ $("#hdBtn").classList.toggle("on", hd);
 // Picture size: the phone's real pixels (long side, so landscape is sharp), capped for speed
 function screenWidth() {
   const dpr = window.devicePixelRatio || 1;
-  const long = Math.max(wrap.clientWidth, document.fullscreenElement ? screen.width : 0,
-    matchMedia("(orientation: landscape)").matches ? window.innerWidth : 0) * dpr;
-  return Math.max(640, Math.min(hd ? 1920 : 1366, Math.round(long) || 1280));
+  const long = Math.max(wrap.clientWidth, screen.width, screen.height, window.innerWidth, window.innerHeight) * dpr;
+  return Math.max(1280, Math.min(hd ? 1920 : 1600, Math.round(long) || 1600));   // always the full long side: sharp in landscape
 }
 function showFrame(blob) {
   const url = URL.createObjectURL(blob);
@@ -371,7 +370,7 @@ $("#fsBtn").addEventListener("click", async () => {
   try { await wrap.requestFullscreen({ navigationUI: "hide" }); await screen.orientation?.lock?.("landscape"); } catch {}
 });
 // Phone turned sideways on the live screen: the PC fills the whole screen, controls float on top
-const landscapeMq = matchMedia("(orientation: landscape) and (max-height: 600px)");
+const landscapeMq = matchMedia("(orientation: landscape) and (max-height: 700px)");
 const syncLandscape = () => document.body.classList.toggle("screen-land", landscapeMq.matches && activeTab === "screen");
 landscapeMq.addEventListener?.("change", syncLandscape);
 window.addEventListener("resize", syncLandscape);
