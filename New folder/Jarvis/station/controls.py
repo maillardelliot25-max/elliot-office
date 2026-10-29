@@ -126,26 +126,39 @@ class PCControl:
 
     def screenshot(self, width: int = 1280, quality: int = 60) -> tuple[bytes, int, int]:
         """JPEG of the main screen, scaled to `width`. Returns (jpeg, screen_w, screen_h)."""
+        jpeg, _, full_w, full_h = self.screen_frame(width, quality)
+        return jpeg, full_w, full_h
+
+    def screen_frame(self, width: int = 1280, quality: int = 60, last_sig: bytes | None = None,
+                     sharp: bool = False) -> tuple[bytes | None, bytes, int, int]:
+        """One frame for the live screen: (jpeg or None if nothing changed since last_sig, signature, w, h).
+        Skipping unchanged frames keeps the phone's picture fresh without wasting the connection."""
         from PIL import Image, ImageDraw
         img = self.grab_image()
         full_w, full_h = img.size
 
         # Draw the mouse cursor so you can see it on the phone
+        cursor = (0, 0)
         try:
             cx, cy = self.gui.position()
             sw, sh = self.gui.size()
             x, y = cx * full_w / sw, cy * full_h / sh
+            cursor = (int(x), int(y))
             r = max(6, full_w // 200)
             draw = ImageDraw.Draw(img)
             draw.ellipse((x - r, y - r, x + r, y + r), outline=(255, 60, 60), width=max(2, r // 3))
         except Exception:
             pass
 
-        if width and full_w > width:
-            img = img.resize((width, round(full_h * width / full_w)), Image.BILINEAR)
+        sig = img.resize((96, 54), Image.NEAREST).tobytes() + repr(cursor).encode()
+        if last_sig is not None and sig == last_sig:
+            return None, sig, full_w, full_h
+        if width and full_w > width:   # reducing_gap: sharp text at near-bilinear speed
+            img = img.resize((width, round(full_h * width / full_w)), Image.BILINEAR, reducing_gap=2.0)
         buf = io.BytesIO()
-        img.convert("RGB").save(buf, "JPEG", quality=max(10, min(int(quality), 95)))
-        return buf.getvalue(), full_w, full_h
+        img.convert("RGB").save(buf, "JPEG", quality=max(10, min(int(quality), 95)),
+                                subsampling=0 if sharp else 2)
+        return buf.getvalue(), sig, full_w, full_h
 
     # ── Mouse ────────────────────────────────────────────────────────────────
 

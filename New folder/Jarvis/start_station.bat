@@ -18,6 +18,8 @@ rem Watchdog: if the station ever stops or crashes, restart it (backoff up to 60
 set WAIT=5
 :loop
 .venv\Scripts\python.exe -m station
+rem Another copy (e.g. the Jarvis app) took over and is serving: this window's job is done.
+netstat -ano | findstr /r /c:":8780 .*LISTENING" >nul && exit /b 0
 echo.
 echo  Station stopped - restarting in %WAIT%s (close this window to stop Jarvis for good)
 timeout /t %WAIT% >nul

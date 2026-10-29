@@ -701,3 +701,32 @@ def test_insights_api_and_claude_tool(station, monkeypatch):
     text = mcp_server.my_activity("2026-10-22")
     assert "WINWORD 2 min" in text and "Busiest hour: 14:00" in text
     assert "No screen activity" in mcp_server.my_activity("2026-01-01")
+
+
+def test_singleton_claims_free_port_and_hands_over(tmp_path):
+    import json
+    import os
+    import socket
+    from station import singleton
+    s = socket.socket(); s.bind(("127.0.0.1", 0)); port = s.getsockname()[1]; s.close()
+    assert singleton.claim(tmp_path, "127.0.0.1", port, wait=1)
+    assert json.loads((tmp_path / "jarvis.pid").read_text())["pid"] == os.getpid()
+    singleton.release(tmp_path)
+    assert not (tmp_path / "jarvis.pid").exists()
+    busy = socket.socket(); busy.bind(("127.0.0.1", port)); busy.listen()
+    try:   # busy with something that isn't Jarvis: waits, then gives up waiting and carries on
+        assert not singleton.port_free("127.0.0.1", port)
+        assert singleton.claim(tmp_path, "127.0.0.1", port, wait=1)
+    finally:
+        busy.close()
+
+
+def test_start_ruflo_intent():
+    import base64
+    from station.intents import quick_intent
+    acts = quick_intent("Jarvis, start ruflo research beach venues; draft a pitch")
+    assert acts and acts[0]["type"] == "shell"
+    cmd = acts[0]["command"]
+    assert "start-ruflo.ps1" in cmd
+    b64 = cmd.split("-TaskB64 ")[1].split("'")[0]
+    assert base64.b64decode(b64).decode() == "research beach venues; draft a pitch"

@@ -4,6 +4,8 @@ Start the God Station:   python -m station
 
 import logging
 import socket
+import sys
+import time
 
 import uvicorn
 
@@ -55,9 +57,13 @@ def install_bundled_wheels():
                     "--no-index", "--find-links", str(wheels), "webauthn"], timeout=180)
 
 
-def reload_on_update():
+SERVER = {}   # the running uvicorn server, so an update can close port 8780 before exiting
+
+
+def reload_on_update(host: str = "0.0.0.0", port: int = 8780):
     """Updates apply by themselves: when Jarvis's code changes on disk, exit; the Jarvis/Friday app
-    (or start_station.bat's loop) starts him again within seconds with the new code. No PC restart."""
+    (or start_station.bat's loop) starts him again within seconds with the new code. No PC restart.
+    The port is closed first, so the new copy can always take it."""
     import os
     import time
     from pathlib import Path
@@ -73,6 +79,14 @@ def reload_on_update():
         if now != before:
             time.sleep(3)              # let the rest of the update finish copying
             print("  Jarvis was updated: restarting with the new version…", flush=True)
+            server = SERVER.get("server")
+            if server is not None:
+                server.should_exit = True          # stop listening and finish open requests
+                from station.singleton import port_free
+                for _ in range(40):                # up to 8 s for the port to be released
+                    if port_free(host, port):
+                        break
+                    time.sleep(0.2)
             os._exit(3)
 
 
@@ -112,6 +126,10 @@ def main():
     print("  then open http://192.168.137.1:" + str(config.port))
     print("=" * 60, flush=True)
 
+    from station import singleton
+    if not singleton.claim(config.data_dir, config.host, config.port):
+        sys.exit(0)                     # the latest Jarvis is already running: nothing to do
+
     from station.server import create_app  # prints the pairing PIN
     app = create_app(config)
 
@@ -135,23 +153,46 @@ def main():
                 pass
     import threading
     threading.Thread(target=publish_https, daemon=True).start()
-    threading.Thread(target=reload_on_update, daemon=True).start()
+    threading.Thread(target=reload_on_update, args=(config.host, config.port), daemon=True).start()
 
-    uvicorn.run(app, host=config.host, port=config.port, log_level="warning")
+    try:
+        for attempt in range(6):         # the port can take a moment to be released by an old copy
+            server = uvicorn.Server(uvicorn.Config(app, host=config.host, port=config.port, log_level="warning"))
+            SERVER["server"] = server
+            try:
+                server.run()
+            except SystemExit:
+                if server.started or attempt == 5:
+                    raise
+            if server.started:
+                break
+            print("  Port busy, retrying…", flush=True)
+            time.sleep(2)
+    finally:
+        singleton.release(config.data_dir)
+
+
+def _note_crash():
+    """Leave a note next to Jarvis's data so a crash can be diagnosed."""
+    import traceback
+    from datetime import datetime
+    from pathlib import Path
+    try:
+        from station.config import StationConfig
+        d = StationConfig.from_env().data_dir
+    except Exception:
+        d = Path("station_data")
+    with open(Path(d) / "crash.log", "a", encoding="utf-8") as f:
+        f.write(f"\n--- {datetime.now().isoformat(timespec='seconds')}\n{traceback.format_exc()}")
 
 
 if __name__ == "__main__":
     try:
         main()
-    except BaseException:   # leave a note next to Jarvis's data so a crash can be diagnosed
-        import traceback
-        from datetime import datetime
-        from pathlib import Path
-        try:
-            from station.config import StationConfig
-            d = StationConfig.from_env().data_dir
-        except Exception:
-            d = Path("station_data")
-        with open(Path(d) / "crash.log", "a", encoding="utf-8") as f:
-            f.write(f"\n--- {datetime.now().isoformat(timespec='seconds')}\n{traceback.format_exc()}")
+    except SystemExit as e:
+        if e.code not in (0, None):   # exit 0 = the latest Jarvis was already running: not a crash
+            _note_crash()
+        raise
+    except BaseException:
+        _note_crash()
         raise

@@ -16,7 +16,7 @@ from pathlib import Path
 
 from fastapi import Depends, FastAPI, File, Form, Header, HTTPException, Query, Request, UploadFile
 from fastapi.concurrency import run_in_threadpool
-from fastapi.responses import FileResponse, Response
+from fastapi.responses import FileResponse, Response, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
@@ -467,6 +467,43 @@ def create_app(config: StationConfig, control: PCControl | None = None,
         jpeg, sw, sh = await call(control.screenshot, w, q)
         return Response(jpeg, media_type="image/jpeg",
                         headers={"Cache-Control": "no-store", "X-Screen-Size": f"{sw}x{sh}"})
+
+    @app.get("/api/screen/stream")
+    async def screen_stream(request: Request, w: int = Query(1280, ge=320, le=3840), q: int = Query(65, ge=10, le=95),
+                            fps: int = Query(15, ge=1, le=30), sharp: bool = Query(False), _: str = Depends(device)):
+        """Live screen as one continuous stream (no request per frame, so far less delay over Tailscale).
+        Each frame: 4-byte big-endian length, then the JPEG. Unchanged frames are skipped; an empty
+        frame (length 0) every 2 s keeps the connection alive. The screen size is in X-Screen-Size."""
+        frame = getattr(control, "screen_frame", None)
+        first = await call(control.screenshot, w, q)
+
+        async def frames():
+            yield len(first[0]).to_bytes(4, "big") + first[0]
+            sig, idle, gap = None, 0.0, 1 / fps
+            loop = asyncio.get_running_loop()
+            while not await request.is_disconnected():
+                t0 = loop.time()
+                try:
+                    if frame:
+                        jpeg, sig, _, _ = await run_in_threadpool(frame, w, q, sig, sharp)
+                    else:
+                        jpeg = (await run_in_threadpool(control.screenshot, w, q))[0]
+                except Exception:
+                    await asyncio.sleep(1)
+                    continue
+                if jpeg:
+                    idle = 0.0
+                    yield len(jpeg).to_bytes(4, "big") + jpeg
+                else:
+                    idle += gap
+                    if idle >= 2:
+                        idle = 0.0
+                        yield b"\0\0\0\0"
+                await asyncio.sleep(max(0.0, gap - (loop.time() - t0)))
+
+        return StreamingResponse(frames(), media_type="application/octet-stream",
+                                 headers={"Cache-Control": "no-store", "X-Accel-Buffering": "no",
+                                          "X-Screen-Size": f"{first[1]}x{first[2]}"})
 
     @app.post("/api/mouse")
     async def mouse(body: MouseBody, _: str = Depends(device)):

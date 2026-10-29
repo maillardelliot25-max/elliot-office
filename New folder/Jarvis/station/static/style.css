@@ -294,3 +294,22 @@ input:focus, textarea:focus { border-color: var(--accent); }
   .tab { max-width: 1100px; width: 100%; margin: 0 auto; }
   .stats { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 }
+
+/* Phone sideways on the live screen: the PC picture fills the whole phone, controls float over it */
+body.screen-land { overflow: hidden; }
+body.screen-land .screen-wrap {
+  position: fixed; inset: 0; z-index: 40; border: 0; border-radius: 0; min-height: 0;
+  display: grid; place-items: center; background: #000;
+}
+body.screen-land .screen-wrap img { width: 100vw; height: 100dvh; max-height: none; max-width: none; object-fit: contain; }
+body.screen-land .tab[data-tab="screen"] .toolbar {
+  position: fixed; right: max(8px, env(safe-area-inset-right)); top: 8px; z-index: 41; margin: 0;
+  flex-direction: column; width: auto; opacity: .35; transition: opacity .2s;
+}
+body.screen-land .tab[data-tab="screen"] .toolbar:hover,
+body.screen-land .tab[data-tab="screen"] .toolbar:focus-within,
+body.screen-land .tab[data-tab="screen"] .toolbar:active { opacity: .95; }
+body.screen-land .tab[data-tab="screen"] .toolbar .seg { flex-direction: column; flex: none; }
+body.screen-land .tab[data-tab="screen"] .typebar,
+body.screen-land .tab[data-tab="screen"] .keys { display: none; }
+body.screen-land header, body.screen-land nav, body.screen-land .nav { visibility: hidden; }

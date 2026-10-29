@@ -68,6 +68,12 @@ def quick_intent(text: str) -> list[dict] | None:
     if not t:
         return None
 
+    if m := re.match(r"^(?:start|run|launch)\s+ruflo\s+(?:on\s+|to\s+)?(.+?)[.!?]*$", original, re.IGNORECASE | re.DOTALL):
+        import base64                                        # Ruflo hive, Friday as queen, in its own terminal tab
+        task = base64.b64encode(m.group(1).strip().encode("utf-8")).decode()
+        cmd = (f"Start-Process wt -ArgumentList 'new-tab --title ruflo powershell -NoExit -ExecutionPolicy Bypass "
+               f"-File C:\\Tools\\ruflo\\start-ruflo.ps1 -TaskB64 {task}'")
+        return [{"type": "shell", "command": cmd}]
     if m := re.match(r"^(?:start|launch|open|run)\s+(aider|opencode|open code|goose|cline)(?:\s+(?:in|on)\s+(.+?))?[.!?]*$", original, re.IGNORECASE):
         tool = m.group(1).lower().replace(" ", "")          # local coding agents, each in its own terminal tab
         where = (m.group(2) or "").strip()

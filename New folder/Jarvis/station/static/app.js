@@ -222,30 +222,72 @@ let mode = "click";
 try { hd = localStorage.getItem("station_hd") === "1"; } catch {}
 $("#hdBtn").classList.toggle("on", hd);
 
+// Picture size: the phone's real pixels (long side, so landscape is sharp), capped for speed
+function screenWidth() {
+  const dpr = window.devicePixelRatio || 1;
+  const long = Math.max(wrap.clientWidth, document.fullscreenElement ? screen.width : 0,
+    matchMedia("(orientation: landscape)").matches ? window.innerWidth : 0) * dpr;
+  return Math.max(640, Math.min(hd ? 1920 : 1366, Math.round(long) || 1280));
+}
+function showFrame(blob) {
+  const url = URL.createObjectURL(blob);
+  const old = img.src;
+  img.src = url;
+  if (old.startsWith("blob:")) setTimeout(() => URL.revokeObjectURL(old), 1000);
+  wrap.classList.add("live");
+  $("#connDot").className = "dot ok";
+}
+
+// One continuous stream of frames: no round trip per frame, so much less delay
+let streamCtl = null, streamBroken = 0;
+async function screenStream() {
+  streamCtl = new AbortController();
+  const w = screenWidth(), myHd = hd;
+  const r = await fetch(`/api/screen/stream?w=${w}&q=${hd ? 82 : 68}&fps=${hd ? 12 : 15}&sharp=${hd ? 1 : 0}`,
+    { headers: { Authorization: `Bearer ${token}` }, signal: streamCtl.signal });
+  if (r.status === 401) { if (token) logout(); else showPair(); throw new Error("This device isn't paired"); }
+  if (!r.ok || !r.body) throw new Error(r.statusText || "no stream");
+  const reader = r.body.getReader();
+  let buf = new Uint8Array(0), latest = null, drawing = false;
+  const draw = () => { if (latest) { showFrame(latest); latest = null; } drawing = false; };
+  while (activeTab === "screen" && !document.hidden && token && hd === myHd && Math.abs(screenWidth() - w) < 200) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    const n = new Uint8Array(buf.length + value.length); n.set(buf); n.set(value, buf.length); buf = n;
+    while (buf.length >= 4) {
+      const len = (buf[0] << 24 | buf[1] << 16 | buf[2] << 8 | buf[3]) >>> 0;
+      if (buf.length < 4 + len) break;
+      if (len) latest = new Blob([buf.subarray(4, 4 + len)], { type: "image/jpeg" });   // only the newest frame is shown
+      buf = buf.slice(4 + len);
+    }
+    if (latest && !drawing) { drawing = true; requestAnimationFrame(draw); }
+    streamBroken = 0;
+  }
+  streamCtl.abort();
+}
+
 async function screenLoop() {
   if (screenRunning) return;
   screenRunning = true;
   let failures = 0;
   while (activeTab === "screen" && !document.hidden && token) {
     try {
-      const w = hd ? 1600 : Math.min(1280, Math.round(wrap.clientWidth * (window.devicePixelRatio || 1)) || 1024);
-      const r = await api(`/api/screen?w=${Math.max(320, w)}&q=${hd ? 75 : 50}`, { raw: true });
-      const url = URL.createObjectURL(await r.blob());
-      const old = img.src;
-      img.src = url;
-      if (old.startsWith("blob:")) setTimeout(() => URL.revokeObjectURL(old), 1000);
-      wrap.classList.add("live");
-      $("#connDot").className = "dot ok";
+      if (streamBroken < 3) { await screenStream(); failures = 0; continue; }
+      const r = await api(`/api/screen?w=${screenWidth()}&q=${hd ? 82 : 65}`, { raw: true });   // fallback: one picture at a time
+      showFrame(await r.blob());
       failures = 0;
       await sleep(60);
     } catch (e) {
+      if (e.name === "AbortError") continue;
+      streamBroken++;
       failures++;
       wrap.classList.remove("live");
       $("#screenMsg").textContent = "Can't see the screen: " + e.message;
       $("#connDot").className = "dot bad";
-      await sleep(Math.min(5000, 800 * failures));
+      await sleep(Math.min(5000, 400 * failures));
     }
   }
+  streamCtl?.abort();
   screenRunning = false;
 }
 document.addEventListener("visibilitychange", () => { if (!document.hidden && activeTab === "screen") screenLoop(); });
@@ -320,13 +362,20 @@ wrap.addEventListener("wheel", (e) => { if (mode !== "view") { e.preventDefault(
 $$("[data-scroll]").forEach((b) => b.addEventListener("click", () => mouse({ action: "scroll", dy: +b.dataset.scroll })));
 $("#hdBtn").addEventListener("click", () => {
   hd = !hd;
+  streamBroken = 0;
   $("#hdBtn").classList.toggle("on", hd);
   try { localStorage.setItem("station_hd", hd ? "1" : "0"); } catch {}
 });
 $("#fsBtn").addEventListener("click", async () => {
   if (document.fullscreenElement) return document.exitFullscreen();
-  try { await wrap.requestFullscreen(); await screen.orientation?.lock?.("landscape"); } catch {}
+  try { await wrap.requestFullscreen({ navigationUI: "hide" }); await screen.orientation?.lock?.("landscape"); } catch {}
 });
+// Phone turned sideways on the live screen: the PC fills the whole screen, controls float on top
+const landscapeMq = matchMedia("(orientation: landscape) and (max-height: 600px)");
+const syncLandscape = () => document.body.classList.toggle("screen-land", landscapeMq.matches && activeTab === "screen");
+landscapeMq.addEventListener?.("change", syncLandscape);
+window.addEventListener("resize", syncLandscape);
+setInterval(syncLandscape, 1000);
 
 $("#typeForm").addEventListener("submit", async (e) => {
   e.preventDefault();
