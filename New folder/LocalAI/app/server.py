@@ -103,7 +103,7 @@ DEFAULT_SETTINGS = {
 SECRET_KEYS = {"google_api_key", "anthropic_api_key", "openai_api_key", "jarvis_token"}
 
 MAX_TOOL_ROUNDS = 30
-NEEDS_APPROVAL = {"write_file", "edit_file", "run_command", "run_python", "generate_video"}
+NEEDS_APPROVAL = {"coding_agent", "write_file", "edit_file", "run_command", "run_python", "generate_video"}
 
 _lock = threading.Lock()
 _approvals = {}   # approval id -> {"event": Event, "allow": bool}
@@ -592,6 +592,13 @@ TOOLS = [
     {"name": "recall", "description": "Search long-term memory and all past conversations, e.g. 'what did we decide about "
      "the logo last week', 'that recipe I liked'.",
      "params": {"query": "Keywords to look for"}, "required": ["query"]},
+    {"name": "coding_agent", "description": "Hand a bigger coding job to one of Elliot's local coding agents, opened in its own "
+     "terminal window on the PC where he approves every change (Git checkpoint first). Use it when he asks to build, fix or "
+     "change a real project/app/website, or to automate a task on the PC. agent: 'auto' picks the best one — aider (change or "
+     "fix an existing project), opencode (build something new, many files), goose (automate the PC: install, run, set up), "
+     "cline (work in VS Code).",
+     "params": {"task": "What to do, in detail", "project": "Project folder name (under Projects) or full path",
+                "agent": "auto, aider, opencode, goose or cline"}, "required": ["task"]},
 ]
 
 TOOL_SCHEMAS = {t["name"]: t for t in TOOLS + jarvis_link.TOOLS}
@@ -727,7 +734,56 @@ def run_tool(name, args, chat=None, progress=lambda msg: None, model=""):
         return f"Forgot: {hit['text']}" if hit else "Nothing like that was in memory."
     if name == "recall":
         return recall(a["query"], chat)
+    if name == "coding_agent":
+        return launch_coding_agent(a["task"], a.get("project") or "", a.get("agent") or "auto")
     return f"Unknown tool {name}"
+
+
+def pick_coding_agent(task: str, folder: Path) -> tuple[str, str]:
+    t = task.lower()
+    if re.search(r"vs ?code|cline", t):
+        return "cline", "you mentioned VS Code"
+    if re.search(r"\b(install|set ?up|configure|automate|schedule|clean up|organi[sz]e|rename|move|download|run)\b", t) \
+            and not re.search(r"\b(app|website|site|page|code|bug)\b", t):
+        return "goose", "automating the PC"
+    if (folder / ".git").exists() and any(folder.iterdir()) and re.search(r"\b(fix|change|update|add|refactor|improve|bug|edit)\b", t):
+        return "aider", "changing an existing project (Git-aware edits, /undo)"
+    return "opencode", "building something new"
+
+
+def launch_coding_agent(task: str, project: str, agent: str = "auto") -> str:
+    """Open the chosen agent in its own terminal tab, Git-checkpointed, with the task ready. Elliot approves each change."""
+    if os.name != "nt":
+        return "Coding agents run on the Windows PC only."
+    home = Path.home()
+    folder = Path(project) if re.match(r"^[A-Za-z]:\\", project) else home / "Projects" / (re.sub(r"[^\w\- ]", "", project).strip() or "scratch")
+    folder.mkdir(parents=True, exist_ok=True)
+    why = "you asked for it"
+    if agent not in ("aider", "opencode", "goose", "cline"):
+        agent, why = pick_coding_agent(task, folder)
+    (folder / ".friday-task.md").write_text(task, "utf-8")
+    subprocess.run(["powershell", "-NoProfile", "-Command", "Set-Clipboard -Value (Get-Content -Raw $args[0])",
+                    str(folder / ".friday-task.md")], capture_output=True, timeout=20)
+    q = task.replace('"', "'").replace("\n", " ")[:600]
+    start = {"opencode": f'opencode --prompt "{q}"', "goose": f'goose run -t "{q}" --interactive',
+             "aider": "aider .friday-task.md", "cline": "cline"}[agent]
+    inner = (f"Set-Location '{folder}'; if (-not (Test-Path .git)) {{ git init -q }}; git add -A; "
+             f"git commit -qm 'checkpoint before {agent}' 2>$null; Write-Host 'Task (also on your clipboard): {q[:200]}'; {start}")
+    try:
+        subprocess.Popen(["wt", "new-tab", "--title", f"{agent}: {folder.name}", "powershell", "-NoExit",
+                          "-ExecutionPolicy", "Bypass", "-Command", inner])
+    except FileNotFoundError:
+        subprocess.Popen(["powershell", "-NoExit", "-ExecutionPolicy", "Bypass", "-Command", inner],
+                         creationflags=getattr(subprocess, "CREATE_NEW_CONSOLE", 0))
+    try:
+        vault = home / "Documents" / "Jarvis Vault" / "Agents"
+        vault.mkdir(parents=True, exist_ok=True)
+        with open(vault / "coding-sessions.md", "a", encoding="utf-8") as f:
+            f.write(f"- {datetime.now():%Y-%m-%d %H:%M} Friday → {agent} in {folder}: {task[:150]}\n")
+    except OSError:
+        pass
+    return (f"Started {agent} ({why}) in {folder} in its own terminal window on the PC, with a Git checkpoint. "
+            f"The task is ready there and on the clipboard; Elliot approves each change. Undo: /undo or git reset --hard.")
 
 
 def describe_screenshot(image, model=""):
@@ -1438,6 +1494,8 @@ class Handler(BaseHTTPRequestHandler):
             model, why = smart_pick(last.get("content", ""), bool(last.get("images")), opts)
             if not model:
                 return emit({"type": "error", "message": "No AI brain is available yet."})
+            if why == "coding" and "tools" in model_caps(model):
+                opts["tools"] = True          # lets Friday hand big jobs to Aider / OpenCode / Goose / Cline
             emit({"type": "notice", "text": f"✨ {providers.model_id(model)} ({why})"})
             b = {**b, "model": model}
         if opts["math"]:
