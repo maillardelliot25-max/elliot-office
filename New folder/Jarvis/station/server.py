@@ -8,6 +8,7 @@ The phone app talks to these endpoints. Every /api route except
 import asyncio
 import threading
 import os
+import re
 import logging
 from datetime import datetime
 from contextlib import asynccontextmanager
@@ -271,31 +272,49 @@ def create_app(config: StationConfig, control: PCControl | None = None,
             raise HTTPException(400, str(e))
 
     def find_and_open(query: str) -> dict:
-        """Search Elliot's own folders for a file whose name has all the words; open the newest match."""
+        """Search Elliot's folders for the file he means ("my most recent HSE resume") and open the best match:
+        most matching words first, documents before other files, newest first."""
         import time
-        words = [w for w in query.lower().replace("_", " ").split() if w not in ("my", "the", "a", "file")]
+        filler = {"my", "the", "a", "an", "file", "files", "document", "doc", "most", "recent", "latest", "newest",
+                  "last", "new", "old", "one", "copy", "version", "please", "for", "me", "of", "it's", "its", "with", "in", "title"}
+        syn = {"resume": ["resume", "cv", "résumé"], "cv": ["cv", "resume"], "invoice": ["invoice", "bill"]}
+        words = [w for w in re.split(r"[\s_\-]+", query.lower()) if w and w not in filler]
+        if not words:
+            words = ["resume"] if "resume" in query.lower() else []
         if not words:
             raise ControlError("What file should I look for?")
+        last_find.update(query=" ".join(words), at=time.time())
         home, hits, t0 = Path.home(), [], time.time()
         roots = [home / d for d in ("Desktop", "Documents", "Downloads", "OneDrive", "Pictures")]
-        skip = {"node_modules", ".git", ".venv", "AppData", "__pycache__", "site-packages"}
+        skip = {"node_modules", ".git", ".venv", "AppData", "__pycache__", "site-packages", "station_data", "Jarvis Vault"}
+        doc = (".pdf", ".docx", ".doc", ".pptx", ".xlsx", ".txt", ".odt")
         for root in roots:
             for dirpath, dirs, names in os.walk(root):
                 dirs[:] = [d for d in dirs if d not in skip and not d.startswith(".")]
                 for n in names:
                     low = n.lower()
-                    if all(w in low for w in words):
-                        hits.append(Path(dirpath) / n)
+                    score = sum(any(v in low for v in syn.get(w, [w])) for w in words)
+                    if score:
+                        p = Path(dirpath) / n
+                        try:
+                            hits.append((score, p.suffix.lower() in doc, p.stat().st_mtime, p))
+                        except OSError:
+                            pass
                 if time.time() - t0 > 8:
                     break
-        if not hits and len(words) > 1:      # loosen: any word, prefer documents
-            return find_and_open(max(words, key=len))
         if not hits:
-            raise ControlError(f"I couldn't find a file with “{query}” in its name.")
-        doc = (".pdf", ".docx", ".doc", ".pptx", ".xlsx", ".txt")
-        hits.sort(key=lambda p: (p.suffix.lower() in doc, p.stat().st_mtime), reverse=True)
-        control.open(str(hits[0]))
-        return {"opened": str(hits[0]), "others": [str(h) for h in hits[1:5]]}
+            raise ControlError(f"I couldn't find a file matching “{' '.join(words)}”.")
+        hits.sort(key=lambda h: (h[0], h[1], h[2]), reverse=True)
+        best = hits[0][3]
+        control.open(str(best))
+        from datetime import datetime as _dt
+        others = [h[3].name for h in hits[1:4]]
+        msg = f"Opened {best.name} (saved {_dt.fromtimestamp(hits[0][2]):%d %b %Y}) from {best.parent.name}."
+        if others:
+            msg += " Others I found: " + ", ".join(others) + "."
+        return {"message": msg, "opened": str(best), "others": others}
+
+    last_find: dict = {"query": "", "at": 0}
 
     def run_action_sync(action: dict) -> dict:
         t = action.get("type")
@@ -596,7 +615,11 @@ def create_app(config: StationConfig, control: PCControl | None = None,
             return {"reply": reply, "actions": [], "brain": "friday"}
 
         # 1. Instant commands — no AI needed
+        import time as _t
         actions = quick_intent(message)
+        follow = re.match(r"^(?:it'?s|its|the|it has|it had|try|called|named|it says|has)\s+(.+?)[.!?]*$", message.strip(), re.I)
+        if actions is None and follow and len(message) < 60 and _t.time() - last_find["at"] < 600:
+            actions = [{"type": "find", "target": f"{last_find['query']} {follow.group(1)}"}]   # "its hse" after a search
         if actions is not None:
             results = [await run_in_threadpool(execute, a, False) for a in actions]
             reply = _summarise(results)
