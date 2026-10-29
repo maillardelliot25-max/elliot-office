@@ -1550,11 +1550,13 @@ class Handler(BaseHTTPRequestHandler):
             last = next((m.get("content") for m in reversed(b.get("messages") or []) if m.get("role") == "user"), "")
             model = load_settings()["default_model"] if model != SMART and load_settings()["default_model"] not in ("", SMART) \
                 else smart_pick(last if isinstance(last, str) else json.dumps(last), False, {"build": bool(tools)})[0]
-        if tools and "tools" not in model_caps(model):     # the picked brain can't use tools: take one that can
+        auto = (b.get("model") or "") in ("", "auto", "default", "friday", "jarvis", SMART)
+        if tools and (auto or "tools" not in model_caps(model)):   # agents need a brain that really calls tools
             able = [m["name"] for m in list_models()["models"] if m["name"] != SMART and "tools" in m["caps"]
                     and not (m["provider"] == "ollama" and m.get("size", 0) > 12e9)]
-            model = next((n for pref in ("qwen3:8b", "qwen2.5-coder", "qwen3") for n in able if n.startswith(pref)),
-                         able[0] if able else model)
+            cloud = [n for n in able if n.startswith("cloud:")]   # e.g. Groq's free tier, once its key is added
+            model = (cloud[0] if cloud else None) or next((n for pref in ("qwen3:8b", "qwen3", "qwen2.5-coder") for n in able
+                                                           if n.startswith(pref)), able[0] if able else model)
         provider = providers.provider_of(model)
         system, msgs, names = [], [], {}
         for m in b.get("messages") or []:
