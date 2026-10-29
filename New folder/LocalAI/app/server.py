@@ -1539,14 +1539,24 @@ class Handler(BaseHTTPRequestHandler):
             self.wfile.write((json.dumps({"error": f"Can't reach Ollama at {OLLAMA}. Is it running?"}) + "\n").encode())
 
     def gateway_chat(self, b):
-        """OpenAI-style chat for your other systems (device manager, scripts, Friday…): any brain, plus
-        Friday's memory of you when they don't send their own system prompt."""
+        """OpenAI-style chat for your other systems (OpenCode, Goose, Cline, scripts, Jarvis…): any brain, plus
+        Friday's memory of you when they don't send their own system prompt. Tool calls pass straight through:
+        the client's tools go to the brain, and the brain's tool calls come back in OpenAI format."""
         model = b.get("model") or ""
+        tools = [t["function"] for t in b.get("tools") or [] if t.get("type", "function") == "function" and t.get("function")]
+        if b.get("tool_choice") == "none":
+            tools = []
         if model in ("", "auto", "default", "friday", "jarvis", SMART):
             last = next((m.get("content") for m in reversed(b.get("messages") or []) if m.get("role") == "user"), "")
             model = load_settings()["default_model"] if model != SMART and load_settings()["default_model"] not in ("", SMART) \
-                else smart_pick(last if isinstance(last, str) else json.dumps(last), False)[0]
-        system, msgs = [], []
+                else smart_pick(last if isinstance(last, str) else json.dumps(last), False, {"build": bool(tools)})[0]
+        if tools and "tools" not in model_caps(model):     # the picked brain can't use tools: take one that can
+            able = [m["name"] for m in list_models()["models"] if m["name"] != SMART and "tools" in m["caps"]
+                    and not (m["provider"] == "ollama" and m.get("size", 0) > 12e9)]
+            model = next((n for pref in ("qwen3:8b", "qwen2.5-coder", "qwen3") for n in able if n.startswith(pref)),
+                         able[0] if able else model)
+        provider = providers.provider_of(model)
+        system, msgs, names = [], [], {}
         for m in b.get("messages") or []:
             content = m.get("content")
             text, images = content if isinstance(content, str) else "", []
@@ -1558,11 +1568,44 @@ class Handler(BaseHTTPRequestHandler):
                         url = (part.get("image_url") or {}).get("url", "")
                         if url.startswith("data:") and "," in url:
                             images.append(url.split(",", 1)[1])
-            if m.get("role") == "system":
+            role = m.get("role")
+            if role in ("system", "developer"):
                 system.append(text)
-            elif m.get("role") in ("user", "assistant"):
-                msgs.append({"role": m["role"], "content": text, **({"images": images} if images else {})})
+            elif role == "user":
+                msgs.append({"role": "user", "content": text, **({"images": images} if images else {})})
+            elif role == "assistant":
+                entry = {"role": "assistant", "content": text}
+                calls = []
+                for c in m.get("tool_calls") or []:
+                    fn = c.get("function") or {}
+                    args = fn.get("arguments") or "{}"
+                    try:
+                        parsed = json.loads(args) if isinstance(args, str) else args
+                    except ValueError:
+                        parsed = {"__invalid__": args}
+                    cid = c.get("id") or f"call_{len(names)}"
+                    names[cid] = fn.get("name", "")
+                    calls.append({"id": cid, "name": fn.get("name", ""), "args": parsed})
+                if calls:   # replay the tool calls natively for whichever brain answers now
+                    entry["tool_calls"] = [{"id": c["id"], "function": {"name": c["name"], "arguments": c["args"]}} for c in calls]
+                    entry["provider"] = provider
+                    if provider == "anthropic":
+                        entry["raw"] = ([{"type": "text", "text": text}] if text else []) + \
+                            [{"type": "tool_use", "id": c["id"], "name": c["name"], "input": c["args"]} for c in calls]
+                    elif provider == "ollama":
+                        entry["raw"] = True
+                    else:
+                        entry["raw"] = {"role": "assistant", "content": text or None, "tool_calls": [
+                            {"id": c["id"], "type": "function", "function": {"name": c["name"], "arguments": json.dumps(c["args"])}}
+                            for c in calls]}
+                msgs.append(entry)
+            elif role == "tool":
+                cid = m.get("tool_call_id", "")
+                msgs.append({"role": "tool", "tool_call_id": cid, "tool_name": m.get("name") or names.get(cid, ""),
+                             "content": text or "(no output)"})
         prompt = "\n\n".join(system) or system_prompt(False, {"messages": msgs}, {})
+        brain_tools = [{"name": t.get("name", ""), "description": t.get("description", ""),
+                        "schema": t.get("parameters") or {"type": "object", "properties": {}}} for t in tools]
         stream, cid, created = bool(b.get("stream")), "chatcmpl-" + uuid.uuid4().hex[:24], int(time.time())
         chunk = lambda delta, finish=None: {"id": cid, "object": "chat.completion.chunk", "created": created, "model": model,
                                             "choices": [{"index": 0, "delta": delta, "finish_reason": finish}]}
@@ -1578,19 +1621,26 @@ class Handler(BaseHTTPRequestHandler):
                 self.wfile.flush()
 
         try:
-            msg, _, _ = providers.run_round(model, prompt, msgs, [], {"caps": model_caps(model)}, load_settings(),
-                                            emit, threading.Event())
+            msg, calls, _ = providers.run_round(model, prompt, msgs, brain_tools, {"caps": model_caps(model)}, load_settings(),
+                                                emit, threading.Event())
         except Exception as e:
             if stream:
                 self.wfile.write(f"data: {json.dumps({'error': {'message': str(e)}})}\n\n".encode())
                 return
             return self.send_json({"error": {"message": str(e), "type": "brain_error"}}, 502)
+        out_calls = [{"id": c["id"], "type": "function",
+                      "function": {"name": c["name"], "arguments": json.dumps(c["args"])}} for c in calls or []]
+        finish = "tool_calls" if out_calls else "stop"
         if stream:
-            self.wfile.write(f"data: {json.dumps(chunk({}, 'stop'))}\n\ndata: [DONE]\n\n".encode())
+            if out_calls:
+                self.wfile.write(f"data: {json.dumps(chunk({'tool_calls': [{'index': i, **c} for i, c in enumerate(out_calls)]}))}\n\n".encode())
+            self.wfile.write(f"data: {json.dumps(chunk({}, finish))}\n\ndata: [DONE]\n\n".encode())
             return
+        message = {"role": "assistant", "content": msg.get("content", "") or (None if out_calls else "")}
+        if out_calls:
+            message["tool_calls"] = out_calls
         self.send_json({"id": cid, "object": "chat.completion", "created": created, "model": model,
-                        "choices": [{"index": 0, "message": {"role": "assistant", "content": msg.get("content", "")},
-                                     "finish_reason": "stop"}],
+                        "choices": [{"index": 0, "message": message, "finish_reason": finish}],
                         "usage": {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0}})
 
     def stream_organize(self, b):

@@ -338,6 +338,8 @@ def to_openai(messages, system, provider):
 # ── Tool schemas per provider ────────────────────────────────────────────
 
 def _schema(t):
+    if t.get("schema"):          # a client's own JSON schema, passed through Friday's /v1 gateway untouched
+        return t["schema"]
     return {"type": "object",
             "properties": {k: {"type": "string", "description": v} for k, v in t["params"].items()},
             "required": t["required"]}
@@ -347,7 +349,9 @@ def claude_tools(tools, model):
     # Claude searches and reads the web with Anthropic's own server tools instead of ours
     defs = [{"name": t["name"], "description": t["description"], "input_schema": _schema(t),
              "eager_input_streaming": True}
-            for t in tools if t["name"] not in ("web_search", "fetch_url")]
+            for t in tools if t.get("schema") or t["name"] not in ("web_search", "fetch_url")]
+    if any(t.get("schema") for t in tools):   # an outside agent's own tools only: no server tools added
+        return defs
     if re.match(r"claude-(opus|sonnet)-", model):
         defs += [{"type": "web_search_20260209", "name": "web_search"}, {"type": "web_fetch_20260209", "name": "web_fetch"}]
     else:
