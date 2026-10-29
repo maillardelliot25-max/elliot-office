@@ -1554,7 +1554,7 @@ class Handler(BaseHTTPRequestHandler):
         if tools and (auto or "tools" not in model_caps(model)):   # agents need a brain that really calls tools
             able = [m["name"] for m in list_models()["models"] if m["name"] != SMART and "tools" in m["caps"]
                     and not (m["provider"] == "ollama" and m.get("size", 0) > 12e9)]
-            cloud = [n for n in able if n.startswith("cloud:")]   # e.g. Groq's free tier, once its key is added
+            cloud = [n for n in able if n.startswith("cloud:") and "groq" in n.lower() and not load_settings().get("offline_only")]   # e.g. Groq's free tier, once its key is added
             model = (cloud[0] if cloud else None) or next((n for pref in ("qwen3:8b", "qwen3", "qwen2.5-coder") for n in able
                                                            if n.startswith(pref)), able[0] if able else model)
         provider = providers.provider_of(model)
