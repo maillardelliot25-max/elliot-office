@@ -30,6 +30,7 @@ public class FridaySession extends VoiceInteractionSession {
     @Override
     public void onCreate() {
         super.onCreate();
+        Hotspot.clear(getContext());
         Window w = getWindow().getWindow();
         if (w != null) {
             w.setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
