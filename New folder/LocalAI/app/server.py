@@ -90,6 +90,7 @@ DEFAULT_SETTINGS = {
     "google_api_key": os.getenv("GOOGLE_API_KEY", ""),
     "anthropic_api_key": os.getenv("ANTHROPIC_API_KEY", ""),
     "openai_api_key": os.getenv("OPENAI_API_KEY", ""),
+    "task_brains": {},        # pinned brain per job for ✨ Smart: code, write, reason, quick, vision, general ("" = auto)
     "math_model": "auto",     # "auto" = the strongest cloud model you have a key for
     "auto_python": False,     # run the Python calculator without asking each time
     "image_provider": "gemini",              # "gemini" or "local"
@@ -237,6 +238,48 @@ _TASKS = [   # (task, words that signal it, preferred brains in order — first 
 ]
 
 
+SPEED_FILE = DATA / "brain_speed.json"
+_speed_lock = threading.Lock()
+
+
+def brain_speed() -> dict:
+    """Measured speed of each brain, in milliseconds: {model: {"first_ms", "total_ms", "n"}} (rolling averages)."""
+    try:
+        return json.loads(SPEED_FILE.read_text("utf-8"))
+    except (OSError, ValueError):
+        return {}
+
+
+def timed_round(model, system, messages, tools, opts, settings, emit, stop):
+    """providers.run_round, timing the first word and the whole reply in ms (for Smart's speed-aware picks)."""
+    t0, first = time.perf_counter(), [None]
+
+    def timed_emit(ev):
+        if first[0] is None and ev.get("type") in ("text", "thinking"):
+            first[0] = (time.perf_counter() - t0) * 1000
+        return emit(ev)
+
+    out = providers.run_round(model, system, messages, tools, opts, settings, timed_emit, stop)
+    total = (time.perf_counter() - t0) * 1000
+    try:
+        with _speed_lock:
+            sp = brain_speed()
+            r = sp.get(model) or {"first_ms": 0, "total_ms": 0, "n": 0}
+            k = 0.3 if r["n"] else 1.0                     # rolling average, recent replies count more
+            r["first_ms"] = round(r["first_ms"] * (1 - k) + (first[0] if first[0] is not None else total) * k)
+            r["total_ms"] = round(r["total_ms"] * (1 - k) + total * k)
+            r["n"] += 1
+            sp[model] = r
+            SPEED_FILE.write_text(json.dumps(sp, indent=1), "utf-8")
+    except Exception:
+        pass
+    return out
+
+
+TASK_WHY = {"code": "coding", "reason": "thinking it through", "write": "writing", "quick": "quick answer",
+            "general": "general", "vision": "you sent a picture"}
+
+
 def smart_pick(text: str, has_images: bool, opts: dict | None = None) -> tuple[str, str]:
     """Friday's 'Smart' brain: look at what you asked and pick the best brain you have for it.
     Cloud brains are used only if you added their keys and offline-only is off; huge local brains
@@ -245,23 +288,38 @@ def smart_pick(text: str, has_images: bool, opts: dict | None = None) -> tuple[s
     avail = [m for m in list_models()["models"] if m["name"] != SMART and not (m["provider"] == "ollama" and m.get("size", 0) > 12e9)]
     if not avail:
         return "", "no brains"
+    names = {m["name"] for m in avail}
+    pins = load_settings().get("task_brains") or {}
+    speed = brain_speed()
+    ms = lambda m: speed.get(m["name"], {}).get("first_ms", 10**7)     # unmeasured brains sort last on speed
     if has_images:
+        if pins.get("vision") in names:
+            return pins["vision"], TASK_WHY["vision"] + " · your pick"
         v = [m for m in avail if "vision" in m["caps"]]
-        v.sort(key=lambda m: m["provider"] == "ollama")          # cloud vision first, else local
+        v.sort(key=lambda m: (m["provider"] == "ollama", ms(m)))   # cloud vision first, else local; faster first
         if v:
-            return v[0]["name"], "you sent a picture"
+            return v[0]["name"], TASK_WHY["vision"]
     low = (text or "").lower()
     task = "code" if opts.get("build") else "reason" if opts.get("math") or opts.get("think") else None
+
+    def match(m, pref):
+        return re.search(pref, m["name"].split(":", 2)[-1] if m["provider"] != "ollama" else m["name"]) or re.search(pref, m["name"])
+
     for name, pattern, prefs in _TASKS:
         if task and name != task:
             continue
         if task or re.search(pattern, low):
-            for pref in prefs:
-                hit = next((m for m in avail if re.search(pref, m["name"].split(":", 2)[-1] if m["provider"] != "ollama" else m["name"])
-                            or re.search(pref, m["name"])), None)
-                if hit:
-                    return hit["name"], {"code": "coding", "reason": "thinking it through", "write": "writing",
-                                         "quick": "quick answer", "general": "general"}[name]
+            if pins.get(name) in names:
+                return pins[name], TASK_WHY[name] + " · your pick"
+            if name == "quick":            # quick answers: the fastest measured brain on the list wins
+                cands = [m for m in avail if any(match(m, p) for p in prefs)]
+                if cands:
+                    best = min(cands, key=lambda m: (ms(m), next(i for i, p in enumerate(prefs) if match(m, p))))
+                    return best["name"], TASK_WHY[name]
+            for pref in prefs:             # other jobs: best brain first; among equals, the fastest
+                hits = sorted((m for m in avail if match(m, pref)), key=ms)
+                if hits:
+                    return hits[0]["name"], TASK_WHY[name]
     return avail[0]["name"], "general"
 
 
@@ -965,7 +1023,7 @@ def converse(chat, model, opts, emit):
     stop.clear()
 
     for _ in range(MAX_TOOL_ROUNDS):
-        msg, calls, again = providers.run_round(model, system_prompt(bool(tools), chat, opts), chat["messages"],
+        msg, calls, again = timed_round(model, system_prompt(bool(tools), chat, opts), chat["messages"],
                                                 tools, opts, settings, emit, stop)
         chat["messages"].append(msg)
         save_json(CHATS, chat)
@@ -1270,6 +1328,8 @@ class Handler(BaseHTTPRequestHandler):
                 self.send_json(load_json(PROJECTS, url.path.rsplit("/", 1)[1]))
             elif url.path == "/api/settings":
                 self.send_json(public_settings())
+            elif url.path == "/api/brain_speed":
+                self.send_json(brain_speed())
             elif url.path == "/api/screen_memory":
                 self.send_json(screen_memory_stats())
             elif url.path == "/api/brains":
@@ -1623,7 +1683,7 @@ class Handler(BaseHTTPRequestHandler):
                 self.wfile.flush()
 
         try:
-            msg, calls, _ = providers.run_round(model, prompt, msgs, brain_tools, {"caps": model_caps(model)}, load_settings(),
+            msg, calls, _ = timed_round(model, prompt, msgs, brain_tools, {"caps": model_caps(model)}, load_settings(),
                                                 emit, threading.Event())
         except Exception as e:
             if stream:

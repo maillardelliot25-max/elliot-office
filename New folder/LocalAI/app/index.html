@@ -351,6 +351,8 @@
     <input type="password" id="sOpenAI" placeholder="sk-…" autocomplete="off">
     <label>Math mode uses</label>
     <select id="sMath"><option value="auto">Auto: best ChatGPT model, else Claude, else Gemini</option></select>
+    <label>✨ Smart: brain for each job (Auto picks the best you have; among equals the fastest, timed in ms)</label>
+    <div id="taskBrains" style="display:grid;grid-template-columns:auto 1fr;gap:6px 10px;align-items:center"></div>
     <h3>Image &amp; video generation</h3>
     <label>Google AI Studio key, for <b>Gemini</b> chat, images and video: free at <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">aistudio.google.com/apikey</a></label>
     <input type="password" id="sKey" placeholder="AIza…" autocomplete="off">
@@ -1005,6 +1007,25 @@ $("pDelete").onclick = async () => {
 
 // ── Models ────────────────────────────────────────────────────────────
 const caps = name => (models.find(m => m.name === name) || {}).caps || [];
+const TASKS = [["code", "Coding"], ["write", "Writing"], ["reason", "Thinking / maths"], ["quick", "Quick answers"], ["vision", "Pictures"], ["general", "Everything else"]];
+async function renderTaskBrains() {
+  let sp = {};
+  try { sp = await api("/api/brain_speed"); } catch {}
+  const pins = (settings && settings.task_brains) || {};
+  const opts = models.filter(m => m.name !== "smart").map(m => {
+    const t = sp[m.name];
+    return `<option value="${esc(m.name)}">${esc(m.label)}${t ? ` · ${t.first_ms} ms` : ""}</option>`;
+  }).join("");
+  $("taskBrains").innerHTML = TASKS.map(([k, label]) =>
+    `<span>${label}</span><select data-task="${k}"><option value="">Auto</option>${opts}</select>`).join("");
+  $("taskBrains").querySelectorAll("select").forEach(sel => { sel.value = pins[sel.dataset.task] || ""; if (sel.value !== (pins[sel.dataset.task] || "")) sel.value = ""; });
+}
+function taskBrainValues() {
+  const out = {};
+  document.querySelectorAll("#taskBrains select").forEach(sel => { if (sel.value) out[sel.dataset.task] = sel.value; });
+  return out;
+}
+
 async function loadModels() {
   try {
     const r = await api("/api/models");
@@ -1016,6 +1037,7 @@ async function loadModels() {
     $("sMath").innerHTML = `<option value="auto">Auto: best ChatGPT model, else Claude, else Gemini</option>` +
       models.filter(m => m.provider !== "ollama").map(m => `<option value="${esc(m.name)}">${esc(m.label)}</option>`).join("");
     $("oModel").innerHTML = $("model").innerHTML;
+    renderTaskBrains();
     if (!pref("smart_v1")) { setPref("smart_v1", "1"); setPref("model", "smart"); }   // Smart brain on by default (once)
     const want = pref("model", settings.default_model);
     if (models.some(m => m.name === want)) $("model").value = want;
@@ -1421,6 +1443,7 @@ function fillSettings(s) {
   $("sPy").checked = !!s.auto_python;
   if (s.math_model && ![...$("sMath").options].some(o => o.value === s.math_model)) $("sMath").add(new Option(s.math_model, s.math_model));
   $("sMath").value = s.math_model || "auto";
+  if (models.length) renderTaskBrains();
   $("sProvider").value = s.image_provider || "gemini"; $("sVidModel").value = s.video_model || ""; $("sLocal").value = s.local_image_url || "";
   if (s.image_model && ![...$("sImgModel").options].some(o => o.value === s.image_model)) $("sImgModel").add(new Option(s.image_model, s.image_model));
   if (s.image_model) $("sImgModel").value = s.image_model;
@@ -1447,7 +1470,7 @@ $("sSave").onclick = async () => {
       image_model: $("sImgModel").value, video_model: $("sVidModel").value.trim() || "veo-3.1-generate-preview",
       local_image_url: $("sLocal").value.trim() || "http://127.0.0.1:7860",
       anthropic_api_key: $("sAnthropic").value.trim(), openai_api_key: $("sOpenAI").value.trim(),
-      math_model: $("sMath").value, auto_python: $("sPy").checked,
+      math_model: $("sMath").value, auto_python: $("sPy").checked, task_brains: taskBrainValues(),
     }});
     $("settings").classList.remove("open"); toast("Settings saved"); setMode(mode);
     applyName(); loadModels();
